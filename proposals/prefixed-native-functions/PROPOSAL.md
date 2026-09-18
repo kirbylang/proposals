@@ -114,6 +114,8 @@ tokenize the prefix, how the parser would then recognize a native
 reference, and a migration path for existing call sites are all left as
 follow-up work once the prefix question itself is settled.
 
+The prefix character would not be valid in user code defined identifiers so there is no possibility of overwriting native functions.
+
 ## Related Proposals
 
 - [Additional Native Functions Proposal] — adds roughly 18 more native
@@ -131,32 +133,13 @@ follow-up work once the prefix question itself is settled.
 
 ### **Q:** What should the prefix character be?
 
-<!-- [Q-prefix-char]: #q-what-should-the-prefix-character-be -->
+**Status:** Answered
 
-**Status:** Open
+#### Answers
 
-`@` is the current winner. Candidates are limited to punctuation
-`src/scanner.c` doesn't already give meaning to. `@` and `$` are fully
-free. `#` is not fully free: `skipWhitespace` already treats a leading `#!`
-as a shebang line to skip, for `#!/usr/bin/env kirby`-style scripts. A bare
-`#len` wouldn't hit that same case — only `#!` does — but giving `#` a
-second, unrelated meaning right next to the shebang case seems like exactly
-the kind of muddiness a single, unambiguous prefix is supposed to avoid.
-
-Between `@` and `$`: `@` has precedent elsewhere for "this name is managed
-by the environment, not by you" (Python decorators, Elixir module
-attributes) without implying anything about what kind of value it is.
-`$` more commonly signals "this is a variable" (PHP, shell), which could
-mislead a reader into thinking `@setenv` names a value rather than a call.
-
-One naming wrinkle regardless of which character wins: `__version__` is
-already marked as special today, but by leading/trailing double underscores
-rather than punctuation. Whether it becomes `@__version__` (marked twice)
-or is renamed outright (`@version`) isn't settled by anything above.
+`@` is the prefix.
 
 ### **Q:** Does this change with modules?
-
-<!-- [Q-modules]: #q-does-this-change-with-modules -->
 
 **Status:** Open
 
@@ -176,26 +159,16 @@ of its own ([Q-assembly] there), so this can't really be answered until
 that one is further along; whichever answer comes first, the two documents
 should stay in agreement.
 
-### **Q:** What else should this account for?
+### **Q:** Whether documentation stays keyed by the bare name.
 
-<!-- [Q-other]: #q-what-else-should-this-account-for -->
+**Status:** Answered
 
-**Status:** Open
+`vsc/hovers/len.md` is filename-keyed to the bare name today; deciding
+now whether that key becomes `@len.md` avoids a second rename later.
 
-- **Every existing call site breaks.** 210 of the 562 `.krb` files under
-  `tests/` call at least one native by its current bare name. Per
-  AGENTS.md, those files "serve as the language's syntax documentation," so
-  this is a rewrite of the language's own worked examples, not just a
-  test-suite update. `docs/CHANGELOG.md` and every `vsc/hovers/*.md`
-  example snippet call natives unprefixed too.
-- **Whether the prefix is enforced or purely conventional.** Nothing above
-  says whether `fun @len() {}` would be rejected, or whether a user could
-  still declare plain `fun len() {}` once the native is spelled `@len`
-  everywhere else — i.e., whether this reserves the prefixed spelling, the
-  bare one, both, or neither.
-- **Whether documentation stays keyed by the bare name.**
-  `vsc/hovers/len.md` is filename-keyed to the bare name today; deciding
-  now whether that key becomes `@len.md` avoids a second rename later.
+#### Answer
+
+If it works, `@len.md` is ideal for simplity.
 
 ## Glossary
 
