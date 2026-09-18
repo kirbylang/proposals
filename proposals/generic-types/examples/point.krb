@@ -1,0 +1,71 @@
+struct Point {
+    pub var x: f64;
+    pub var y: f64;
+}
+
+impl Point {
+    pub fun new(x: f64, y: f64): Self {
+        Self {
+            x: x,
+            y: y,
+        }
+    }
+}
+
+impl Display for Point {
+    fun toString(self): string {
+        "(" + numberToString(self.x) + "," + numberToString(self.y) + ")"
+    }
+}
+
+impl Add for Point {
+    fun add(self, other: Self): Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
+impl Sub for Point {
+    fun sub(self, other: Self): Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+impl Div for Point {
+    fun div(self, other: Self): Self {
+        Self {
+            x: self.x / other.x,
+            y: self.y / other.y,
+        }
+    }
+}
+
+impl Mul for Point {
+    fun mul(self, other: Self): Self {
+        Self {
+            x: self.x * other.x,
+            y: self.y * other.y,
+        }
+    }
+}
+
+let point_a = Point.new(10, 20);
+let point_b = Point.new(30, 40);
+let point_c = point_a + point_b;
+let point_d = point_c - Point.new(5, 5);
+let point_e = point_d / Point.new(5, 5);
+let point_f = point_e * Point.new(3, 3);
+
+print point_a.toString();
+print point_b.toString();
+print point_c.toString();
+print point_d.toString();
+print point_e.toString();
+print point_f.toString();
+
+print (point_a * point_b - point_c / point_d + point_e).toString();

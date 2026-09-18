@@ -340,6 +340,123 @@ named.
    bytecode VM. Part 9 records how an ahead-of-time native backend could be added
    later and why nothing here blocks it, but it is out of scope.
 
+### Examples
+
+#### Box
+
+[box.krb]
+
+```kirby
+struct Box[T] {
+  pub var value: T;
+}
+
+impl Box[T] {
+  pub fun new(value: T): Self[T] = Self {
+    value: value
+  };
+
+  pub fun get(self): T = self.value;
+
+  pub fun map[U](self, map: fun (T) => U): Self[U] =
+    Self.new(map(self.value));
+}
+
+let box_a = Box.new(5);
+print box_a.get(); // 5
+
+let box_b = box_a.map(double);
+print box_b.get(); // 10
+
+let box_c = box_b.map(square);
+print box_c.get(); // 100
+
+let box_d = box_c.map(gt(1000));
+print box_d.get(); // false
+
+fun square(value: f64): f64 = value * value;
+fun double(value: f64): f64 = value * 2;
+fun gt(threshold: f64): fun (f64) => bool = fun (value) { value > threshold };
+```
+
+#### Point
+
+[point.krb]
+
+```kirby
+struct Point {
+    pub var x: f64;
+    pub var y: f64;
+}
+
+impl Point {
+    pub fun new(x: f64, y: f64): Self {
+        Self {
+            x: x,
+            y: y,
+        }
+    }
+}
+
+impl Display for Point {
+    fun toString(self): string {
+        "(" + numberToString(self.x) + "," + numberToString(self.y) + ")"
+    }
+}
+
+impl Add for Point {
+    fun add(self, other: Self): Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
+impl Sub for Point {
+    fun sub(self, other: Self): Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+impl Div for Point {
+    fun div(self, other: Self): Self {
+        Self {
+            x: self.x / other.x,
+            y: self.y / other.y,
+        }
+    }
+}
+
+impl Mul for Point {
+    fun mul(self, other: Self): Self {
+        Self {
+            x: self.x * other.x,
+            y: self.y * other.y,
+        }
+    }
+}
+
+let point_a = Point.new(10, 20);
+let point_b = Point.new(30, 40);
+let point_c = point_a + point_b;
+let point_d = point_c - Point.new(5, 5);
+let point_e = point_d / Point.new(5, 5);
+let point_f = point_e * Point.new(3, 3);
+
+print point_a.toString();
+print point_b.toString();
+print point_c.toString();
+print point_d.toString();
+print point_e.toString();
+print point_f.toString();
+
+print (point_a * point_b - point_c / point_d + point_e).toString();
+```
+
 ---
 
 ## Part 3 — Generic type parameters
@@ -1259,3 +1376,8 @@ printf 'struct P { pub var x: f64; }\nimpl Ord for P { fun cmp(self, other: Self
 echo 'impl Eq for f64 { fun equals(self, other: Self): bool = true; }' > /tmp/f.krb
 ./build/krb -f /tmp/f.krb  # "Primitive trait implementations aren't supported yet."
 ```
+
+## Link References
+
+[box.krb]: ./examples/box.krb
+[point.krb]: ./examples/point.krb
