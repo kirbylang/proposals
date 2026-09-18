@@ -778,8 +778,16 @@ and revisit when a numeric-type-family proposal exists.
 
 **Why open:** this document has tried to do (a) — every example and every
 Question above is phrased in terms of "primitive kind" rather than hardcoding
-`f64` — but no numeric-type-family proposal exists yet to check that framing
-against, so it's recorded here as unverified rather than settled.
+`f64` — and a numeric-type-family proposal now exists,
+[Sized Number Types][sized-number-types], to check that framing against.
+That proposal doesn't yet settle its own central questions (its own
+Q-runtime-repr and Q-narrowing — whether a numeric kind is a real runtime
+property or a compile-time-only fiction, and what an explicit narrowing
+conversion does when a value doesn't fit), so this question stays open
+until it does. The recommendation stays (a) regardless of how those
+resolve: nothing in that proposal's current draft narrows the set of kinds
+this feature would need to reach, only how many of them there end up
+being.
 
 ---
 
@@ -790,6 +798,7 @@ against, so it's recorded here as unverified rather than settled.
 [Questions]: #questions
 [Problem Statement]: #problem-statement
 [generic-types]: ../generic-types/PROPOSAL.md
+[sized-number-types]: ../sized-number-types/PROPOSAL.md
 
 ---
 
