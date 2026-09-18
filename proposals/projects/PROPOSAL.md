@@ -41,7 +41,8 @@ Kirby has no concept of a project and without [Modules], Kirby is limited to exe
 
 ## Conventions
 
-- Root project folder e.g. `kirby.toml|kdl`
+- Root project folder [kirby.toml]
+- Source folder: `src/**/*.krb`
 
 ## Questions
 
@@ -57,6 +58,8 @@ These are both technical and non technical terms used throughout the proposal.
 ## Link References
 
 <!-- Link references are preferred for all types of links -->
+
+[kirby.toml]: ./kirby.toml
 
 <!-- Sections -->
 
