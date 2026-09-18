@@ -1,9 +1,7 @@
-# ---
-
+---
 status: Draft
 created: 2026-09-18
-from_commit: `b09db2e`
-
+from_commit: b09db2e
 ---
 
 # Proposal: Testing
