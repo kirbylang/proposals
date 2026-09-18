@@ -164,7 +164,9 @@ Type` block, the parser sets every method's visibility to public regardless
   ```
 
 - **You cannot implement a trait for a primitive.** `impl Eq for f64` reports
-  "Primitive trait implementations aren't supported yet."
+  "Primitive trait implementations aren't supported yet." Lifting this
+  restriction — independent of generics, bounds, or monomorphization — is its
+  own proposal (`/proposals/primitive-impls/PROPOSAL.md`).
   There is **no bound syntax.** You cannot write `fun f[T: Display](x: T)`. The
   grammar has no place for it and the checker has no notion of it.
 
@@ -632,7 +634,10 @@ Two coherent options:
   it extends the same shape to route struct operands through the trait method.
 - **Make every operator a trait method uniformly**, including for `f64`, by
   giving primitives real trait implementations (which requires lifting the
-  current "primitive trait implementations aren't supported yet" restriction).
+  current "primitive trait implementations aren't supported yet" restriction;
+  the primitive-impls proposal (`/proposals/primitive-impls/PROPOSAL.md`)
+  designs that lift on its own, independent of this proposal, and should be
+  consumed here rather than re-derived if this option is chosen).
   Cleaner in principle, more work, and pays a dispatch cost on the hottest
   path (plain number arithmetic) unless specially optimized.
   The first option is the smaller, safer step and is recommended. Whichever is
@@ -1107,7 +1112,8 @@ accepting dispatch cost on numeric arithmetic unless optimized.
 **Why open:** (a) is faster and smaller but means primitives and structs take
 different paths for the "same" operator; (b) is more uniform but slower on the
 hottest path and needs the "primitive trait implementations aren't supported
-yet" restriction lifted first.
+yet" restriction lifted first (the primitive-impls proposal proposes exactly
+that lift, independent of this document).
 
 ### 10.4 Changing `==` runtime semantics
 
