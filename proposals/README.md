@@ -8,4 +8,5 @@
 - [macros](/proposals/macros/PROPOSAL.md)
 - [modules](/proposals/modules/PROPOSAL.md)
 - [primitive-impls](/proposals/primitive-impls/PROPOSAL.md)
+- [projects](/proposals/projects/PROPOSAL.md)
 - [span-tracking](/proposals/span-tracking/PROPOSAL.md)
