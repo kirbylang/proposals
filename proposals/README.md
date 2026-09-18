@@ -12,3 +12,4 @@
 - [projects](/proposals/projects/PROPOSAL.md)
 - [sized-number-types](/proposals/sized-number-types/PROPOSAL.md)
 - [span-tracking](/proposals/span-tracking/PROPOSAL.md)
+- [testing](/proposals/testing/PROPOSAL.md)
