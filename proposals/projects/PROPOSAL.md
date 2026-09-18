@@ -1,6 +1,6 @@
 ---
 status: Draft
-created: 2026-09-D18
+created: 2026-09-18
 from_commit: b56a2a9
 ---
 
@@ -45,18 +45,6 @@ Kirby has no concept of a project and without [Modules], Kirby is limited to exe
 
 ## Questions
 
-### **Q:** <!-- A very concise wording of the question -->
-
-<!-- [Q#]: #id-of-this-question -->
-
-**Status:** <!-- Open | Answered -->
-
-<!-- A breakdown of the question -->
-
-#### Answer
-
-<!-- What answer or conclusion to the question. This section only appears after the question is answered.  -->
-
 ## Glossary
 
 These are both technical and non technical terms used throughout the proposal.
@@ -65,8 +53,6 @@ These are both technical and non technical terms used throughout the proposal.
 
 - **Changes**: Changes refer the proposed changes in this document
 - **Project**: A folder containing a root project file, one or more Kirby source files
-- **<!--Term-->**: <!-- Concise definition of the term. -->
-- **<!--Term-->**: <!-- Concise definition of the term... -->
 
 ## Link References
 
