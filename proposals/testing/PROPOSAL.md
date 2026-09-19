@@ -45,8 +45,6 @@ Kirby doesn't have a way to write and run tests that test Kirby code.
   - Default pattern: `**/*.test.krb`
 - New native functions
   - `@test(description, closure)`
-  - `@assert(bool, string)`
-  - `@panic(string)`
 
 ## Related Proposals
 

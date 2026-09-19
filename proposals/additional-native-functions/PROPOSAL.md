@@ -104,47 +104,40 @@ re-litigates:
 
 ## The Functions
 
-| Function                   | Params                 | Returns    |
-| -------------------------- | ---------------------- | ---------- |
-| `floor(n)`                 | f64                    | f64        |
-| `round(n)`                 | f64                    | f64        |
-| `trunc(n)`                 | f64                    | f64        |
-| `abs(n)`                   | f64                    | f64        |
-| `sqrt(n)`                  | f64                    | f64        |
-| `pow(base, exponent)`      | f64, f64               | f64        |
-| `min(a, b)`                | f64, f64               | f64        |
-| `max(a, b)`                | f64, f64               | f64        |
-| `strContains(s, sub)`      | string, string         | bool       |
-| `strIndexOf(s, sub)`       | string, string         | f64 or nil |
-| `strSlice(s, start, end)`  | string, f64, f64       | string     |
-| `strSplit(s, sep)`         | string, string         | array      |
-| `strTrim(s)`               | string                 | string     |
-| `strToUpper(s)`            | string                 | string     |
-| `strToLower(s)`            | string                 | string     |
-| `strStartsWith(s, prefix)` | string, string         | bool       |
-| `strEndsWith(s, suffix)`   | string, string         | bool       |
-| `strRepeat(s, count)`      | string, f64            | string     |
-| `strReplace(s, old, new)`  | string, string, string | string     |
-
-Math native functions wrap the corresponding `<math.h>` function directly (`floor`, `round`, `trunc`, `fabs`, `sqrt`, `pow`) or a direct comparison (`min`, `max`), the same way `ceilNative` wraps `ceil`. `sqrt`'s behavior outside its domain (negative input) is [Q-sqrt-domain].
+| Function                     | Params                 | Returns    |
+| ---------------------------- | ---------------------- | ---------- |
+| `assert(cond, message)`      | bool, string           | unit       |
+| `panic(message)`             | string                 | unit       |
+| `floor(n)`                   | f64                    | f64        |
+| `round(n)`                   | f64                    | f64        |
+| `trunc(n)`                   | f64                    | f64        |
+| `abs(n)`                     | f64                    | f64        |
+| `sqrt(n)`                    | f64                    | f64        |
+| `pow(base, exponent)`        | f64, f64               | f64        |
+| `min(a, b)`                  | f64, f64               | f64        |
+| `max(a, b)`                  | f64, f64               | f64        |
+| `strContains(s, sub)`        | string, string         | bool       |
+| `strIndexOf(s, sub)`         | string, string         | f64 or nil |
+| `strSlice(s, start, end)`    | string, f64, f64       | string     |
+| `strSplit(s, sep)`           | string, string         | array      |
+| `strTrim(s)`                 | string                 | string     |
+| `strToUpper(s)`              | string                 | string     |
+| `strToLower(s)`              | string                 | string     |
+| `strStartsWith(s, prefix)`   | string, string         | bool       |
+| `strEndsWith(s, suffix)`     | string, string         | bool       |
+| `strRepeat(s, count)`        | string, f64            | string     |
+| `strReplace(s, old, new)`    | string, string, string | string     |
+| `strReplaceAll(s, old, new)` | string, string, string | string     |
 
 Notes, each following an existing pattern rather than inventing a new one:
 
 - **`strIndexOf` returns `nil`, not `-1`, when the substring isn't found.**
-  This follows `argv`'s existing precedent for "absent" rather than
-  introducing a sentinel value with no precedent elsewhere in the language.
-- **`strSlice` mirrors `arrSlice` exactly**: the same
-  `assertPositiveNumber` / `assertIsInArrayBounds`-equivalent bounds
-  checks, and the same `start < end` requirement.
 - **`strTrim` removes ` `, `\t`, `\n`, and `\r`** — the same whitespace
   characters the lexer already recognizes as escape sequences, not a
   locale-dependent `isspace()`.
 - **`strToUpper`/`strToLower` are byte-oriented (ASCII), not Unicode-aware**,
   consistent with the rest of the string implementation — `ObjString` is a
   `char*` and a byte length, with no encoding tracked anywhere today.
-- **`strReplace`'s replace-first-vs-replace-all behavior** is
-  [Q-replace-all].
-- **`strSplit`'s behavior on an empty separator** is [Q-split-empty].
 
 ## Questions
 
@@ -169,27 +162,6 @@ every other invalid-input case in `native.c` is handled today — everything
 else raises rather than returning a sentinel; (b) is cheaper to implement
 and avoids the new assert helper.
 
-### **Q:** Does `strReplace` replace the first occurrence or every occurrence?
-
-<!-- [Q-replace-all]: #q-does-strreplace-replace-the-first-occurrence-or-every-occurrence -->
-
-**Status:** Open
-
-Conventions differ across languages the target audience is likely to have
-used — replacing every occurrence by default is more common, but not
-universal, and there's no existing Kirby precedent either way to defer to.
-
-Options: (a) replace every occurrence, matching the majority convention and
-the intuition that `arrJoin`'s inverse should handle a whole string, not
-just its first match; (b) replace only the first occurrence, which is
-cheaper to implement correctly (no need to re-scan the replacement for
-further matches of `old`) and leaves "replace all" open for a later
-`strReplaceAll` if it's wanted. If (a), whether `new` itself can contain
-`old` and cause re-matching inside the replacement needs an explicit answer
-(most implementations scan the _original_ string's remaining tail, not the
-freshly-substituted output, to avoid infinite work — that should be stated
-outright rather than left to whatever the implementation happens to do).
-
 ### **Q:** What does `strSplit` do with an empty separator?
 
 <!-- [Q-split-empty]: #q-what-does-strsplit-do-with-an-empty-separator -->
@@ -206,6 +178,10 @@ elsewhere; (c) return the whole string as a single-element array, treating
 the easiest to loosen later if (b) or (c) turns out to be wanted; loosening
 a runtime error into defined behavior is backwards-compatible, the reverse
 is not.
+
+#### Answer
+
+It should split into individual single character strings.
 
 ## Glossary
 
@@ -234,5 +210,4 @@ proposal.
 <!-- Questions -->
 
 [Q-sqrt-domain]: #q-what-should-sqrt-do-outside-its-domain
-[Q-replace-all]: #q-does-strreplace-replace-the-first-occurrence-or-every-occurrence
 [Q-split-empty]: #q-what-does-strsplit-do-with-an-empty-separator
