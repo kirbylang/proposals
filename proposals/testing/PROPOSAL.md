@@ -48,6 +48,10 @@ Kirby doesn't have a way to write and run tests that test Kirby code.
 
 ## Related Proposals
 
+- [Debugger Proposal] — debugging a single test would be a natural use of the
+  debugger. The debugger's first version only supports `krb -f`, so supporting
+  `krb test` is left to whichever of the two proposals lands second.
+
 ## Questions
 
 ### Q: Colocating test code with impplementation code
@@ -84,5 +88,7 @@ These are both technical and non-technical terms used throughout the proposal.
 <!-- Questions -->
 
 <!-- Related proposals -->
+
+[Debugger Proposal]: ../debugger/PROPOSAL.md
 
 <!-- Example: [Proposal Name]: path/to/PROPOSAL.md -->

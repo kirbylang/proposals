@@ -252,6 +252,11 @@ type-checks, and runs on a clean build — including with the definition in
   switch to a method call.
 - [Testing Proposal] — acceptance tests for this feature (scanning, parsing,
   lowering, runtime output) would land with the test framework.
+- [Debugger Proposal] — the Part 3 lowering calls into the stdlib
+  `StringBuilder`, so stepping into a line with an interpolated string would
+  enter stdlib code unless library code is skipped ([Q-library] there). The
+  lowered instructions should carry the line of the interpolated string, so
+  breakpoints and error traces point at the line the programmer wrote.
 
 ## Questions
 
@@ -364,6 +369,11 @@ proposal.
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
 [Testing Proposal]: ../testing/PROPOSAL.md
 [Modules]: ../modules/PROPOSAL.md
+[Debugger Proposal]: ../debugger/PROPOSAL.md
+
+<!-- Other proposals' questions -->
+
+[Q-library]: ../debugger/PROPOSAL.md#q-how-does-step-into-treat-code-the-programmer-did-not-write
 
 <!-- External -->
 

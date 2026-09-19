@@ -73,6 +73,12 @@ and not fused with the generics system.
 - This proposal is independent of the type-system proposal in the sense that
   expansion runs entirely before type checking (see [The Pipeline]). It does
   not touch generics, bounds, or monomorphization.
+- The [Debugger Proposal] needs to tell code the programmer wrote from code a
+  macro generated. The origin information on spans is what lets a debugger step
+  over generated code, or show the macro call instead. A variable a macro
+  introduces has a name the programmer never wrote, so the debug information
+  should be able to mark it as generated. Macros run on the VM while compiling
+  (Part 3), and debugging that is outside the scope of the debugger proposal.
 
 ## The Changes
 
@@ -244,6 +250,10 @@ These are both technical and non technical terms used throughout the proposal.
 [Links]: #link-references
 [Glossary]: #glossary
 [Questions]: #questions
+
+<!-- Proposals -->
+
+[Debugger Proposal]: ../debugger/PROPOSAL.md
 
 <!-- Questions -->
 

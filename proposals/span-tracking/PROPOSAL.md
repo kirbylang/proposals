@@ -95,6 +95,10 @@ expansion.
 - The generics work in the type-system proposal creates and rewrites types and
   syntax (substitution, instantiation); as it does, it should set spans rather
   than leave them to be added later.
+- The [Debugger Proposal] needs two things from this one at run time, not only
+  at compile time: which file a compiled function came from, and the line of
+  every instruction. Both must be readable from the compiled unit by the VM,
+  which does not depend on the compiler. See [Q-files] and [Q-compiled].
 
 ## The Changes
 
@@ -194,6 +198,35 @@ Options: (a) an integer file id into a table of file paths held by the compile
 session; (b) storing paths directly on spans (larger). This interacts with how
 the module system names and loads files.
 
+The [Debugger Proposal] adds a constraint. To show a programmer which file a
+running function came from, the VM needs the table of file paths, and the VM
+does not depend on the compiler (see `interpret()` in `src/vm.h`). So under
+option (a) the table cannot stay only in the compile session; a copy has to
+travel in the `CompiledUnit`. Today one unit is one file, and `krb -f` runs two
+of them in a row (`stdlib/stdlib.krb`, then the program). How the path is
+written (absolute, relative to a project) is [Q-paths] in that proposal.
+
+### **Q:** Which span information reaches the compiled unit?
+
+<!-- [Q-compiled]: #q-which-span-information-reaches-the-compiled-unit -->
+
+**Status:** Open
+
+Part 2 puts a span on every AST node. It does not say what survives into the
+compiled output. Today a `CompiledFn` keeps one line number for every byte of
+bytecode (`codeLines` in `src/compiled_unit.h`) and nothing else, and the
+loader copies it into `Chunk.lines`. Runtime error traces and the
+[Debugger Proposal]'s breakpoints and stepping are built on it.
+
+Options: (a) keep one line per byte and add a file per function. It is the
+smallest change and is all the debugger's first version needs, but columns are
+lost, so run-time errors and the debugger stay at line level. (b) store a full
+span for every instruction. It allows precise run-time errors and column-level
+debugging, and is the largest. (c) store a compact table per function that maps
+ranges of bytecode to spans. It is smaller than (b) and needs a little more
+work to build and read. Whatever is chosen, the VM has to be able to read it
+without the compiler, and it interacts with [Q-cost].
+
 ### **Q:** How much does per-node span storage cost, and does it matter?
 
 <!-- [Q-cost]: #q-how-much-does-per-node-span-storage-cost-and-does-it-matter -->
@@ -233,10 +266,16 @@ These are both technical and non technical terms used throughout the proposal.
 <!-- Proposals -->
 
 [Macros Proposal]: ../macros/PROPOSAL.md
+[Debugger Proposal]: ../debugger/PROPOSAL.md
+
+<!-- Other proposals' questions -->
+
+[Q-paths]: ../debugger/PROPOSAL.md#q-what-form-does-the-recorded-source-path-take
 
 <!-- Questions -->
 
 [Q-repr]: #q-what-is-the-exact-representation-of-a-span
 [Q-origin]: #q-how-is-origin-chained-through-nested-macro-expansion
 [Q-files]: #q-how-are-multiple-source-files-identified
+[Q-compiled]: #q-which-span-information-reaches-the-compiled-unit
 [Q-cost]: #q-how-much-does-per-node-span-storage-cost-and-does-it-matter

@@ -8,6 +8,7 @@
 ## Draft
 
 - [collection-methods](./collection-methods/PROPOSAL.md)
+- [debugger](/proposals/debugger/PROPOSAL.md)
 - [generic-types](/proposals/generic-types/PROPOSAL.md)
 - [macros](/proposals/macros/PROPOSAL.md)
 - [modules](/proposals/modules/PROPOSAL.md)

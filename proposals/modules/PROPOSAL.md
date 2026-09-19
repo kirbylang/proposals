@@ -91,6 +91,11 @@ This proposal exists to close that gap, but most of _how_ is still open.
 - **Macros.** Compile-time reflection over a struct's shape reads the same
   information a module's public interface records. Whether they share one body
   of data is an open question in both proposals.
+- **Debugger.** A debugger needs source paths and local variable names, and
+  those live in the compiled unit. A module shipped without its source raises
+  two questions: does its compiled form carry that debug information at all,
+  and what does a source path recorded on one machine mean on another? See
+  [Q-paths] and [Q-strip] in the [Debugger Proposal].
 
 ## The Changes (Sketch)
 
@@ -226,8 +231,12 @@ located, or how the final program is assembled has been decided.
 Sub-questions: the syntax for importing/using a module; how a module's identity
 and version are expressed; how the toolchain finds a module's compiled artifact
 and interface; how a dependency graph is resolved and in what order
-specialization runs across it. This is a large area on its own and may warrant
-its own proposal once the interface format is settled.
+specialization runs across it. It also includes whether a module's compiled
+artifact carries debug information (source paths, local variable names) and how
+a recorded source path is meant to be read on another machine; the
+[Debugger Proposal] raises this as [Q-paths] and [Q-strip]. This is a large area
+on its own and may warrant its own proposal once the interface format is
+settled.
 
 ### **Q:** How do modules interact with compile-time reflection?
 
@@ -270,6 +279,15 @@ These are both technical and non technical terms used throughout the proposal.
 [Links]: #link-references
 [Glossary]: #glossary
 [Questions]: #questions
+
+<!-- Proposals -->
+
+[Debugger Proposal]: ../debugger/PROPOSAL.md
+
+<!-- Other proposals' questions -->
+
+[Q-paths]: ../debugger/PROPOSAL.md#q-what-form-does-the-recorded-source-path-take
+[Q-strip]: ../debugger/PROPOSAL.md#q-is-debug-information-always-recorded
 
 <!-- Questions -->
 

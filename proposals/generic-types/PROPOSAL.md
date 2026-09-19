@@ -1156,6 +1156,17 @@ meaningful one — avoids that. This applies to the generics and macro work in
 this document: as those passes create and rewrite syntax and types, they should
 set spans, not leave them to be added later.
 
+### 8.4 Debugging
+
+The [Debugger Proposal] sets breakpoints by source file and line. After
+monomorphization one generic function is compiled once for each set of type
+arguments (Part 5.2), so a breakpoint on a line inside it has to stop in every
+copy. That needs no extra design as long as each specialization keeps the
+generic's source file and line numbers when its checked body is substituted and
+compiled (Part 5.2, step 2). This is the same rule 8.3 sets for spans. A
+specialization should also have a readable name in the call stack, such as
+`sum[f64]`, rather than an internal one.
+
 ---
 
 ## Part 9 — Ahead-of-time native compilation (deferred)
@@ -1381,3 +1392,4 @@ echo 'impl Eq for f64 { fun equals(self, other: Self): bool = true; }' > /tmp/f.
 
 [box.krb]: ./examples/box.krb
 [point.krb]: ./examples/point.krb
+[Debugger Proposal]: ../debugger/PROPOSAL.md
