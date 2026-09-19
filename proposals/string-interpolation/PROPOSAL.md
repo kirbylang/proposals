@@ -318,7 +318,7 @@ Escaping `\{` and `\}` for now. If `{{expr}}` is supported in the future, it wil
 
 <!-- [Q-stdlib-name]: #q-is-stringbuilder-the-right-name-for-a-stdlib-global -->
 
-**Status:** Answer
+**Status:** Answered
 
 Part 2 puts `StringBuilder` in every program's global namespace (the stdlib
 loads first in every run mode), and a user program that declares its own
