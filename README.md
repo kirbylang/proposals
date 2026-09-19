@@ -1,6 +1,6 @@
 # Kirby Language Proposals
 
-Design proposals for the Kirby language
+Design proposals for the [Kirby language](https://github.com/kirbylang/kirbylang).
 
 ## Proposals
 
