@@ -145,7 +145,7 @@ Notes, each following an existing pattern rather than inventing a new one:
 
 <!-- [Q-sqrt-domain]: #q-what-should-sqrt-do-outside-its-domain -->
 
-**Status:** Open
+**Status:** Answered
 
 `sqrt(n)` is undefined for `n < 0`. None of the existing single-argument
 math helpers have a domain restriction to follow as precedent —
@@ -162,11 +162,15 @@ every other invalid-input case in `native.c` is handled today — everything
 else raises rather than returning a sentinel; (b) is cheaper to implement
 and avoids the new assert helper.
 
+#### Answer
+
+If possible, try to catch as a compile time error if it's a compile time constant value. e.g. `sqrt(-1)`. Raise a runtime error otherwise.
+
 ### **Q:** What does `strSplit` do with an empty separator?
 
 <!-- [Q-split-empty]: #q-what-does-strsplit-do-with-an-empty-separator -->
 
-**Status:** Open
+**Status:** Answered
 
 `strSplit("abc", "")` has no single obvious answer.
 
