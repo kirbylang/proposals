@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Ready
 created: 2026-09-18
 from_commit: b56a2a9
 ---
