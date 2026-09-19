@@ -1,7 +1,7 @@
 ---
-status: Draft
+status: Draft # Draft | Closed
 created: YYYY-MM-DD
-from_commit: $commit
+from_commit: $commit # Commit kirbylang at time of proposal creation/update.
 ---
 
 # Proposal: <!-- Title of the proposal -->
@@ -79,6 +79,25 @@ A detailed description of this part of the implementation.
 
 - [Proposal Name] — <!-- nature of the relationship, e.g. "depends on", "supersedes", "conflicts with" -->
 
+### Testing Plan
+
+How do we know the implemented proposal works?
+
+#### E2E Tests
+
+The E2E syntax tests should cover all valid and invalid parser/compiler/runtime error cases.
+
+##### <!-- NEW | CHANGED -->: <!-- tests/path/to/this/test.krb -->
+
+<!--
+  NEW: Code block with test written in Kirby code
+  CHANGED: Diff block with changes
+    -->
+
+###### Expected Outcome
+
+<!-- Description of the expected outcome once this proposal is fully implemented. -->
+
 ## Outcome
 
 <!-- Appears only once the proposal is no longer Draft, and only to record the final status and any scope changes not already captured as a Question. Do not restate individual Answers here — if the outcome is just "accepted as designed," this section should be one or two lines. -->
@@ -91,9 +110,9 @@ A detailed description of this part of the implementation.
 
 ## Questions
 
-### **Q:** <!-- A very concise wording of the question -->
+### **<!-- Q$i -->:** <!-- A very concise wording of the question -->
 
-<!-- [Q#]: #id-of-this-question -->
+<!-- [Q$i]: #id-of-this-question -->
 
 **Status:** <!-- Open | Answered -->
 
