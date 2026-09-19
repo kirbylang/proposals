@@ -3,10 +3,10 @@
 ## Closed
 
 - ✅ [prefixed-native-functions](/proposals/prefixed-native-functions/PROPOSAL.md)
+- ✅ [additional-native-functions](/proposals//additional-native-functions/PROPOSAL.md)
 
 ## Draft
 
-- [additional-native-functions](/proposals//additional-native-functions/PROPOSAL.md)
 - [collection-methods](./collection-methods/PROPOSAL.md)
 - [generic-types](/proposals/generic-types/PROPOSAL.md)
 - [macros](/proposals/macros/PROPOSAL.md)

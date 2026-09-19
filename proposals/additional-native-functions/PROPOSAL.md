@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Closed
 created: 2026-09-18
 from_commit: b56a2a9
 ---
@@ -138,6 +138,10 @@ Notes, each following an existing pattern rather than inventing a new one:
 - **`strToUpper`/`strToLower` are byte-oriented (ASCII), not Unicode-aware**,
   consistent with the rest of the string implementation — `ObjString` is a
   `char*` and a byte length, with no encoding tracked anywhere today.
+
+## Outcome
+
+Delivered with commit `0c88088`.
 
 ## Questions
 
