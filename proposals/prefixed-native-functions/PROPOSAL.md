@@ -1,5 +1,5 @@
 ---
-status: Ready
+status: Closed
 created: 2026-09-18
 from_commit: b56a2a9
 ---
@@ -128,6 +128,10 @@ The prefix character would not be valid in user code defined identifiers so ther
 - [Modules Proposal] — still a skeleton, but [Q-modules] below touches the
   same undecided ground as that proposal's own naming and assembly
   questions.
+
+## Outcome
+
+This was implemented and delivered in commit `acf2f6`.
 
 ## Questions
 

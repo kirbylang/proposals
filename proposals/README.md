@@ -1,8 +1,8 @@
 # Proposals
 
-## Ready
+## Closed
 
-- [prefixed-native-functions](/proposals/prefixed-native-functions/PROPOSAL.md)
+- ✅ [prefixed-native-functions](/proposals/prefixed-native-functions/PROPOSAL.md)
 
 ## Draft
 
