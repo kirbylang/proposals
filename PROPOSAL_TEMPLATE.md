@@ -43,6 +43,30 @@ Technical terms are kept to a minimum. Where a term is unavoidable, it is define
 
 <!-- The actual design: what's changing, new syntax/semantics/APIs, etc. This is the substance of the proposal. -->
 
+### Goals and Non Goals
+
+What this proposal covers:
+
+<!-- Bulleted list of goals -->
+
+The following is intentionally left out of scope for this proposal:
+
+<!-- Bulleted list of non goals -->
+
+### Implementation Plan
+
+#### <!-- Part $i: Concise description of the step -->
+
+<!-- [Q$i-concise-description]: #id-of-implementation-part -->
+
+<!--
+A detailed description of this part of the implementation.
+
+- Any C code from the language's implementation will be displayed in `c` code blocks.
+- Any Kirby code will be displayed in `kirby` code blocks.
+- Any code changes (C or Kirby) will be displayed as `diff` blocks.
+ -->
+
 ## Impacts
 
 ### Existing Syntax Or Behavior
@@ -102,4 +126,4 @@ These are both technical and non-technical terms used throughout the proposal.
 
 <!-- Related proposals -->
 
-<!-- Example: [Proposal Name]: path/to/PROPOSAL.md -->
+<!-- Example: [proposal name]: path/to/PROPOSAL.md -->
