@@ -43,7 +43,13 @@ Technical terms are kept to a minimum. Where a term is unavoidable, it is define
 
 <!-- The actual design: what's changing, new syntax/semantics/APIs, etc. This is the substance of the proposal. -->
 
-## Related Proposals
+## Impacts
+
+### Existing Syntax Or Behavior
+
+<!-- Any existing syntax or language behaviors that coudl be impacted. -->
+
+### Related Proposals
 
 <!-- Other proposals that overlap with, depend on, or are affected by this one. If you edit this proposal, check whether these need updating too — and vice versa. -->
 
