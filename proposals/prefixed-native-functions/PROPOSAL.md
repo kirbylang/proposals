@@ -141,7 +141,7 @@ The prefix character would not be valid in user code defined identifiers so ther
 
 ### **Q:** Does this change with modules?
 
-**Status:** Open
+**Status:** Answered
 
 Every native lives in one flat, always-present table (`vm->globals`)
 today, which is what makes it global in the first place. The [Modules
@@ -158,6 +158,10 @@ the other redundant. The [Modules Proposal] has no naming design yet
 of its own ([Q-assembly] there), so this can't really be answered until
 that one is further along; whichever answer comes first, the two documents
 should stay in agreement.
+
+#### Answer
+
+Deferring this. It will need to be addressed on the modules proposal.
 
 ### **Q:** Whether documentation stays keyed by the bare name.
 
