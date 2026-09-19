@@ -18,3 +18,4 @@
 - [span-tracking](/proposals/span-tracking/PROPOSAL.md)
 - [string-interpolation](/proposals/string-interpolation/PROPOSAL.md)
 - [testing](/proposals/testing/PROPOSAL.md)
+- [unimplemented](/proposals/unimplemented/PROPOSAL.md)
