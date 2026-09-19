@@ -11,11 +11,12 @@ able to click next to a line of a `.krb` file to set a breakpoint, press F5,
 and when the program stops there, look at the call stack and variables and
 step through the program one line at a time.
 
-It has four parts: extra information the compiler saves, a way for the VM to
-stop and be looked at, a small text protocol between `krb` and VS Code, and a
-VS Code adapter. The design leans on things Kirby already has (line numbers on
-every instruction, one plain call stack). The choices that are still open are
-listed as [Questions].
+It has four parts: extra information the compiler saves (described in the
+[Tooling Data Proposal] and summarized in Part 1), a way for the VM to stop and
+be looked at, a small text protocol between `krb` and VS Code, and a VS Code
+adapter. The design leans on things Kirby already has (line numbers on every
+instruction, one plain call stack). The choices that are still open are listed
+as [Questions].
 
 ---
 
@@ -102,6 +103,9 @@ Checked at `from_commit` (see [Appendix A]):
 5. **Errors throw the stack away.** `runtimeError` ends by calling
    `resetStack()`, so by the time anyone could look, the frames are gone.
 
+Gaps 1 and 2 are gaps in the data the compiler saves. The [Tooling Data
+Proposal] closes them (its Parts 5 and 6), and this proposal builds on that.
+
 The VS Code extension (`vsc/`) has only a hover provider and a "Run Kirby File"
 command.
 
@@ -135,75 +139,37 @@ parts below:
 - **Changing variable values.**
 - **The REPL (`-r`) and `-c`.** Only `-f` is debugged.
 - **Column-precise breakpoints**, and choosing which call on a line to step
-  into. These need columns from the [Span Tracking Proposal].
+  into. These need columns in the compiled output. The [Tooling Data Proposal]
+  leaves that open ([Q-compiled]).
 - **Debugging code that runs at compile time.** The [Macros Proposal] runs
   macros on the VM while compiling.
 
 ### Part 1 — Debug information in the compiled unit
 
-The compiler saves three more things. The loader copies them onto the function
-objects **only when debugging is on**, so a normal run keeps nothing extra
-after the unit is freed.
+The debugger reads data that the compiler saves in the compiled unit. That data
+is described in the [Tooling Data Proposal], so that it is defined in one place.
+What the debugger needs from it:
 
-**1. The source path.** `CompiledUnit` gets the path of the file it was
-compiled from, stored in the unit's string blob like function names are.
-`compile()` and `compileSource()` take a source name; the REPL and `-c` pass
-`<repl>` and `<code>`. The loader puts an interned copy on each `ObjFunction`
-as `sourcePath`, and the garbage collector marks it next to `name`. What form
-the path takes is [Q-paths].
+| The debugger needs                                                        | Where it is defined             |
+| ------------------------------------------------------------------------- | ------------------------------- |
+| The path of the file each function came from (`sourcePath`)               | [Tooling Data Proposal], Part 5 |
+| A line for every instruction                                              | Part 4                          |
+| The name of each local variable, and where in the bytecode it has a value | Part 6                          |
+| The names of a closure's captured variables                               | Part 6                          |
+| Copying all of it onto function objects only when debugging is on         | Part 7                          |
 
-Today one unit is one file. Once programs have several files, this becomes the
-file table that the [Span Tracking Proposal] asks about in its [Q-files]
-question. The debugger needs that table _inside the unit_, not only in the
-compiler's session, because the VM does not depend on the compiler (see
-`interpret()` in `src/vm.h`).
+`krb --debug` turns on the copying in Part 7 before anything is loaded, so the
+stdlib's functions have their data too.
 
-**2. Local variable records.** For each function, one record per named local:
+Two of that proposal's open questions change how the debugger behaves:
 
-```diff
- typedef struct {
-   bool isLocal;
-   uint8_t index;
-+  int nameOffset; // Offset in to the compiled unit's string blob
-+  int nameLength;
- } CompiledUpvalue;
-+
-+/**
-+ * A named local variable of a compiled function. Debug information only.
-+ */
-+typedef struct {
-+  int nameOffset; // Offset in to the compiled unit's string blob
-+  int nameLength;
-+  uint8_t slot; // The operand OP_GET_LOCAL uses for this variable
-+  int startPc;  // First bytecode position where the variable has a value
-+  int endPc;    // First bytecode position after the variable is gone
-+} CompiledLocal;
-```
-
-The compiler already knows each of these facts; it only throws them away:
-
-- The name is copied into the string blob when the local is declared
-  (`addLocal` in `src/compiler.c`), before the source text is freed.
-- The slot is the local's index in `FnCompiler.locals`, which is the same
-  number `resolveLocal` puts in `OP_GET_LOCAL`.
-- `startPc` is the position of the next instruction when the local is marked
-  initialized (`markInitialized`). Before that the slot has no value yet.
-- `endPc` is set where the compiler stops tracking the local: in
-  `captureOrCleanLocalsGoingOutOfScope` and in `compileBlockExprClose`.
-  `emitPopsToDepth` (used by `break`) does not stop tracking, so it changes
-  nothing. Parameters and other locals of the function's outermost scope last
-  until the end of the function.
-- Slot 0 has an empty name in a plain function and `self` in a method. Empty
-  names are not recorded.
-
-A record has a range because slots are reused: two different blocks can put
-different variables in the same slot at different times.
-
-**3. Captured variable names.** The two new fields on `CompiledUpvalue` above.
-`resolveUpvalue` has the name at hand when it adds the upvalue. With them, a
-closure's captured variables can be listed by name.
-
-**Line numbers stay as they are.** They are already stored for every byte.
+- **Which line an instruction has** ([Q-line]). The line events, breakpoints,
+  and stepping below only use "the line of an instruction", so they work with
+  either answer. With the proposed answer, stepping through a call written over
+  several lines goes to its first line, then its argument lines, then its first
+  line again, as it does in Python.
+- **What form the path takes** ([Q-paths]). VS Code sends absolute paths, and the
+  debugger compares them with the recorded one.
 
 ### Part 2 — Pausing the VM
 
@@ -456,6 +422,9 @@ FILE -f PROGRAM` reads its commands from `FILE` instead of a network
   shows the names), not by printing it in the disassembler. `kirby-test` prints
   the bytecode listing to stderr and the `.err` snapshots contain it. This
   proposal does not change the bytecode, so no existing snapshot should change.
+  The data itself is tested by unit tests in the [Tooling Data Proposal] (its
+  Part 8), which may change which line some instructions have ([Q-line]). If it
+  does, those snapshots are updated there.
 - **Nothing changes without `--debug`.** The existing suite must pass with no
   snapshot updates.
 - **The adapter** keeps its translation logic apart from the `vscode` API, so
@@ -469,8 +438,10 @@ Each step is small, starts with a failing test, and leaves behavior without
 `--debug` unchanged:
 
 1. The channel and the script mode, with `go` and `exited` only.
-2. Breakpoints on lines, `stopped`, and `stack` (this needs the source path).
-3. `scopes` and `vars` for locals (this needs the local variable records).
+2. Breakpoints on lines, `stopped`, and `stack` (this needs the source path,
+   from Part 5 of the [Tooling Data Proposal]).
+3. `scopes` and `vars` for locals (this needs the local variable records, from
+   Part 6 of the [Tooling Data Proposal]).
 4. Step over, into, and out.
 5. Captured variables, globals, and expanding arrays and instances.
 6. Stopping on runtime errors.
@@ -483,11 +454,10 @@ Each step is small, starts with a failing test, and leaves behavior without
 
 - **No language change.** No syntax, opcode, or bytecode changes. A program run
   without `--debug` behaves exactly as before.
-- **Bigger structures.** `CompiledUnit`, `CompiledFn`, `CompiledUpvalue`, and
-  `ObjFunction` gain fields. The loader fills the `ObjFunction` ones only when
-  debugging, but the pointers exist always. The garbage collector must mark the
-  new strings the way it marks `name` (`src/gc.c`). See [Q-strip] for the cost
-  of recording the information at compile time.
+- **Bigger structures.** The [Tooling Data Proposal] describes the new fields on
+  `CompiledUnit`, `CompiledFn`, `CompiledUpvalue`, and `ObjFunction`, and what
+  it costs to record them ([Q-strip] there). `VM` gets a `Debugger *debugger`
+  field.
 - **Speed.** Depends on [Q-check]. A check on every instruction was measured at
   9–15% slower.
 - **`runtimeError`** calls the debugger before `resetStack()`.
@@ -496,7 +466,8 @@ Each step is small, starts with a failing test, and leaves behavior without
 - **Snapshots contain bytecode.** `.err` files include the listing that
   `kirby-test` prints. Nothing here changes the bytecode. Printing local names in
   the disassembler would change many snapshots, and is deliberately not part of
-  this proposal.
+  this proposal. Which line an instruction has may change under the [Tooling
+  Data Proposal] ([Q-line]), and those snapshots are updated there.
 - **Windows.** `scripts/install-windows.cmd` implies Windows users. Network
   connections need start-up code there that Linux and macOS do not.
 - **The extension** gains a debugger contribution, a command, and TypeScript
@@ -504,15 +475,16 @@ Each step is small, starts with a failing test, and leaves behavior without
 
 ### Related Proposals
 
-- [Span Tracking Proposal] — shares the "which file is this" problem. The
-  debugger needs the file table inside the compiled unit, and needs a line for
-  every instruction to survive into the compiled output. Columns are not
-  needed for the first version. That proposal is updated to say so (a new
-  question, [Q-compiled], and a note on [Q-files]).
+- [Tooling Data Proposal] — defines the data the debugger reads: the file each
+  function came from, a line for every instruction, local variable names with
+  ranges, and captured variable names. [Q-paths] and [Q-strip] moved there from
+  this proposal, and it holds [Q-line], [Q-files], and [Q-compiled]. Columns are
+  not needed for the first version.
 - [Modules Proposal] — a module may be shipped as compiled code without its
   source, and the debug information lives in that compiled code. It has to be
   decided whether it ships, and how a recorded path makes sense on another
-  machine ([Q-paths], [Q-strip]). That proposal is updated to say so.
+  machine ([Q-paths] and [Q-strip], both now in the [Tooling Data Proposal]).
+  That proposal is updated to say so.
 - [Macros Proposal] — stepping through generated code, and locals a macro adds
   that the programmer never wrote (hygiene renames them), should not confuse
   the variables view. The origin information from spans is what lets the
@@ -603,46 +575,6 @@ would see less.
   breakpoint goes. No cost when not debugging, but stepping and error stops
   still need a check, and the patching has to be undone correctly.
 
-### **Q:** What form does the recorded source path take?
-
-<!-- [Q-paths]: #q-what-form-does-the-recorded-source-path-take -->
-
-**Status:** Open
-
-VS Code sends absolute paths, and the debugger compares them with the path
-saved in the unit. Options:
-
-- **(a) An absolute path, resolved when `krb` starts the file.** Works today,
-  because compiling and running happen in one process. A folder reached through
-  a symbolic link can show up as a different path in VS Code, so the adapter
-  should make both sides the same before comparing.
-- **(b) The path as given on the command line.** Simple, but often relative, so
-  the adapter would need to know the folder.
-- **(c) Relative to a project root**, once there are [projects][Projects Proposal]. Portable, but needs the root to be known.
-
-This interacts with [modules][Modules Proposal]: a unit compiled on one machine
-and run on another has a path that means nothing there.
-
-### **Q:** Is debug information always recorded?
-
-<!-- [Q-strip]: #q-is-debug-information-always-recorded -->
-
-**Status:** Open
-
-Part 1 records names and ranges in every compiled unit. The cost is not
-measured. Since the loader copies it only when debugging, and the unit is freed
-right after loading, a normal run pays only the compile-time work. Options:
-
-- **(a) Always record it** (proposed for the first version).
-- **(b) Record it only with a flag**, for example when debugging or building for
-  the editor.
-- **(c) Keep it in a separate file** next to the compiled code, so shipped code
-  stays small. This only matters once compiled units are saved and shipped,
-  which is the [Modules Proposal]'s territory.
-
-An embeddable language may care about size, so this should be measured before
-being settled.
-
 ### **Q:** How does step into treat code the programmer did not write?
 
 <!-- [Q-library]: #q-how-does-step-into-treat-code-the-programmer-did-not-write -->
@@ -657,7 +589,7 @@ land in stdlib code. Options:
   loads the stdlib through its own call, so it can mark that unit as library
   code. Step into passes over functions from it.
 - **(b) Also skip generated code**, once spans record where code came from (the
-  [Span Tracking Proposal], Part 3), for example macro output.
+  [Tooling Data Proposal], Part 3), for example macro output.
 - **(c) Never skip.** Simplest, but stepping through a program would keep
   dropping into the stdlib.
 
@@ -705,7 +637,7 @@ These are both technical and non-technical terms used throughout the proposal.
 
 <!-- Proposals -->
 
-[Span Tracking Proposal]: ../span-tracking/PROPOSAL.md
+[Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Modules Proposal]: ../modules/PROPOSAL.md
 [Macros Proposal]: ../macros/PROPOSAL.md
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
@@ -715,8 +647,11 @@ These are both technical and non-technical terms used throughout the proposal.
 
 <!-- Other proposals' questions -->
 
-[Q-files]: ../span-tracking/PROPOSAL.md#q-how-are-multiple-source-files-identified
-[Q-compiled]: ../span-tracking/PROPOSAL.md#q-which-span-information-reaches-the-compiled-unit
+[Q-line]: ../tooling-support-data/PROPOSAL.md#q-which-line-does-an-instruction-get
+[Q-files]: ../tooling-support-data/PROPOSAL.md#q-how-are-multiple-source-files-identified
+[Q-paths]: ../tooling-support-data/PROPOSAL.md#q-what-form-does-the-recorded-source-path-take
+[Q-compiled]: ../tooling-support-data/PROPOSAL.md#q-which-span-information-reaches-the-compiled-unit
+[Q-strip]: ../tooling-support-data/PROPOSAL.md#q-is-tooling-data-always-recorded
 
 <!-- External -->
 
@@ -728,8 +663,6 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-adapter]: #q-where-does-the-debug-adapter-protocol-live
 [Q-channel]: #q-what-carries-the-debugger-messages
 [Q-check]: #q-how-does-the-vm-check-whether-to-stop
-[Q-paths]: #q-what-form-does-the-recorded-source-path-take
-[Q-strip]: #q-is-debug-information-always-recorded
 [Q-library]: #q-how-does-step-into-treat-code-the-programmer-did-not-write
 
 ## Appendix A — Reproducing the baseline claims

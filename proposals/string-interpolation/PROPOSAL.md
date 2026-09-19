@@ -257,6 +257,12 @@ type-checks, and runs on a clean build — including with the definition in
   enter stdlib code unless library code is skipped ([Q-library] there). The
   lowered instructions should carry the line of the interpolated string, so
   breakpoints and error traces point at the line the programmer wrote.
+- [Tooling Data Proposal] — the lowered code is generated, so its spans should be
+  the span of the interpolated string (or of the placeholder, for code inside
+  `{...}`), and never a location in the stdlib. Today a string that runs over
+  several lines is given the line where it _ends_. That proposal changes it to
+  where it starts, which matters here because interpolated strings may span
+  lines.
 
 ## Questions
 
@@ -370,6 +376,7 @@ proposal.
 [Testing Proposal]: ../testing/PROPOSAL.md
 [Modules]: ../modules/PROPOSAL.md
 [Debugger Proposal]: ../debugger/PROPOSAL.md
+[Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

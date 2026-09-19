@@ -15,7 +15,7 @@
 - [primitive-impls](/proposals/primitive-impls/PROPOSAL.md)
 - [projects](/proposals/projects/PROPOSAL.md)
 - [sized-number-types](/proposals/sized-number-types/PROPOSAL.md)
-- [span-tracking](/proposals/span-tracking/PROPOSAL.md)
 - [string-interpolation](/proposals/string-interpolation/PROPOSAL.md)
 - [testing](/proposals/testing/PROPOSAL.md)
+- [tooling-support-data](/proposals/tooling-support-data/PROPOSAL.md)
 - [unimplemented](/proposals/unimplemented/PROPOSAL.md)

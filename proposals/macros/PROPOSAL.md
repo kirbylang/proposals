@@ -68,16 +68,17 @@ and not fused with the generics system.
 - This proposal depends on macros being able to carry origin information on
   every piece of syntax they produce, so error messages and tools can point
   back to the source the programmer actually wrote. That machinery is described
-  in its own proposal on span tracking; this proposal assumes it exists and
-  uses it for Hygiene as well.
+  in the [Tooling Data Proposal]; this proposal assumes it exists and uses it
+  for Hygiene as well.
 - This proposal is independent of the type-system proposal in the sense that
   expansion runs entirely before type checking (see [The Pipeline]). It does
   not touch generics, bounds, or monomorphization.
 - The [Debugger Proposal] needs to tell code the programmer wrote from code a
   macro generated. The origin information on spans is what lets a debugger step
   over generated code, or show the macro call instead. A variable a macro
-  introduces has a name the programmer never wrote, so the debug information
-  should be able to mark it as generated. Macros run on the VM while compiling
+  introduces has a name the programmer never wrote, so the local variable
+  records in the [Tooling Data Proposal] (its Part 6) should be able to mark it
+  as generated. Macros run on the VM while compiling
   (Part 3), and debugging that is outside the scope of the debugger proposal.
 
 ## The Changes
@@ -131,7 +132,7 @@ bare text.
 
 The practical implication: a syntax value is not just a name and a shape; it
 also carries where it came from. That is the same per-syntax origin information
-the span-tracking proposal introduces for error reporting, so the two are one
+the [Tooling Data Proposal] introduces for error reporting, so the two are one
 design, not two.
 
 ### Part 5 — Where expansion sits in the pipeline
@@ -254,6 +255,7 @@ These are both technical and non technical terms used throughout the proposal.
 <!-- Proposals -->
 
 [Debugger Proposal]: ../debugger/PROPOSAL.md
+[Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 
 <!-- Questions -->
 

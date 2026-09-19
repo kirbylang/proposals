@@ -1118,7 +1118,9 @@ A sensible build order, smallest useful piece first:
 Strong tooling — precise error messages, go-to-definition, find-references,
 autocomplete — is a first-class goal, and macros make it harder unless planned
 for. This part states the one piece of infrastructure that must be present from
-the start.
+the start. The design of that data (what a span holds, how it is stored, and
+what reaches the compiled output) is in the [Tooling Data Proposal]. This part
+records what the type-system work needs from it.
 
 ### 8.1 The problem macros create for tooling
 
@@ -1393,3 +1395,4 @@ echo 'impl Eq for f64 { fun equals(self, other: Self): bool = true; }' > /tmp/f.
 [box.krb]: ./examples/box.krb
 [point.krb]: ./examples/point.krb
 [Debugger Proposal]: ../debugger/PROPOSAL.md
+[Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md

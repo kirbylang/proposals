@@ -85,17 +85,18 @@ This proposal exists to close that gap, but most of _how_ is still open.
   un-specialized bodies of its generic functions and structs so a consumer can
   specialize them. That requirement is the main new thing modules add on top of
   the type-system proposal.
-- **Span tracking.** Spans must identify which file they point into; modules and
+- **Tooling data.** Spans must identify which file they point into; modules and
   multi-file programs are what make that necessary. How files are named and
-  identified is shared with that proposal.
+  identified is shared with the [Tooling Data Proposal] ([Q-files] there).
 - **Macros.** Compile-time reflection over a struct's shape reads the same
   information a module's public interface records. Whether they share one body
   of data is an open question in both proposals.
-- **Debugger.** A debugger needs source paths and local variable names, and
-  those live in the compiled unit. A module shipped without its source raises
-  two questions: does its compiled form carry that debug information at all,
-  and what does a source path recorded on one machine mean on another? See
-  [Q-paths] and [Q-strip] in the [Debugger Proposal].
+- **Debugger and other tools.** A debugger needs source paths and local variable
+  names, and those live in the compiled unit. A module shipped without its
+  source raises two questions: does its compiled form carry that information at
+  all, and what does a source path recorded on one machine mean on another? See
+  [Q-paths] and [Q-strip] in the [Tooling Data Proposal]. The [Debugger
+  Proposal] is the first tool to read it.
 
 ## The Changes (Sketch)
 
@@ -174,7 +175,7 @@ intermediate representation derived from it. The AST is simplest and already
 exists but is larger and ties the on-disk format to the AST's shape; a dedicated
 intermediate form is more work but more stable across compiler versions. This
 interacts with how `CompiledUnit` (which stores no types today) is extended, and
-with the span-tracking proposal (generated/shipped syntax still needs origins).
+with the [Tooling Data Proposal] (generated/shipped syntax still needs origins).
 
 ### **Q:** What is the coherence rule across modules?
 
@@ -234,7 +235,7 @@ and interface; how a dependency graph is resolved and in what order
 specialization runs across it. It also includes whether a module's compiled
 artifact carries debug information (source paths, local variable names) and how
 a recorded source path is meant to be read on another machine; the
-[Debugger Proposal] raises this as [Q-paths] and [Q-strip]. This is a large area
+[Tooling Data Proposal] raises this as [Q-paths] and [Q-strip]. This is a large area
 on its own and may warrant its own proposal once the interface format is
 settled.
 
@@ -283,11 +284,13 @@ These are both technical and non technical terms used throughout the proposal.
 <!-- Proposals -->
 
 [Debugger Proposal]: ../debugger/PROPOSAL.md
+[Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
-[Q-paths]: ../debugger/PROPOSAL.md#q-what-form-does-the-recorded-source-path-take
-[Q-strip]: ../debugger/PROPOSAL.md#q-is-debug-information-always-recorded
+[Q-files]: ../tooling-support-data/PROPOSAL.md#q-how-are-multiple-source-files-identified
+[Q-paths]: ../tooling-support-data/PROPOSAL.md#q-what-form-does-the-recorded-source-path-take
+[Q-strip]: ../tooling-support-data/PROPOSAL.md#q-is-tooling-data-always-recorded
 
 <!-- Questions -->
 
