@@ -267,24 +267,18 @@ door open to "a better way." The candidates:
 - **(a) stdlib `StringBuilder` chain** — the Part 2/Part 3 design. N pushes
   (amortized) plus one final `@arrJoin` allocation. Requires the stdlib
   definition to land with this feature. Verified end to end at
-  `from_commit`.
+  `from_commit`. It also polutions the global namespace.
 - **(b) `+` chain** — compile `$"a {x} b"` to `CONST "a " + x + CONST " b"
 `. Zero stdlib dependency, but each `OP_ADD` allocates a fresh string, so
   a long interpolation copies the whole accumulated result per segment.
-- **(c) a dedicated opcode or new native** — a `@strConcat`-style native was
-  considered and set aside: none exists at `from_commit`, and adding one is
-  not part of this proposal's direction. A dedicated opcode remains a
-  possible later optimization if profiling ever calls for it.
-
-The lean is (a): it is what the acceptance criteria describe, and it is the
-route verified to work. (b) stays as the fallback if the stdlib definition
-turns out to be unwanted.
+- **(c) new native** — A new native function like `@strConcat`
+- **(c) a dedicated opcode** — A new OP code is not desirable
 
 ### **Q:** Which placeholder types should be accepted?
 
 <!-- [Q-segment-types]: #q-which-placeholder-types-should-be-accepted -->
 
-**Status:** Open
+**Status:** Answered
 
 At `from_commit` the only conversion from a non-string type to a string is
 `@numberToString` for `f64`. `bool`, `nil`, and struct values have none —
@@ -296,6 +290,10 @@ everything else; (b) accept only `string` now and open up other types as
 conversions become available (e.g. `impl Display for bool` once primitive
 impls land). (a) is simpler and more honest about what the compiler can
 lower today.
+
+#### Answer
+
+`string`, `f64`, and `bool` for now.
 
 ### **Q:** How do literal braces in segments work?
 
