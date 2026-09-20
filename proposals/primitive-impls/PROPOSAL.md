@@ -688,7 +688,8 @@ value's kind have an implementation of trait X" at a call site.
 **Why open:** this is the least-sketched-out corner of the whole proposal and
 was deliberately left open rather than guessed at, since it's pure
 implementation with no behavioral consequence either option would surface to
-a Kirby programmer.
+a Kirby programmer. The [Enums Proposal] faces the same question if plain enum
+variants are plain numbers ([Q-representation-enums]).
 
 ### **Q:** What is the receiver syntax for calling a static trait method on a primitive kind?
 
@@ -759,7 +760,8 @@ case in every place this feature touches `tokenIsPrimitiveTypeName`.
 **Why open:** low-stakes either way; listed so it's a deliberate choice
 rather than an accident of whichever code path happens to touch
 `tokenIsPrimitiveTypeName` first. Recommendation: (a), since there's no
-motivating example for it.
+motivating example for it. The [Tuples Proposal] asks whether `unit` is the
+empty tuple ([Q-unit-empty]); the two answers should agree.
 
 ### **Q:** Should the design anticipate more numeric primitive kinds now, or wait for that proposal?
 
@@ -799,6 +801,10 @@ being.
 [Problem Statement]: #problem-statement
 [generic-types]: ../generic-types/PROPOSAL.md
 [sized-number-types]: ../sized-number-types/PROPOSAL.md
+[Tuples Proposal]: ../tuples/PROPOSAL.md
+[Enums Proposal]: ../enums/PROPOSAL.md
+[Q-unit-empty]: ../tuples/PROPOSAL.md#q-is-unit-the-empty-tuple
+[Q-representation-enums]: ../enums/PROPOSAL.md#q-what-is-an-enum-value-at-run-time
 
 ---
 

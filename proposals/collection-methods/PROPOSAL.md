@@ -149,6 +149,10 @@ can't `impl` them the way it can `impl` a struct.
   clean build). A properly typed `Map[K, V]` or `Set[T]` — or even a
   generically-typed `Array[T].filter`, whose predicate needs to know its
   argument's type — depends on generics landing first. See [Q-generics-order].
+- [Tuples Proposal] designs the `Tuple` type this proposal mentions. It
+  writes the type `(f64, string)` rather than `Tuple[f64, string]`
+  ([Q-type-spelling]), and gives a tuple a fixed size and item types known
+  at compile time, which bears on [Q-category].
 
 ## The Changes
 
@@ -327,6 +331,11 @@ proposal.
 
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
+[Tuples Proposal]: ../tuples/PROPOSAL.md
+
+<!-- Other proposals' questions -->
+
+[Q-type-spelling]: ../tuples/PROPOSAL.md#q-is-a-tuple-type-written-a-b-or-tuplea-b
 
 <!-- Questions -->
 

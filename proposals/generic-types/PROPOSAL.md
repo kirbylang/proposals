@@ -1256,7 +1256,9 @@ implement it and keep built-in equality otherwise.
 **Why open:** today `==` type-checks against `Eq` but runs as built-in
 equality (Part 1.4). Any of these resolves the split, but they differ in how
 much existing behavior changes and how surprising the result is. Needs tests
-and a changelog note whichever way it goes.
+and a changelog note whichever way it goes. The [Tuples Proposal]
+([Q-equality-tuples]) and the [Enums Proposal] ([Q-equality-enums]) each ask
+what `==` means for their own values, so the answer here affects both.
 
 ### 10.5 Recursive/infinite monomorphization
 
@@ -1299,6 +1301,24 @@ representation derived from it?
 on-disk format to the AST's shape; a dedicated intermediate form is more work
 but more stable across compiler versions. This interacts with how the
 `CompiledUnit` format (which today stores no types at all) is extended.
+
+### 10.9 Tuple and enum types in substitution and monomorphization
+
+**Question:** how do tuple types and enum types fit into the substitution
+helper (3.6) and the specializer (Part 5)?
+**Options:** (a) treat both as ordinary kinds of type from the start. The
+helper recurses into a tuple's item types and into the type arguments of an
+enum, and an enum declared with type parameters is specialized the way a
+generic struct is; (b) leave them out of the first version, so
+`Array[(f64, f64)]` and `Option[T]` are rejected until a later change.
+**Why open:** the [Tuples Proposal] adds a type compared by its parts (like
+function and array types) whose parts can contain type parameters, and the
+[Enums Proposal] adds a named type (like a struct) that can have type
+parameters itself: `Option[T]` and `Result[T, E]`, which the changelog lists
+several natives as waiting for. Both need the same "write it once, call it
+everywhere" treatment that 3.6 gives the existing kinds, or one path will
+miss a case. (a) costs more up front. (b) is smaller, but leaves `Option[T]`
+unavailable, and that is what the natives pending it need.
 
 ---
 
@@ -1396,3 +1416,7 @@ echo 'impl Eq for f64 { fun equals(self, other: Self): bool = true; }' > /tmp/f.
 [point.krb]: ./examples/point.krb
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
+[Tuples Proposal]: ../tuples/PROPOSAL.md
+[Enums Proposal]: ../enums/PROPOSAL.md
+[Q-equality-tuples]: ../tuples/PROPOSAL.md#q-how-does-tuple-equality-compare-items
+[Q-equality-enums]: ../enums/PROPOSAL.md#q-how-does-equality-work-on-enums

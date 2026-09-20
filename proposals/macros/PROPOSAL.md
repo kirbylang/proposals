@@ -80,6 +80,11 @@ and not fused with the generics system.
   records in the [Tooling Data Proposal] (its Part 6) should be able to mark it
   as generated. Macros run on the VM while compiling
   (Part 3), and debugging that is outside the scope of the debugger proposal.
+- The [Enums Proposal] and the [Pattern Matching Proposal] could change what
+  Syntax looks like to macro code. An enum of node kinds, like the `AstNode`
+  in the enums proposal's sketch, is one possible answer to [Q-syntax] option
+  (b), and `match` would be the ordinary Kirby way to take it apart. Neither
+  is needed here, since macros are ordinary Kirby code.
 
 ## The Changes
 
@@ -256,6 +261,8 @@ These are both technical and non technical terms used throughout the proposal.
 
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
+[Enums Proposal]: ../enums/PROPOSAL.md
+[Pattern Matching Proposal]: ../pattern-matching/PROPOSAL.md
 
 <!-- Questions -->
 
