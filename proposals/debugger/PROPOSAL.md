@@ -1,7 +1,7 @@
 ---
 status: Draft
 created: 2026-09-19
-from_commit: 61b7cc5
+from_commit: 662d98b
 ---
 
 # Proposal: Debugger (VS Code)
@@ -161,15 +161,16 @@ What the debugger needs from it:
 `krb --debug` turns on the copying in Part 7 before anything is loaded, so the
 stdlib's functions have their data too.
 
-Two of that proposal's open questions change how the debugger behaves:
+Two decisions in that proposal change how the debugger behaves:
 
-- **Which line an instruction has** ([Q-line]). The line events, breakpoints,
-  and stepping below only use "the line of an instruction", so they work with
-  either answer. With the proposed answer, stepping through a call written over
+- **Which line an instruction has** ([Q-line]). An instruction is on the line
+  where the code that produced it starts. Stepping through a call written over
   several lines goes to its first line, then its argument lines, then its first
-  line again, as it does in Python.
-- **What form the path takes** ([Q-paths]). VS Code sends absolute paths, and the
-  debugger compares them with the recorded one.
+  line again, as it does in Python. The line events, breakpoints, and stepping
+  below only use "the line of an instruction".
+- **What form the path takes** ([Q-paths]). The recorded path is the one `krb`
+  was given. VS Code sends absolute paths, so the adapter starts `krb` with an
+  absolute path (Part 5), and the debugger compares the two as they are.
 
 ### Part 2 — Pausing the VM
 
@@ -402,6 +403,15 @@ folder. Run from a folder without it, `krb` crashes (checked, see [Appendix
 A]). The debug launch therefore starts in the same folder "Run Kirby File" does.
 This is an existing limit and this proposal does not change it.
 
+**Paths.** The adapter starts `krb`, so it passes the absolute path of the
+program: the `program` from the launch configuration, made absolute against the
+workspace folder if it is relative. `krb` records the path it was given
+([Q-paths]), and VS Code sends breakpoints with the path it has for the same
+file, so the two are compared as they are. Once there are projects, the recorded
+path is expected to be relative to the project root. The adapter would then
+turn the path from VS Code into that form before it sends `break`, and nothing
+else changes.
+
 ### Part 6 — Testing
 
 The repo uses snapshot tests, and this work follows the same TDD loop: write
@@ -423,8 +433,8 @@ FILE -f PROGRAM` reads its commands from `FILE` instead of a network
   the bytecode listing to stderr and the `.err` snapshots contain it. This
   proposal does not change the bytecode, so no existing snapshot should change.
   The data itself is tested by unit tests in the [Tooling Data Proposal] (its
-  Part 8), which may change which line some instructions have ([Q-line]). If it
-  does, those snapshots are updated there.
+  Part 8). It also changes which line some instructions have ([Q-line]), and
+  those snapshots are updated there.
 - **Nothing changes without `--debug`.** The existing suite must pass with no
   snapshot updates.
 - **The adapter** keeps its translation logic apart from the `vscode` API, so
@@ -466,7 +476,7 @@ Each step is small, starts with a failing test, and leaves behavior without
 - **Snapshots contain bytecode.** `.err` files include the listing that
   `kirby-test` prints. Nothing here changes the bytecode. Printing local names in
   the disassembler would change many snapshots, and is deliberately not part of
-  this proposal. Which line an instruction has may change under the [Tooling
+  this proposal. Which line an instruction has changes under the [Tooling
   Data Proposal] ([Q-line]), and those snapshots are updated there.
 - **Windows.** `scripts/install-windows.cmd` implies Windows users. Network
   connections need start-up code there that Linux and macOS do not.
@@ -500,9 +510,10 @@ Each step is small, starts with a failing test, and leaves behavior without
 - [Testing Proposal] — once `krb test` exists, debugging a single test is a
   matter of launching the same way with a test file. That proposal is updated to
   mention this.
-- [Projects Proposal] — a project root would be a natural base for relative
-  source paths and a default file to debug ([Q-paths]). Nothing is decided
-  there yet, so it is not changed.
+- [Projects Proposal] — a project root is the long-term base for the recorded
+  source paths ([Q-paths]), and a project could name a default file to debug.
+  How the root is found is not decided there yet, and is now a question in that
+  proposal. That proposal is updated to say so.
 
 ## Questions
 

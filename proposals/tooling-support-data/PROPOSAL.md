@@ -1,7 +1,7 @@
 ---
 status: Draft
 created: 2026-09-19
-from_commit: 61b7cc5
+from_commit: 662d98b
 ---
 
 # Proposal: Additional Data For Tooling Support
@@ -160,8 +160,7 @@ below:
 - **Where a variable was declared.** A local variable record could hold the span
   of its declaration. The debugger does not need it, so it is not included.
 - **Changing the text of errors or traces.** Their format stays. The only change
-  they can see is which line is shown, and only if [Q-line] goes the proposed
-  way.
+  they can see is which line is shown ([Q-line]).
 
 ### Part 1 — The span
 
@@ -237,8 +236,9 @@ This means a span is not only "a range in a file". It can also carry an
 **origin**: a link to the span of the call or construct that produced it. A tool
 or error message can then always turn "this happened in generated code" into
 "here is the source line responsible." How origin is chained through nested
-expansion is [Q-origin]. The 160 bytes above do not include an origin. If it is
-a field on every node it adds 4 to 8 more.
+expansion is [Q-origin]. The 160 bytes above do not include an origin. A field
+on every node adds 8 more, whether it is a 4-byte index or a pointer
+([Appendix B]).
 
 **Build it in from the start.** Span tracking has to be part of the AST from the
 beginning. Adding "where did this come from" to structures that were not built
@@ -256,7 +256,7 @@ stops using one global `currentLine`. Each emit is handed the span of the node
 being compiled. An instruction that closes a construct (the pops at the end of a
 block, a function's implicit return) gets the span of the closing token, so it
 stays on the `}` line, as it does today. The line of an instruction is its
-span's start line. This is proposed, and is [Q-line].
+span's start line ([Q-line]).
 
 **Readers ask one function.** Today the error trace reads `chunk.lines` directly
 in `runtimeError`, and the debugger will need the same answer. Instead, a single
@@ -272,9 +272,10 @@ traces need a line on every run. Anything beyond a line is Part 7.
 **The path of the file.** `CompiledUnit` gets a list of the files its code came
 from, stored in the unit's string blob like function names are. Today the list
 has one entry. `parse()`, `compile()`, and `compileSource()` take a source name;
-the REPL and `-c` pass `<repl>` and `<code>`. The loader puts an interned copy
-of the name on each `ObjFunction` as `sourcePath`, and the garbage collector
-marks it next to `name`.
+the REPL and `-c` pass `<repl>` and `<code>`. For a file, the name is the path
+`krb` was given ([Q-paths]): `runFile` already has it, and passes it on. The
+loader puts an interned copy of the name on each `ObjFunction` as `sourcePath`,
+and the garbage collector marks it next to `name`.
 
 **A `fileId` belongs to its unit.** It is an index into the list of the unit it
 sits in, and has no meaning outside it. This matters because `krb -f` loads two
@@ -403,8 +404,8 @@ program, so most of the tests are C unit tests in `unit/`, in the style of
   compare against. A test that needs to see spans reads the node, not the
   printed form.
 - **End-to-end snapshots.** `just test` must pass with no snapshot updates until
-  [Q-line] changes which line an instruction has. That change is its own step,
-  with its own snapshot updates, each looked at before it is committed.
+  the step that changes which line an instruction has ([Q-line], Part 9 step 6).
+  That step has its own snapshot updates, each looked at before it is committed.
 
 ### Part 9 — Suggested order
 
@@ -420,7 +421,8 @@ unchanged:
    for its step 3.
 5. The single function that answers "where did this instruction come from?", and
    then the storage chosen for [Q-compiled].
-6. [Q-line]'s change, if it is taken. It is a step of its own.
+6. The change to which line an instruction has ([Q-line]). It is a step of
+   its own.
 7. The loader flag from Part 7.
 
 Origin (Part 3) waits for macros.
@@ -436,9 +438,9 @@ Origin (Part 3) waits for macros.
   string over several lines, so no snapshot changes because of this.
 - **`AstNode`.** `line` becomes `span`, 136 to 160 bytes. `astAlloc` takes a
   span in place of a line, and 41 call sites change. 77 places outside the
-  scanner read a `line`. See [Q-cost] for the memory and [Q-line] for which of
-  those lines the compiler should keep.
-- **The compiler** stops using `currentLine` if [Q-line] goes the proposed way.
+  scanner read a `line`, and they read the span's start line instead
+  ([Q-line]). See [Q-cost] for the memory.
+- **The compiler** stops using `currentLine` ([Q-line]).
   `addLocal`, `markInitialized`, the scope-closing functions, `endCompiler`, and
   `addUpvalue` record the data in Part 6.
 - **`parse`, `compile`, and `compileSource`** take a source name. About twenty
@@ -449,7 +451,7 @@ Origin (Part 3) waits for macros.
   it marks `name` (`src/gc.c`). See [Q-strip] for the cost of recording the data
   at compile time.
 - **Snapshots.** Every `.err` snapshot (705 of 705) contains a bytecode listing
-  with lines in it. If [Q-line] goes the proposed way some of them change.
+  with lines in it. Some of them change ([Q-line]).
   `print_ast` output is deliberately not changed, so the parser tests keep
   passing as they are.
 - **Errors and traces** keep their text.
@@ -467,14 +469,17 @@ Origin (Part 3) waits for macros.
   of syntax carries a span. Each specialization must keep the generic's file and
   positions. That proposal is updated to point here.
 - [Modules Proposal] — shares how files are named and identified ([Q-files]),
-  and has to decide whether shipped compiled code carries this data and what a
+  which turns on whether a module is a file or a name ([Q-naming] there). It
+  also has to decide whether shipped compiled code carries this data and what a
   recorded path means on another machine ([Q-paths], [Q-strip]). That proposal is
   updated to say so.
 - [String Interpolation Proposal] — its lowered code is generated, so it should
   carry the span of the interpolated string. A string over several lines now has
   a start line, which matters there. That proposal is updated to say so.
-- [Projects Proposal] — a project root would be a natural base for relative
-  source paths ([Q-paths]). Nothing is decided there yet, so it is not changed.
+- [Projects Proposal] — a project root is the base the recorded source path is
+  meant to be relative to in the long run ([Q-paths]). That proposal does not
+  say yet how a root is found, which is now a question there ([Q-root]). That
+  proposal is updated to say so.
 
 ## Questions
 
@@ -538,7 +543,7 @@ totals. It leaves out an origin link, which is [Q-origin].
 
 <!-- [Q-line]: #q-which-line-does-an-instruction-get -->
 
-**Status:** Open
+**Status:** Answered
 
 Today an instruction takes the line the compiler looked at last (see the Problem
 Statement). The same program was run in five other languages: a call whose `(`
@@ -558,7 +563,7 @@ For a method call spread over lines (`o` / `.a()` / `.b()`), Python and Node put
 the failing call on the line of that call's method name. Lua puts it on the
 first line of the whole chain.
 
-- **(a) The span of the code that produced it** (proposed). The compiler hands
+- **(a) The span of the code that produced it.** The compiler hands
   each instruction the span of the node it is compiling, and the line is the
   span's start line. An instruction that closes a construct gets the span of the
   closing token, so it stays on the `}` line. A method call uses the position of
@@ -575,6 +580,18 @@ first line of the whole chain.
   runs over several lines can never be hit as written, and a call written over
   several lines is shown on its last argument's line.
 
+#### Answer
+
+(a): an instruction gets the line where the code that produced it starts. A call
+written over several lines is on its first line, and so is a string that runs
+over several lines. The rules in (a) for closing tokens and for method calls
+stay with it: an instruction that closes a construct is on the line of the
+closing token, and a method call is on the line of the method's name.
+
+`AstNode.line` does not stay next to the span. The compiler reads the span's
+start line, and `currentLine` goes away (Part 4). The snapshots that change are
+their own step (Part 9, step 6), and how many move will be counted there.
+
 ### **Q:** How is origin chained through nested macro expansion?
 
 <!-- [Q-origin]: #q-how-is-origin-chained-through-nested-macro-expansion -->
@@ -585,11 +602,64 @@ When a macro expands into a call to another macro, generated syntax has more
 than one layer of "where did this come from."
 
 Options: (a) each generated span points only at its immediate producer, and
-tools walk the chain; (b) spans carry a full chain of origins. (a) is smaller per
-node but pushes work to consumers; (b) is richer but larger. This is the same
-information Hygiene in the [Macros Proposal] needs, so the two should be decided
-together. The same answer decides how a generated local variable is marked
-(Part 6).
+tools walk the chain; (b) spans carry a full chain of origins. (a) keeps one
+link on each node and leaves the walking to consumers; (b) keeps the whole chain
+ready to read. This is the same information Hygiene in the [Macros Proposal]
+needs, so the two should be decided together. The same answer decides how a
+generated local variable is marked (Part 6).
+
+**How much bigger is (b)?** Not much in memory. More in code.
+
+| Cost                 | (a) A link to the immediate producer                                            | (b) The whole chain                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Each node            | +8 bytes: one index or pointer                                                  | +8 bytes if the nodes of one expansion share one chain, +16 with a count next to the pointer             |
+| Each expansion       | Nothing new: the link points at the macro call's span, which exists already     | A list of every layer: about 28 bytes a layer if spans are copied, so 84 for three deep                  |
+| In the compiled unit | An index in each span row (+4 bytes)                                            | A second table for the chains, and a reference to it in each row                                         |
+| Code to write        | One field, one assignment where syntax is made, one loop that follows the links | The same, and a chain type, and a step at each expansion that copies the parent's chain and adds a layer |
+| Reading a chain      | Follow the links                                                                | Read the list                                                                                            |
+
+In the AST, (a) can point straight at the span of the macro call. The AST is
+freed after compiling (`astFreeAll`), and links inside a `CompiledUnit` are
+indexes and string offsets, never pointers, so in the unit the link has to be an
+index.
+
+A node grows by the same amount either way, and a chain is small next to the
+tree: a 100 KB program has about 12,500 nodes, and 8 bytes on each is 100 KB
+while it compiles. The difference is in the code and in the unit: (b) is more to
+write, more to get wrong, and needs a second table. The sizes are measured
+([Appendix B]). The per-expansion figure is worked out, and the code row is an
+estimate from the design, because none of it is built.
+
+A chain of single links holds every fact that a full chain does, so (b) adds no
+new information. It only saves the walk. An error message or a debugger stop
+walks once. Hygiene might look at the chain for every name it resolves, which is
+why this waits on the Macros proposal ([Q-syntax] there). Starting with (a)
+closes nothing off: going to (b) later would add storage for a ready-made chain,
+but nothing new that has to be recorded.
+
+**Testing before macros exist.** Nothing in Kirby makes generated syntax today.
+`src/parser.c` is the only code that creates a node, and nothing else writes
+into one (checked at `from_commit`, [Appendix A]). String interpolation, as
+proposed, is lowered straight to bytecode, so it makes none either. Until macros
+or generics arrive, chains can only be tested with a stand-in, in a C unit test
+in `unit/` in the style of `unit/parser.c`:
+
+- **A stand-in expander, written in the test file.** It takes a call node from a
+  parsed snippet and creates a few new nodes (a variable, a binary expression, a
+  call) whose origin is that call's span. It runs no macro. Handing one of the
+  new nodes to a second expansion as its call builds a chain of two, and a third
+  builds a chain of three.
+- **What the test checks.** A node from the parser has no origin. Following the
+  origin from the innermost node ends at the call the test wrote, with the right
+  offsets, line, and column, after as many steps as the depth. A node the
+  expander was handed and only moved into its output keeps its own origin, since
+  it came from where the programmer wrote it. Only the nodes the expander
+  creates are marked. If (b) is chosen, the same test also covers the step that
+  copies the parent's chain.
+- **The size.** The test asserts `sizeof(AstNode)`, so a field added by accident
+  is noticed.
+- **Afterwards.** The checks stay when the stand-in is replaced by a real macro
+  or a generic's specialization. Only the thing that creates the nodes changes.
 
 ### **Q:** How are multiple source files identified?
 
@@ -601,19 +671,43 @@ A span must say _which_ file it points into. Today Kirby compiles from a single
 source at a time, but `krb -f` already loads two units, and once modules and
 multi-file programs exist, spans must tell files apart.
 
-Options: (a) an integer file id into a list of file paths that travels in each
-unit, so an id only means something together with its unit (proposed in
-Part 5); (b) an id that is unique across every unit in the run, with one shared
-table; (c) storing paths directly on spans, which is larger. The VM does not
-depend on the compiler, so a table held only by the compiler cannot be an
-option. Which one fits depends on how the [Modules Proposal] names and loads
-files. How the path is written is [Q-paths].
+Options:
+
+- **(a) An integer id into a list of source names that travels in each unit**,
+  so an id only means something together with its unit (proposed in Part 5).
+- **(b) An id that is unique across every unit in the run**, with one shared
+  table.
+- **(c) The path on every span.** As text, each span would hold its own copy,
+  and every node in a file has the same path, so this is the largest by far. As
+  a pointer to one shared string nothing is copied, but a pointer is 8 bytes
+  where an id is 4, and a node grows from 160 to 168 bytes ([Appendix B]). A
+  pointer also cannot go into a compiled unit, where links between records are
+  indexes and offsets, so the spans kept in the unit would still need an id.
+  That id is what (a) and (b) use, so (c) saves nothing.
+
+The VM does not depend on the compiler, so a table held only by the compiler
+cannot be an option. How a name is written is [Q-paths].
+
+Which of (a) and (b) fits depends on whether a module is a file or a name, which
+is [Q-naming] in the [Modules Proposal]:
+
+- **A module is a file.** A file and a module are the same thing, so the list
+  holds paths. For (b), ids stay unique only if every path is written one way,
+  which brings back [Q-paths].
+- **A module is a name (a namespace).** A module could be several files, or
+  none, as with `<repl>` and `<code>` today. A span still needs the file,
+  because editors and the debugger open files. So an entry in the list is a
+  source name that may not be a path, and the module's own name is kept
+  separately.
+
+Nothing in the first version waits on this. Every unit holds one source, so
+every `fileId` is 0.
 
 ### **Q:** What form does the recorded source path take?
 
 <!-- [Q-paths]: #q-what-form-does-the-recorded-source-path-take -->
 
-**Status:** Open
+**Status:** Answered
 
 VS Code sends absolute paths, and the debugger compares them with the path saved
 in the unit. Options:
@@ -628,6 +722,35 @@ in the unit. Options:
 
 This interacts with [modules][Modules Proposal]: a unit compiled on one machine
 and run on another has a path that means nothing there.
+
+#### Answer
+
+**First version: (b), the path as given.** It is the least work. `runFile` in
+`src/main.c` already has the path, and Part 5 only needs it passed on as the
+source name. (a) would add a call to resolve the path (`realpath`, which is
+POSIX and not standard C), and a path with its symbolic links resolved can
+differ from the one VS Code has.
+
+The trouble with (b) is a relative path, and the debugger does not have it. The
+adapter starts `krb`, so it passes an absolute path, and VS Code sends
+breakpoints with the path it has for that file, so the two are compared as they
+are ([Debugger Proposal], Part 5). Running `krb --debug` by hand with a relative
+path is not covered, and attaching is left out of the debugger's first version.
+
+Other sources record what they are given. The stdlib is recorded as
+`stdlib/stdlib.krb`, the string `main.c` opens it with, and the debugger does
+not need that path to know it is library code ([Q-library] there). `<repl>` and
+`<code>` are names, not paths.
+
+**Long term: (c), relative to the project root.** Such a path reads the same on
+every machine, which (a) and (b) do not, so it is also the answer for a module
+shipped as compiled code. It waits for the [Projects Proposal], which does not
+yet say how a root is found ([Q-root] there). Moving to it should not mean
+redoing anything else. The path is written in one place, where `runFile` passes
+the source name. The adapter is the only reader that has to change, by turning
+the path from VS Code into the recorded form before it sends a breakpoint. The
+file list in the unit, `sourcePath`, and the debugger's comparison stay as they
+are.
 
 ### **Q:** Which span information reaches the compiled unit?
 
@@ -715,6 +838,8 @@ These are both technical and non-technical terms used throughout the proposal.
   It is the first number on each line of the disassembler's output.
 - **Slot**: A place in a frame's part of the stack where a local variable lives.
   Bytecode names variables by slot number.
+- **Namespace**: A name that groups related code, such as `shapes`, used to
+  refer to it instead of the path of the file it is in.
 - **Hygiene**: The property that names a macro introduces cannot accidentally
   clash with names in the code that used the macro. It relies on the same
   per-syntax origin information spans carry.
@@ -740,6 +865,13 @@ These are both technical and non-technical terms used throughout the proposal.
 [Modules Proposal]: ../modules/PROPOSAL.md
 [String Interpolation Proposal]: ../string-interpolation/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md
+
+<!-- Other proposals' questions -->
+
+[Q-naming]: ../modules/PROPOSAL.md#q-is-a-module-named-by-its-file-path-or-by-a-namespace
+[Q-root]: ../projects/PROPOSAL.md#q-how-is-the-project-root-found
+[Q-syntax]: ../macros/PROPOSAL.md#q-what-form-of-syntax-value-do-macros-receive-and-return
+[Q-library]: ../debugger/PROPOSAL.md#q-how-does-step-into-treat-code-the-programmer-did-not-write
 
 <!-- Questions -->
 
@@ -828,6 +960,17 @@ Making the block an argument of a call with two values before it, such as
 grep -n "cuAddUpvalue" src/*.c   # only its definition in src/compiled_unit.c
 ```
 
+**Only the parser creates AST nodes, and nothing else writes into one.**
+
+```shell
+grep -n "astAlloc(" src/*.c | grep -v src/parser.c
+# only its definition in src/ast.c
+grep -n -E -- "->(as\.[]A-Za-z_.[0-9]+|line|kind)[[:space:]]*(=|\+=)[^=]" src/*.c \
+  | grep -v src/parser.c | grep -v -E "^src/(types|scanner)\.c"
+# only the two lines in astAlloc. src/types.c writes into a Type, and
+# src/scanner.c into a Scanner. Neither is a node.
+```
+
 **Snapshots.**
 
 ```shell
@@ -895,6 +1038,22 @@ the other rows of the table in [Q-repr]. It is built from a `NodeKind`, the
 fields listed on that row, and a copy of the union of node payloads, which is
 128 bytes. `Token` was 24 bytes both today and with a `column` added and its
 fields reordered.
+
+The same program was run with each of these changes made to the 160 byte node,
+for [Q-origin] and [Q-files]. C rounds the size of a struct up to a multiple of
+8, so a 4-byte field costs 8:
+
+| Change to the 160 byte node                       | Node size | More than 160 |
+| ------------------------------------------------- | --------- | ------------- |
+| A 4-byte origin index, on the node or in the span | 168 bytes | +8            |
+| An 8-byte origin pointer on the node              | 168 bytes | +8            |
+| An 8-byte origin pointer inside the span          | 176 bytes | +16           |
+| A chain pointer and a count on the node           | 176 bytes | +16           |
+| A path pointer in place of `fileId`               | 168 bytes | +8            |
+
+Inside the span, the origin pointer makes the span 40 bytes, and the path
+pointer makes it 32. The 84 bytes for a chain three layers deep in [Q-origin] is
+28 times 3, worked out and not measured.
 
 ### Nodes and bytecode in the tests
 

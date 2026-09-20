@@ -87,7 +87,8 @@ This proposal exists to close that gap, but most of _how_ is still open.
   the type-system proposal.
 - **Tooling data.** Spans must identify which file they point into; modules and
   multi-file programs are what make that necessary. How files are named and
-  identified is shared with the [Tooling Data Proposal] ([Q-files] there).
+  identified is shared with the [Tooling Data Proposal] ([Q-files] there), and
+  turns on whether a module is a file or a name ([Q-naming]).
 - **Macros.** Compile-time reflection over a struct's shape reads the same
   information a module's public interface records. Whether they share one body
   of data is an open question in both proposals.
@@ -96,7 +97,8 @@ This proposal exists to close that gap, but most of _how_ is still open.
   source raises two questions: does its compiled form carry that information at
   all, and what does a source path recorded on one machine mean on another? See
   [Q-paths] and [Q-strip] in the [Tooling Data Proposal]. The [Debugger
-  Proposal] is the first tool to read it.
+  Proposal] is the first tool to read it. The direction chosen for [Q-paths] is
+  a path relative to a project root, which does not depend on the machine.
 
 ## The Changes (Sketch)
 
@@ -220,6 +222,35 @@ private-by-default; or public-by-default with an explicit private marker; or
 some mix. The choice affects what lands in the module interface and how much is
 exposed by accident.
 
+### **Q:** Is a module named by its file path or by a namespace?
+
+<!-- [Q-naming]: #q-is-a-module-named-by-its-file-path-or-by-a-namespace -->
+
+**Status:** Open
+
+A program has to refer to a module somehow. Two ways:
+
+- **(a) By file path.** A module is a file, and the program names it by where
+  the file is.
+- **(b) By namespace.** A module has a name, and the toolchain finds the files
+  that make it up. A module could be more than one file, and a file could hold
+  more than one module.
+
+This is narrower than [Q-assembly], which covers importing, versions, and
+dependencies. Several things in other proposals wait on it:
+
+- **What a span points into.** A span must say which file it is in ([Q-files]).
+  With (a), a file and a module are the same thing, and the list of files in a
+  unit is a list of paths. With (b), a module can be several files, or none (as
+  with `<repl>` and `<code>`), so a span needs a file, and the module's name is
+  a separate thing.
+- **What a recorded path means.** With (a), the path is also the module's
+  identity, so how it is written ([Q-paths]) matters for more than tools. With
+  (b), it is only where the source was.
+- **How a project is laid out.** The [Projects Proposal] has a `src/**/*.krb`
+  convention. It does not yet say whether the folders are part of a module's
+  name.
+
 ### **Q:** How are modules named, resolved, and assembled?
 
 <!-- [Q-assembly]: #q-how-are-modules-named-resolved-and-assembled -->
@@ -230,14 +261,14 @@ Nothing about how a program refers to a module, how a module's dependencies are
 located, or how the final program is assembled has been decided.
 
 Sub-questions: the syntax for importing/using a module; how a module's identity
-and version are expressed; how the toolchain finds a module's compiled artifact
-and interface; how a dependency graph is resolved and in what order
-specialization runs across it. It also includes whether a module's compiled
-artifact carries debug information (source paths, local variable names) and how
-a recorded source path is meant to be read on another machine; the
-[Tooling Data Proposal] raises this as [Q-paths] and [Q-strip]. This is a large area
-on its own and may warrant its own proposal once the interface format is
-settled.
+and version are expressed (path or namespace is [Q-naming]); how the toolchain
+finds a module's compiled artifact and interface; how a dependency graph is
+resolved and in what order specialization runs across it. It also includes
+whether a module's compiled artifact carries debug information (source paths,
+local variable names) and how a recorded source path is meant to be read on
+another machine; the [Tooling Data Proposal] raises this as [Q-paths] and
+[Q-strip]. This is a large area on its own and may warrant its own proposal once
+the interface format is settled.
 
 ### **Q:** How do modules interact with compile-time reflection?
 
@@ -267,6 +298,8 @@ These are both technical and non technical terms used throughout the proposal.
 - **CompiledUnit**: Kirby's current serialized form of a compiled program
   (`src/compiled_unit.h`): bytecode, constants, upvalues, and strings, with no
   type information.
+- **Namespace**: A name that groups related code, such as `shapes`, used to
+  refer to it instead of the path of the file it is in.
 - **Monomorphization**: Compiling a generic by making a separate concrete copy
   for each distinct set of type arguments used. Defined fully in the type-system
   proposal.
@@ -285,6 +318,7 @@ These are both technical and non technical terms used throughout the proposal.
 
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
+[Projects Proposal]: ../projects/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
@@ -296,6 +330,7 @@ These are both technical and non technical terms used throughout the proposal.
 
 [Q-interface]: #q-what-exactly-does-a-module-interface-contain-and-in-what-format
 [Q-bodyform]: #q-in-what-form-does-a-module-ship-its-generic-bodies
+[Q-naming]: #q-is-a-module-named-by-its-file-path-or-by-a-namespace
 [Q-coherence]: #q-what-is-the-coherence-rule-across-modules
 [Q-public]: #q-which-declarations-carry-pub-and-what-are-the-defaults
 [Q-assembly]: #q-how-are-modules-named-resolved-and-assembled
