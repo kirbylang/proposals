@@ -254,6 +254,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Modules Proposal] — how an enum and its variants are made visible outside a file.
 - [Debugger Proposal] — its variables view shows arrays and struct values, so a new kind of object needs a display.
 - [Collection Methods Proposal] — methods that look something up, like finding an item, are natural users of `Option[T]`.
+- [Top-Level Declarations Proposal] — `enum` would join `fun`, `struct`, `impl`, `trait`, and `type` in the list of declarations a file's top level may hold. A variant value such as `Colors.Red` or `Shape.Circle(1)` only builds data, so it would count as a comptime value when its contents do, once [Q-variant-access] and [Q-variant-fields] settle how it is written. `Option` and `Result` in `stdlib/stdlib.krb` ([Q-option-home], option (a)) are declarations only, so they fit. The samples here that use top-level statements are converted when [Q-samples] there is settled.
 
 ### Testing Plan
 
@@ -675,6 +676,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
 [String Interpolation Proposal]: ../string-interpolation/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
@@ -683,6 +685,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-constructor]: ../tuple-structs/PROPOSAL.md#q-how-is-a-tuple-struct-constructed
 [Q-equality-tuples]: ../tuples/PROPOSAL.md#q-how-does-tuple-equality-compare-items
 [Q-syntax]: ../macros/PROPOSAL.md#q-what-form-of-syntax-value-do-macros-receive-and-return
+[Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
 
 <!-- External -->
 

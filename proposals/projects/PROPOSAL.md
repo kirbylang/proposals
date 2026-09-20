@@ -6,7 +6,7 @@ from_commit: b56a2a9
 
 # Proposal: Projects
 
-This proposal adds a project structure & [conventions], a project manager CLI. Out of scope: dependency management, requiring a main function to make Kirby files runnable/executable (which requires restricting what top level items can be declared).
+This proposal adds a project structure & [conventions], a project manager CLI. Out of scope: dependency management, and requiring a main function to make Kirby files runnable/executable, which is the [Top-Level Declarations Proposal].
 
 ---
 
@@ -96,6 +96,7 @@ These are both technical and non technical terms used throughout the proposal.
 
 [Modules]: ../modules/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

@@ -480,6 +480,11 @@ Origin (Part 3) waits for macros.
   meant to be relative to in the long run ([Q-paths]). That proposal does not
   say yet how a root is found, which is now a question there ([Q-root]). That
   proposal is updated to say so.
+- [Top-Level Declarations Proposal] — also adds a parameter to `compileSource`:
+  the kind of source (entry file, library file, or snippet). It is separate from
+  the source name added in Part 5, and either proposal can land first. It also
+  splits `runFile` into `loadFile` and `runFile`, and both pass the path on.
+  That proposal is updated to say so.
 
 ## Questions
 
@@ -865,6 +870,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Modules Proposal]: ../modules/PROPOSAL.md
 [String Interpolation Proposal]: ../string-interpolation/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
