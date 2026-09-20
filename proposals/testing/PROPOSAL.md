@@ -51,6 +51,10 @@ Kirby doesn't have a way to write and run tests that test Kirby code.
 - [Debugger Proposal] — debugging a single test would be a natural use of the
   debugger. The debugger's first version only supports `krb -f`, so supporting
   `krb test` is left to whichever of the two proposals lands second.
+- [Top-Level Declarations Proposal] — a call at the top level becomes an error, so
+  `@test(description, closure)` can no longer register a test by being called
+  there ([Q-register]). It also removes the reason test code cannot sit beside
+  the code it tests; the answer to the colocating question below is updated.
 
 ## Questions
 
@@ -63,6 +67,20 @@ Can test code be code located with implementation code?
 Not for this proposal. Kirby currently allows top level scripting behavior, specifically things that cause side effects. So when you try to run the file with the test code enabled, the side effects happen just interpreting the file, which is what registers the tests.
 
 This is the same issue with importing [modules]. If modules existed in the language now, importing would cause side effects.
+
+If the [Top-Level Declarations Proposal] is accepted, loading a file no longer has side effects, and this answer changes: test code can sit beside the code it tests, once registering a test is not a top-level call ([Q-register]).
+
+### **Q:** How are tests registered when the top level cannot make calls?
+
+<!-- [Q-register]: #q-how-are-tests-registered-when-the-top-level-cannot-make-calls -->
+
+**Status:** Open
+
+`@test(description, closure)` registers a test when it is called, which would be at the top level of a `*.test.krb` file. The [Top-Level Declarations Proposal] makes a call at the top level an error. Options:
+
+- **(a) The file's `main` registers the tests.** `fun main(): unit { @test("adds", fun () { ... }); }`, and `krb test` runs each matching file the way `krb -f` does. Nothing new in the language, but a test file cannot share a file with code that has its own `main`.
+- **(b) A test is a declaration**, such as `test "adds" { ... }`, and `krb test` finds tests among the declarations of a loaded file. It needs new syntax, but tests can sit next to the code they test, and loading the file still does nothing.
+- **(c) Tests are functions found by name**, for example `fun test_adds(): unit`. No new syntax, but a naming rule that is easy to get wrong.
 
 ## Glossary
 
@@ -87,8 +105,11 @@ These are both technical and non-technical terms used throughout the proposal.
 
 <!-- Questions -->
 
+[Q-register]: #q-how-are-tests-registered-when-the-top-level-cannot-make-calls
+
 <!-- Related proposals -->
 
 [Debugger Proposal]: ../debugger/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 
 <!-- Example: [Proposal Name]: path/to/PROPOSAL.md -->

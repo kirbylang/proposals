@@ -514,6 +514,11 @@ Each step is small, starts with a failing test, and leaves behavior without
   source paths ([Q-paths]), and a project could name a default file to debug.
   How the root is found is not decided there yet, and is now a question in that
   proposal. That proposal is updated to say so.
+- [Top-Level Declarations Proposal] — a run becomes "load the files, then call
+  `main`". A file's top level then only defines names, so `stopOnEntry` would
+  stop at the first line of `main`, not at the first line of the file, and the
+  `script` frame in the session example would be `main` ([Q-call-main]).
+  Nothing here changes until that proposal is accepted.
 
 ## Questions
 
@@ -655,6 +660,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [String Interpolation Proposal]: ../string-interpolation/PROPOSAL.md
 [Testing Proposal]: ../testing/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
@@ -663,6 +669,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-paths]: ../tooling-support-data/PROPOSAL.md#q-what-form-does-the-recorded-source-path-take
 [Q-compiled]: ../tooling-support-data/PROPOSAL.md#q-which-span-information-reaches-the-compiled-unit
 [Q-strip]: ../tooling-support-data/PROPOSAL.md#q-is-tooling-data-always-recorded
+[Q-call-main]: ../top-level-declarations/PROPOSAL.md#q-how-does-kirby-call-main
 
 <!-- External -->
 

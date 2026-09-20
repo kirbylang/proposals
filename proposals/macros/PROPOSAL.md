@@ -85,6 +85,12 @@ and not fused with the generics system.
   in the enums proposal's sketch, is one possible answer to [Q-syntax] option
   (b), and `match` would be the ordinary Kirby way to take it apart. Neither
   is needed here, since macros are ordinary Kirby code.
+- The [Top-Level Declarations Proposal] limits a file's top level to
+  declarations. A macro call at the top level that expands into declarations
+  (Part 6) is not a side effect, so that proposal's check should run on the
+  expanded program ([Q-check-where]). Its option (c) for comptime values,
+  running code at compile time so that initializers may call functions, would
+  use the mechanism in Part 3 here ([Q-comptime]).
 
 ## The Changes
 
@@ -263,6 +269,12 @@ These are both technical and non technical terms used throughout the proposal.
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Pattern Matching Proposal]: ../pattern-matching/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
+
+<!-- Other proposals' questions -->
+
+[Q-check-where]: ../top-level-declarations/PROPOSAL.md#q-where-does-the-top-level-check-run
+[Q-comptime]: ../top-level-declarations/PROPOSAL.md#q-how-much-is-a-comptime-value
 
 <!-- Questions -->
 

@@ -99,6 +99,13 @@ This proposal exists to close that gap, but most of _how_ is still open.
   [Q-paths] and [Q-strip] in the [Tooling Data Proposal]. The [Debugger
   Proposal] is the first tool to read it. The direction chosen for [Q-paths] is
   a path relative to a project root, which does not depend on the machine.
+- **Top-level declarations.** The [Top-Level Declarations Proposal] limits a
+  file to declarations, with comptime values for its `let` and `var`. That is
+  what makes importing safe: loading a file has no side effects, and a
+  module's compiled form does nothing observable when it loads. It also means
+  only the entry file's `main` runs. The rules apply to each file, so they hold
+  whether a module is a file or a namespace ([Q-naming]). It adds no import
+  syntax and no namespaces; those stay in [Q-assembly].
 
 ## The Changes (Sketch)
 
@@ -319,6 +326,7 @@ These are both technical and non technical terms used throughout the proposal.
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

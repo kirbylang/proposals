@@ -230,6 +230,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Pattern Matching Proposal] — tuple struct patterns depend on this proposal.
 - [Enums Proposal] — a variant like `Bool(bool)` is a close relative of a tuple struct. Both need positional fields, and the two should share how they are stored and how they are written.
 - [Generic Types Proposal] — generic tuple structs would need the same substitution work as generic structs (Part 3.5 there). Out of scope here.
+- [Top-Level Declarations Proposal] — a tuple struct declaration is a declaration, and it must be at the top level anyway. A value built as `Meters(1)` only builds data, so it would count as a comptime value when its arguments do, the same as a struct literal, once [Q-constructor] settles how it is written. The samples here that use top-level statements are converted when [Q-samples] there is settled.
 
 ### Testing Plan
 
@@ -489,12 +490,14 @@ These are both technical and non-technical terms used throughout the proposal.
 [Pattern Matching Proposal]: ../pattern-matching/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
 [Q-nested-access-tuples]: ../tuples/PROPOSAL.md#q-how-should-pair01-be-scanned
 [Q-mutability-tuples]: ../tuples/PROPOSAL.md#q-can-an-item-of-a-tuple-be-assigned-to
 [Q-equality-tuples]: ../tuples/PROPOSAL.md#q-how-does-tuple-equality-compare-items
+[Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
 
 <!-- External -->
 

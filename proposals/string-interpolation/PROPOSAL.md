@@ -263,6 +263,10 @@ type-checks, and runs on a clean build — including with the definition in
   several lines is given the line where it _ends_. That proposal changes it to
   where it starts, which matters here because interpolated strings may span
   lines.
+- [Top-Level Declarations Proposal] — the stdlib is loaded, not run, so
+  `stdlib/stdlib.krb` may hold only declarations. The `StringBuilder` in Part 2
+  is a `struct` and some `impl`s, so it already fits. The samples here that use
+  a top-level `print` are converted when [Q-samples] there is settled.
 
 ## Questions
 
@@ -377,8 +381,11 @@ proposal.
 [Modules]: ../modules/PROPOSAL.md
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 
 <!-- Other proposals' questions -->
+
+[Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
 
 [Q-library]: ../debugger/PROPOSAL.md#q-how-does-step-into-treat-code-the-programmer-did-not-write
 

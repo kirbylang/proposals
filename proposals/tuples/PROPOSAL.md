@@ -179,6 +179,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Destructuring Proposal] — tuple patterns like `let (a, b) = t;` depend on this proposal.
 - [Pattern Matching Proposal] — tuple patterns depend on this proposal.
 - [Sized Number Types Proposal] — the sketch uses `number`, which that proposal may define.
+- [Top-Level Declarations Proposal] — a tuple literal only builds data, so it would count as a comptime value when its items do, and could start a top-level `let` or `var`. The samples here that use top-level statements are converted when [Q-samples] there is settled.
 
 ### Testing Plan
 
@@ -408,11 +409,13 @@ These are both technical and non-technical terms used throughout the proposal.
 [Destructuring Proposal]: ../destructuring/PROPOSAL.md
 [Pattern Matching Proposal]: ../pattern-matching/PROPOSAL.md
 [Sized Number Types Proposal]: ../sized-number-types/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
 [Q-category]: ../collection-methods/PROPOSAL.md#q-is-collection-type-one-category-or-two
 [Q-unit]: ../primitive-impls/PROPOSAL.md#q-does-unit-get-impls-too
+[Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
 
 <!-- External -->
 
