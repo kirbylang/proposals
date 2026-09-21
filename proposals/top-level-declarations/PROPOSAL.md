@@ -172,15 +172,15 @@ alone. Evaluating it cannot call a function, read a `var`, or reach outside the
 program. Kirby has no compile-time evaluation today ([Appendix A], A.1), so this
 proposal has to say what counts. The first version accepts:
 
-| Form                                | Accepted when                                                         | Example                         |
-| ----------------------------------- | --------------------------------------------------------------------- | ------------------------------- |
-| Literal                             | always                                                                | `1`, `"kirby"`, `true`, `nil`, `()` |
-| Operators and `( )`                 | every operand is comptime                                             | `-1`, `24 * 60 * 60`, `"a" + "b"` |
-| Array literal                       | every element is comptime                                             | `[1, 2, 3]`, `[]`               |
-| Struct literal                      | every field value is comptime                                         | `Point { x: 1, y: 2 }`          |
-| Lambda                              | always: only creating it happens on load, its body does not run       | `fun (n: f64): f64 { n * n }`   |
-| Name of a top-level `fun`           | always                                                                | `helper`                        |
-| Name of a top-level `let`           | that `let` is earlier in the file and is itself comptime              | `alias` in `let alias = names;` |
+| Form                      | Accepted when                                                   | Example                             |
+| ------------------------- | --------------------------------------------------------------- | ----------------------------------- |
+| Literal                   | always                                                          | `1`, `"kirby"`, `true`, `nil`, `()` |
+| Operators and `( )`       | every operand is comptime                                       | `-1`, `24 * 60 * 60`, `"a" + "b"`   |
+| Array literal             | every element is comptime                                       | `[1, 2, 3]`, `[]`                   |
+| Struct literal            | every field value is comptime                                   | `Point { x: 1, y: 2 }`              |
+| Lambda                    | always: only creating it happens on load, its body does not run | `fun (n: f64): f64 { n * n }`       |
+| Name of a top-level `fun` | always                                                          | `helper`                            |
+| Name of a top-level `let` | that `let` is earlier in the file and is itself comptime        | `alias` in `let alias = names;`     |
 
 Nothing else is accepted. That rules out calls of any kind (natives, functions,
 methods, constructors), field access, indexing, `if` and block expressions,
@@ -273,13 +273,13 @@ compile errors use. Messages follow the two forms that exist today:
 `[line 2] Error: Can't return from top-level code.` and
 `[line 1] Error at 'struct': ... can only appear at the top level.`
 
-| Mistake                                | Message                                                                          |
-| -------------------------------------- | -------------------------------------------------------------------------------- |
-| Statement at the top level             | `[line 3] Error: Only declarations can appear at the top level of a file.`       |
-| Top-level `var` / `let` not comptime   | `[line 5] Error at 'zoo': A top-level 'var' can only be assigned a comptime value.` |
-| Top-level `var` without a value        | `[line 6] Error at 'pending': A top-level 'var' must be assigned a comptime value.` |
-| Entry file has no `main`               | `Error: No 'main' function. Running a file needs 'fun main(): unit'.`            |
-| `main` has the wrong shape             | `[line 2] Error at 'main': 'main' must be declared as 'fun main(): unit'.`       |
+| Mistake                              | Message                                                                             |
+| ------------------------------------ | ----------------------------------------------------------------------------------- |
+| Statement at the top level           | `[line 3] Error: Only declarations can appear at the top level of a file.`          |
+| Top-level `var` / `let` not comptime | `[line 5] Error at 'zoo': A top-level 'var' can only be assigned a comptime value.` |
+| Top-level `var` without a value      | `[line 6] Error at 'pending': A top-level 'var' must be assigned a comptime value.` |
+| Entry file has no `main`             | `Error: No 'main' function. Running a file needs 'fun main(): unit'.`               |
+| `main` has the wrong shape           | `[line 2] Error at 'main': 'main' must be declared as 'fun main(): unit'.`          |
 
 The exact wording is settled by the E2E snapshots when this is implemented. All
 statement and initializer errors in a file are reported together, before any
@@ -432,16 +432,16 @@ Statement nodes carry a line number but no token, so the message has the form
 The same pass checks every `NODE_VAR_DECL`. This is a check on the shape of the
 tree. Nothing is evaluated, so Kirby needs no new interpreter for it.
 
-| Node kind                                                       | Comptime when                                                  |
-| --------------------------------------------------------------- | -------------------------------------------------------------- |
-| `NODE_LITERAL` (includes the unit literal)                      | always                                                         |
-| `NODE_UNARY`, `NODE_BINARY`, `NODE_GROUPING`                    | every operand is                                               |
-| `NODE_AND`, `NODE_OR`, `NODE_NULLISH`                           | every operand is                                               |
-| `NODE_ARRAY`                                                    | every element is                                               |
-| `NODE_STRUCT_INIT`                                              | every field value is                                           |
-| `NODE_FUNCTION` with `isLambda`                                 | always                                                         |
-| `NODE_VARIABLE`                                                 | it names a top-level `fun`, or an earlier comptime `let`       |
-| anything else                                                   | never                                                          |
+| Node kind                                    | Comptime when                                            |
+| -------------------------------------------- | -------------------------------------------------------- |
+| `NODE_LITERAL` (includes the unit literal)   | always                                                   |
+| `NODE_UNARY`, `NODE_BINARY`, `NODE_GROUPING` | every operand is                                         |
+| `NODE_AND`, `NODE_OR`, `NODE_NULLISH`        | every operand is                                         |
+| `NODE_ARRAY`                                 | every element is                                         |
+| `NODE_STRUCT_INIT`                           | every field value is                                     |
+| `NODE_FUNCTION` with `isLambda`              | always                                                   |
+| `NODE_VARIABLE`                              | it names a top-level `fun`, or an earlier comptime `let` |
+| anything else                                | never                                                    |
 
 The pass first collects the names of all top-level functions, then walks the
 declarations in order and adds each comptime `let` to a set of names
@@ -586,6 +586,14 @@ version.
   [Primitive Impls Proposal], [Unimplemented Proposal] — many of their code
   samples use top-level statements. `match` is neither a declaration nor a
   comptime form, so it is used inside functions. See [Q-samples].
+- [Embedded Library Proposal] — an embedded host is a second kind of host. It loads
+  library files, then calls what it needs by name, and it never needs `main`. The
+  `interpretMain` of Part 5 is the case of that general call with no arguments,
+  and becomes `krbCallGlobal(k, "main", 0, NULL, &result)` there, so it needs no
+  function of its own ([Q-call-main]). The interface follows the rules of
+  [Q-snippets]: `krbLoad` takes a file and `krbEval` takes a snippet. Its
+  `--compile` option overlaps with [Q-check-only]. That proposal is updated to
+  say so.
 
 ### Testing Plan
 
@@ -952,7 +960,8 @@ add a small C unit test in `unit/` for `compileSource`. Neither is decided.
   asks the VM to call the global `main` (Part 5). The compiled unit only defines
   things and never contains a call to `main`, so the same unit works as a library
   file or an entry file, which suits the [Modules Proposal]. Traces end at
-  `main()`.
+  `main()`. If the [Embedded Library Proposal]'s call by name (its Part 5) is
+  built first, `interpretMain` is a use of it and not a new function.
 - **(b) The compiler adds the call.** When compiling an entry file, it adds a call
   to `main` at the end of the script. Nothing new is needed in the VM. But an
   entry file and a library file compile to different units, and traces end with an
@@ -1277,6 +1286,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
 [Unimplemented Proposal]: ../unimplemented/PROPOSAL.md
+[Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

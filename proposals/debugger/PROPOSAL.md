@@ -519,6 +519,16 @@ Each step is small, starts with a failing test, and leaves behavior without
   stop at the first line of `main`, not at the first line of the file, and the
   `script` frame in the session example would be `main` ([Q-call-main]).
   Nothing here changes until that proposal is accepted.
+- [Embedded Library Proposal] — the debugger's check before each instruction and that
+  proposal's check at loops and calls both sit in the loop of `run()`, and could
+  share one flag test ([Q-check]). The check at loops and calls costs about 1%
+  or less on the same `bench.krb` ([Q-check-cost]). Its output hook
+  ([Embedded Lbrary Part 4]) would let a debug session send a program's `print` output
+  to its own console, so that the program and the adapter need not share stdout.
+  The order of error message, trace, debugger hook and unwinding described in
+  Part 2 is kept ([Embedded Lbrary Part 3]). The stdlib that proposal builds into the
+  binary ([Embedded Lbrary Part 2]) has a source name of its own, which is what would
+  mark it as library code for [Q-library]. That proposal is updated to say so.
 
 ## Questions
 
@@ -591,6 +601,11 @@ would see less.
   breakpoint goes. No cost when not debugging, but stepping and error stops
   still need a check, and the patching has to be undone correctly.
 
+The [Embedded Library Proposal] adds a second check, at loops and calls, so that a host
+can stop a script that never ends ([Q-check-cost] there). Whichever of (a), (b)
+and (c) is chosen here has to leave room for it. With (b), the two checks could
+share one flag.
+
 ### **Q:** How does step into treat code the programmer did not write?
 
 <!-- [Q-library]: #q-how-does-step-into-treat-code-the-programmer-did-not-write -->
@@ -661,6 +676,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Testing Proposal]: ../testing/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
+[Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
@@ -670,6 +686,10 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-compiled]: ../tooling-support-data/PROPOSAL.md#q-which-span-information-reaches-the-compiled-unit
 [Q-strip]: ../tooling-support-data/PROPOSAL.md#q-is-tooling-data-always-recorded
 [Q-call-main]: ../top-level-declarations/PROPOSAL.md#q-how-does-kirby-call-main
+[Q-check-cost]: ../embedded-library/PROPOSAL.md#q-what-does-the-check-for-runaway-scripts-cost
+[Embedded Lbrary Part 2]: ../embedded-library/PROPOSAL.md#part-2-one-instance-no-hidden-shared-state
+[Embedded Lbrary Part 3]: ../embedded-library/PROPOSAL.md#part-3-a-scripts-mistake-stops-the-script
+[Embedded Lbrary Part 4]: ../embedded-library/PROPOSAL.md#part-4-everything-kirby-says-goes-through-a-hook
 
 <!-- External -->
 

@@ -272,7 +272,7 @@ traces need a line on every run. Anything beyond a line is Part 7.
 **The path of the file.** `CompiledUnit` gets a list of the files its code came
 from, stored in the unit's string blob like function names are. Today the list
 has one entry. `parse()`, `compile()`, and `compileSource()` take a source name;
-the REPL and `-c` pass `<repl>` and `<code>`. For a file, the name is the path
+the REPL and `-c` pass `<repl>` and `<code>`. An embedded host passes the name it likes ([Embedded Library Proposal]). For a file, the name is the path
 `krb` was given ([Q-paths]): `runFile` already has it, and passes it on. The
 loader puts an interned copy of the name on each `ObjFunction` as `sourcePath`,
 and the garbage collector marks it next to `name`.
@@ -484,6 +484,12 @@ Origin (Part 3) waits for macros.
   the kind of source (entry file, library file, or snippet). It is separate from
   the source name added in Part 5, and either proposal can land first. It also
   splits `runFile` into `loadFile` and `runFile`, and both pass the path on.
+  That proposal is updated to say so.
+- [Embedded Library Proposal] — a host that embeds Kirby names each script it loads, so
+  the source name of [Part 5] is whatever the host passes, and it need not be a
+  path. The five functions that write compile errors ([Embedded Lbrary Part 4]) are
+  where a span would be handed over as data and not only as text. The size of
+  the compiled scripts it ships ([Embedded Lbrary Part 9]) is evidence for [Q-strip].
   That proposal is updated to say so.
 
 ## Questions
@@ -815,6 +821,12 @@ compile-time work. Options:
 An embeddable language may care about size, so this should be measured before
 being settled.
 
+The [Embedded Library Proposal] is the case that (c) has in mind: a game that ships
+compiled scripts ([Embedded Lbrary Part 9]). A shipped game wants the least, and a game
+that ships mod tools may want the most, so its answer is that the host chooses
+when it compiles. That is (b), with the choice made by the host and not by a
+command line flag. The sizes it measured are in that proposal's Appendix A.
+
 ## Glossary
 
 These are both technical and non-technical terms used throughout the proposal.
@@ -871,6 +883,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [String Interpolation Proposal]: ../string-interpolation/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
+[Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
@@ -878,6 +891,8 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-root]: ../projects/PROPOSAL.md#q-how-is-the-project-root-found
 [Q-syntax]: ../macros/PROPOSAL.md#q-what-form-of-syntax-value-do-macros-receive-and-return
 [Q-library]: ../debugger/PROPOSAL.md#q-how-does-step-into-treat-code-the-programmer-did-not-write
+[Embedded Lbrary Part 4]: ../embedded-library/PROPOSAL.md#part-4-everything-kirby-says-goes-through-a-hook
+[Embedded Lbrary Part 9]: ../embedded-library/PROPOSAL.md#part-9-compiled-scripts-and-a-runtime-only-build
 
 <!-- Questions -->
 

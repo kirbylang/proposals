@@ -106,6 +106,12 @@ This proposal exists to close that gap, but most of _how_ is still open.
   only the entry file's `main` runs. The rules apply to each file, so they hold
   whether a module is a file or a namespace ([Q-naming]). It adds no import
   syntax and no namespaces; those stay in [Q-assembly].
+- **embedded library.** The [Embedded Library Proposal] proposes a versioned file for a
+  compiled unit: a magic number, a format version and the Kirby version, then the
+  unit. The interface of [Q-interface] can extend that container instead of
+  starting one ([Embedded Lbrary Part 9]). Whether a host function belongs to a module,
+  so that `engine.spawn` replaces `@spawn`, is [Q-host-names] there, and waits
+  for [Q-assembly] here.
 
 ## The Changes (Sketch)
 
@@ -168,7 +174,8 @@ Options and sub-questions: what serialization format (an extension of
 `CompiledUnit`, a separate side-file, or both); how it is versioned so a
 consumer can detect an incompatible producer; whether the interface is a
 separate artifact from the bytecode or embedded alongside it. This is the
-central open question of the whole proposal.
+central open question of the whole proposal. The [Embedded Library Proposal] proposes the container for a bare
+unit ([Embedded Lbrary Part 9]).
 
 ### **Q:** In what form does a module ship its generic bodies?
 
@@ -327,12 +334,15 @@ These are both technical and non technical terms used throughout the proposal.
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
+[Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
 [Q-files]: ../tooling-support-data/PROPOSAL.md#q-how-are-multiple-source-files-identified
 [Q-paths]: ../tooling-support-data/PROPOSAL.md#q-what-form-does-the-recorded-source-path-take
 [Q-strip]: ../tooling-support-data/PROPOSAL.md#q-is-tooling-data-always-recorded
+[Q-host-names]: ../embedded-library/PROPOSAL.md#q-what-names-may-host-functions-have
+[Embedded Lbrary Part 9]: ../embedded-library/PROPOSAL.md#part-9-compiled-scripts-and-a-runtime-only-build
 
 <!-- Questions -->
 

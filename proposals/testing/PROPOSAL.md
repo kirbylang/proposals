@@ -55,6 +55,12 @@ Kirby doesn't have a way to write and run tests that test Kirby code.
   `@test(description, closure)` can no longer register a test by being called
   there ([Q-register]). It also removes the reason test code cannot sit beside
   the code it tests; the answer to the colocating question below is updated.
+- [Embedded Library Proposal] — `krb test` could run every test in one process through
+  the interface that proposal adds: load a file, call each test by name, and
+  collect the failures without a test being able to end the process
+  ([Embedded Lbrary Part 3]). Option (c) of [Q-register], finding tests by name, needs
+  a way to list the functions of a loaded file, which would be a small addition
+  to its [Embedded Lbrary Part 5]. That proposal is updated to say so.
 
 ## Questions
 
@@ -80,7 +86,7 @@ If the [Top-Level Declarations Proposal] is accepted, loading a file no longer h
 
 - **(a) The file's `main` registers the tests.** `fun main(): unit { @test("adds", fun () { ... }); }`, and `krb test` runs each matching file the way `krb -f` does. Nothing new in the language, but a test file cannot share a file with code that has its own `main`.
 - **(b) A test is a declaration**, such as `test "adds" { ... }`, and `krb test` finds tests among the declarations of a loaded file. It needs new syntax, but tests can sit next to the code they test, and loading the file still does nothing.
-- **(c) Tests are functions found by name**, for example `fun test_adds(): unit`. No new syntax, but a naming rule that is easy to get wrong.
+- **(c) Tests are functions found by name**, for example `fun test_adds(): unit`. No new syntax, but a naming rule that is easy to get wrong. Finding them needs a way to list a file's functions, which the [Embedded Library Proposal] could provide.
 
 ## Glossary
 
@@ -111,5 +117,8 @@ These are both technical and non-technical terms used throughout the proposal.
 
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
+[Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
+[Embedded Lbrary Part 3]: ../embedded-library/PROPOSAL.md#part-3-a-scripts-mistake-stops-the-script
+[Embedded Lbrary Part 5]: ../embedded-library/PROPOSAL.md#part-5-call-kirby-from-the-host-and-get-values-back
 
 <!-- Example: [Proposal Name]: path/to/PROPOSAL.md -->
