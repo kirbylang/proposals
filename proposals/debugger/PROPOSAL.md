@@ -503,10 +503,10 @@ Each step is small, starts with a failing test, and leaves behavior without
   compiled function. For breakpoints to work on all of them, each copy must keep
   the generic's source path and lines, and its name should be readable in the
   call stack (for example `sum[f64]`). That proposal is updated to say so.
-- [String Interpolation Proposal] — the lowered code calls into the stdlib
-  `StringBuilder`, so step into on such a line would enter the stdlib unless
-  library code is skipped ([Q-library]). The lowered instructions should carry
-  the line of the string. That proposal is updated to say so.
+- [String Interpolation Proposal] — interpolated strings compile to native
+  calls, so step into on such a line never enters stdlib code. The generated
+  instructions carry the line of the string. That proposal is updated to say
+  so.
 - [Testing Proposal] — once `krb test` exists, debugging a single test is a
   matter of launching the same way with a test file. That proposal is updated to
   mention this.
@@ -612,9 +612,10 @@ share one flag.
 
 **Status:** Open
 
-The stdlib is loaded with every run, and the [String Interpolation
-Proposal] lowers `$"..."` into calls into it. Stepping into such a line would
-land in stdlib code. Options:
+The stdlib is loaded with every run, so any call into it (a stdlib function
+the program uses, or code a feature generates) would land in stdlib code when
+stepped into. The [String Interpolation Proposal] avoids this by compiling to
+native calls. Options:
 
 - **(a) Skip library files** (proposed for the first version). `main.c` already
   loads the stdlib through its own call, so it can mark that unit as library

@@ -604,7 +604,7 @@ The two proposals should agree on how a call builds a value.
 
 **Status:** Open
 
-Options: (a) In `stdlib/stdlib.krb`, as ordinary Kirby enums. That file is empty today and is run before user code in every run mode. It is simple and visible. But it puts `Option` and `Result` in every program's set of global names (the [String Interpolation Proposal] raises the same worry for `StringBuilder`), and native functions written in C would have to build a value of an enum declared in Kirby. (b) Built into the compiler, the way `Display`, `Eq`, `Ord`, and `Default` are already built in. C code can then create them, so natives could return `Option`. More C to write, and more to keep in step with Kirby's own rules. (c) Start with (a) for use in Kirby code, and give the natives an `Option` later once a way to build one from C is decided.
+Options: (a) In `stdlib/stdlib.krb`, as ordinary Kirby enums. That file is empty today and is run before user code in every run mode. It is simple and visible. But it puts `Option` and `Result` in every program's set of global names (the [String Interpolation Proposal] had the same worry about a `StringBuilder`, and chose a native instead), and native functions written in C would have to build a value of an enum declared in Kirby. (b) Built into the compiler, the way `Display`, `Eq`, `Ord`, and `Default` are already built in. C code can then create them, so natives could return `Option`. More C to write, and more to keep in step with Kirby's own rules. (c) Start with (a) for use in Kirby code, and give the natives an `Option` later once a way to build one from C is decided.
 
 ### **Q:** How does `Option[T]` relate to `nil`?
 

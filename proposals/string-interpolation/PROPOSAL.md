@@ -1,19 +1,20 @@
 ---
 status: Draft
 created: 2026-09-19
-from_commit: 61b7cc5
+from_commit: 8d21cbd
 ---
 
 # Proposal: String Interpolation
 
 This proposal adds string interpolation to Kirby: a `$`-prefixed string
 literal whose body can contain `{expression}` placeholders, e.g.
-`$"Hello {name}!"`. Per the acceptance criteria of [Issue #15], the design
-lowers each interpolated string to a `StringBuilder` (a new type in
-`stdlib/stdlib.krb`) that is instantiated and built with the struct-call
-bytecode the compiler already has — no new opcode, no new native.
+`$"Hello {name}!"`. Each interpolated string compiles to one call to a new
+native, `@strConcat`, which joins its pieces in a single step. There is no new
+opcode and nothing is added to `stdlib/stdlib.krb`. The same join is used for
+chains of three or more strings joined with `+`.
 
----
+It is implemented in [PR #95]. The sections below describe that
+implementation.
 
 ## How to read this document
 
@@ -27,24 +28,7 @@ have. That research is largely tracked in the form of [Questions].
 
 [Links] in this document are defined as link references.
 
-### Terminology
-
-Technical terms are kept to a minimum. Where a term is unavoidable, it is
-defined in the [Glossary] below.
-
-### Existing vs Proposed Behaviors
-
-- When the proposal text says Kirby "does" or "has" something, that is true
-  for the current implementation.
-- When the proposal text says Kirby "should" or "will" do something, that is
-  true after changes presented in this proposal.
-
-### Code & Changes
-
-- Any C code from the language's implementation will be displayed in `c`
-  code blocks.
-- Any Kirby code will be displayed in `kirby` code blocks.
-- Any code changes (C or Kirby) will be displayed as `diff` blocks.
+---
 
 ## Problem Statement
 
@@ -59,11 +43,15 @@ var pi = 3.14;
 print "pi is " + @numberToString(pi) + " roughly";
 ```
 
-That works today — `string + string` is accepted by the type-checker
+That works — `string + string` is accepted by the type-checker
 (`typchkInferBinary` in `src/typecheck.c`) and `OP_ADD` concatenates strings
 in the VM (`concatenate()` in `src/vm.c`) — but the seams between literal
 text and values get buried in operator syntax, and every non-string segment
 needs a manual `@numberToString`.
+
+It is also slow for long chains. Each `+` makes a new string, copying
+everything built so far, and every in-between string is hashed and interned.
+A chain of `n` strings copies the start of the result `n - 1` times.
 
 [Issue #15] proposes:
 
@@ -77,21 +65,19 @@ The `$` prefix exists so the scanner can tell an interpolated string from an
 ordinary one at the start of the token, without having to scan the string
 for delimiters.
 
-Today that example fails at scan time, because `$` is not a token in
-`src/scanner.c` and falls through to the error default:
+At `from_commit` that example fails at scan time, because `$` is not a token
+in `src/scanner.c` and falls through to the error default:
 
 ```
 $ ./build/krb -f test.krb
 [line 2] Error: Unexpected character.
 ```
 
-(verified against a clean build of `from_commit`)
-
 The issue's acceptance criteria: "If it's possible to add the StringBuilder
 implementation to stdlib.krb then construct bytecode to instantiate and build
-the interpolated string. Or if there is a better way of doing it." The rest
-of this proposal checks that route against the implementation and designs
-around it, with the construction strategy itself left open in [Q-strategy].
+the interpolated string. Or if there is a better way of doing it." This
+proposal takes the "better way": a native, compared against the
+`StringBuilder` in [Q-strategy].
 
 ## Proposed Changes
 
@@ -105,168 +91,280 @@ character" error.
 The body of an interpolated string is a sequence of **segments**: literal
 text and `{expression}` placeholders.
 
-- A placeholder can contain any Kirby expression, so calls, indexing, and
-  even closures or struct literals with their own braces are legal:
-  `$"count={@len(items)}"`, and an interpolated string can nest inside a
-  placeholder of another.
-- Literal segments use the same escape rules as ordinary string literals
-  (`\n`, `\r`, `\t`, `\"`, `\\` — the unescape in `string_()` in
-  `src/parser.c`).
-- How a literal brace is written in a segment is [Q-braces].
-- Like ordinary strings, a body may span multiple lines (the scanner only
-  tracks line numbers, it does not reject newlines).
-- An interpolated string is an **expression**: it appears anywhere a string
-  literal does (arguments, assignments, `+` operands, return values) and has
-  type `string`. `print $"..."` needs no special-casing — the value is a
-  plain string.
-
-### Part 2 — `StringBuilder` in `stdlib/stdlib.krb`
-
-`stdlib/stdlib.krb` is currently empty, and it is already loaded before user
-code in every run mode (`-r`, `-f`, `-c`) via `runFile("stdlib/stdlib.krb")`
-in `src/main.c`. Anything defined there is visible to user programs.
-
-The design adds a `StringBuilder` to that file, modeled on
-`examples/stringBuilder.krb`, which was verified to compile and run against
-a clean `from_commit` build:
+- A placeholder can contain any Kirby expression, so calls, indexing, block
+  expressions, and struct literals with their own braces are legal:
+  `$"sum={p.x + p.y}"`, `$"first={items[0]}"`. An interpolated string can
+  nest inside a placeholder of another, up to 16 deep.
+- A placeholder's value must be a `string`, `f64`, `bool`, or a type that
+  implements `Display` ([Q-segment-types]). Numbers, bools, and `Display`
+  values are converted to strings.
+- Literal text uses the same escapes as ordinary string literals (`\n`, `\r`,
+  `\t`, `\"`, `\\`). Literal braces are doubled: `{{` is a `{` and `}}` is a
+  `}` ([Q-braces]).
+- A single `}` in literal text is an error ([Q-bare-brace]).
+- Like ordinary strings, a body may span multiple lines.
+- An interpolated string is an **expression** of type `string`: it appears
+  anywhere a string literal does.
+- `$"text"` with no placeholders is allowed, and is the same as `"text"`
+  except that `{{` and `}}` are literal braces.
 
 ```kirby
-// stdlib/stdlib.krb
-struct StringBuilder {
-    var value: Array;
-}
+let name = "World";
+let count = 3;
+let ok = true;
 
-impl StringBuilder {
-    pub fun add(self, add: string): Self {
-        @arrPush(self.value, add);
-
-        self
-    }
-}
-
-impl Default for StringBuilder {
-    fun default(): Self = Self { value: [] };
-}
-
-impl Display for StringBuilder {
-    fun toString(self): string = @arrJoin(self.value, "");
-}
+print $"Hello {name}! count={count} ok={ok}"; // Hello World! count=3 ok=true
+print $"{{name}} is {name}";                   // {name} is World
+print $"{{{count}}}";                          // {3}
 ```
 
-The `Display` and `Default` traits used here are built in — the type-checker
-registers `Display`, `Eq`, `Ord`, and `Default` as builtin traits
-(`typchkTypeEnvDefineBuiltinTraits` in `src/typecheck.c`).
+### Part 2 — `@strConcat` and `@boolToString` natives
+
+Two natives are added to `src/native.c`.
+
+**`@strConcat(strings)`** joins an array of strings, with nothing between
+them:
+
+```kirby
+print @strConcat(["Hello", ", ", "World"]); // Hello, World
+print @strConcat([]);                       // an empty string
+```
+
+It shares its body with `@arrJoin` through a `joinStrings` helper, which
+checks every element is a string while adding up the total length, then
+allocates the result once and copies each string into it. Every string is
+copied once.
+
+`@strConcat` has no type signature yet, like `@arrJoin` and the other array
+natives, so its argument is checked when the program runs. A `[string]`
+parameter would reject arrays whose element type is unknown, such as the
+result of `@strSplit`, and the type-checker has no "array of anything" until
+there are generics ([Generic Types Proposal]).
+
+**`@boolToString(b)`** returns `"true"` or `"false"`, matching
+`@numberToString` for numbers. It has a signature, `(bool) -> string`.
 
 ### Part 3 — Compiler lowering
 
-An interpolated string lowers to a `StringBuilder` chain.
-`$"Hello {name}! World {count}"` becomes:
+An interpolated string compiles to one `@strConcat` call, with each
+placeholder converted first:
 
 ```kirby
-StringBuilder.default()
-    .add("Hello ")
-    .add(name)
-    .add("! World ")
-    .add(@numberToString(count))
-    .toString()
+$"Hello {name}! count={count} ok={ok}"
+
+// compiles as
+@strConcat(["Hello ", name, "! count=", @numberToString(count), " ok=", @boolToString(ok)])
 ```
 
-- Literal segments become string constants on the same path as ordinary
-  literals (`CONST_STRING` + `OP_CONSTANT` in `src/compiler.c`).
-- Placeholder expressions compile as ordinary expressions.
-- A placeholder whose type is not `string` is wrapped in a conversion. At
-  `from_commit`, `f64` is the only non-string type with a conversion to
-  string (`@numberToString` in the `src/native.c` registry). Which other
-  types should be accepted is [Q-segment-types].
-- The type-checker infers `string` for the whole node.
+- Literal text becomes string constants. Empty text is left out, so
+  `$"{a}{b}"` joins two parts, not three.
+- A single part needs no join: `$"{name}"` compiles to `name`, and `$"{n}"`
+  to `@numberToString(n)`.
+- The conversion for each placeholder is chosen by the type-checker, because
+  the compiler has no types ([Part 4]). A value whose type implements
+  `Display` is converted by calling its `toString()` method.
+- Conversions happen before the call, so `@strConcat` only ever receives
+  strings. A native can't call a Kirby method, so keeping conversions outside
+  it is what lets a placeholder use a type's `Display` impl: the compiler
+  calls `toString()` on the value itself.
 
-No new opcode or VM change is required: everything in the lowered form
-already compiles at `from_commit` — the static call
-(`StringBuilder.default()`), the chained instance calls (`.add(...)`,
-`OP_INVOKE` in `src/compiler.c`), and the `@`-prefixed native call.
-Verified end to end: a file defining the Part 2 type and calling
-`StringBuilder.default().add("Hello ").add(name).toString()` compiles,
-type-checks, and runs on a clean build — including with the definition in
-`stdlib/stdlib.krb` and the use in a separate user file.
+For `$"Hello {name}!"` the bytecode is:
+
+```
+OP_GET_GLOBAL       '@strConcat'
+OP_CONSTANT         'Hello '
+OP_GET_GLOBAL       'name'
+OP_CONSTANT         '!'
+OP_ARRAY            3
+OP_CALL             1
+```
+
+**Limit: 255 parts.** `OP_ARRAY` holds its item count in one byte, so an
+interpolated string can have at most 255 parts (text pieces and
+placeholders). More is a compile error, "Too many parts in interpolated
+string." Array literals already have the same limit.
+
+#### `+` chains of strings
+
+The same join is used for `+`. When both sides of a `+` are strings, the
+type-checker marks the `+` node, and the compiler flattens a chain of marked
+`+` nodes into a list of the strings they join:
+
+```kirby
+a + b + c + d        // parsed as ((a + b) + c) + d
+a + (b + c) + d      // parentheses are looked through
+
+// both compile as
+@strConcat([a, b, c, d])
+```
+
+- **Two strings keep a single `OP_ADD`**, which is cheaper than building an
+  array and calling a native.
+- **Chains longer than 255 strings** join the first 255 and add the rest with
+  `OP_ADD`.
+- **A `+` whose operand types aren't known** is not marked, and compiles to
+  `OP_ADD` as before, so the VM still checks it at runtime.
+
+Measured with 200,000 loop iterations, before and after (the join was
+measured as `@arrJoin`, which shares `@strConcat`'s implementation):
+
+| Strings joined | `OP_ADD` chain | One join |
+|---|---|---|
+| 8 × 200 characters | 2.12s | 0.54s |
+| 16 × 5 characters | 0.31s | 0.12s |
+| 3 × 200 characters | 0.32s | 0.21s |
+| 3 × 5 characters | 0.033s | 0.047s |
+| 2 strings (stays `OP_ADD`) | 0.131s | 0.152s |
+
+The join only loses on three or four very short strings, by a few
+nanoseconds each, which is why the cut-off is three.
 
 ### Part 4 — Scanner, parser, and type-checker changes
 
-- **Scanner** (`src/scanner.c`): recognize `$` followed by `"` and scan a new
-  token type (tentatively `TOKEN_INTERP_STRING`). The scan runs to the
-  closing quote at placeholder depth zero — unescaped `{`/`}` are counted —
-  so a placeholder containing a closure or struct literal does not end the
-  string, and an unterminated body errors the same way `string()` does
-  today. The recognition sits next to the existing `@` prefix rule:
+#### Scanner
 
-  ```diff
-    if (c == '@' && isAlpha(peek(scanner)))
-      return identifier(scanner);
+Four new tokens split an interpolated string into its text pieces, with
+ordinary tokens for each placeholder's expression between them:
 
-  + if (c == '$' && peek(scanner) == '"')
-  +   return interpString(scanner);
-  +
-    if (isDigit(c))
-      return number(scanner);
-  ```
+| Token | Text | Example |
+|---|---|---|
+| `TOKEN_INTERP_STRING` | a whole string with no placeholders | `$"Hello"` |
+| `TOKEN_INTERP_START` | from `$"` to the first `{` | `$"Hello {` |
+| `TOKEN_INTERP_MIDDLE` | from a placeholder's `}` to the next `{` | `}, {` |
+| `TOKEN_INTERP_END` | from the last placeholder's `}` to the closing `"` | `}!"` |
 
-- **Parser** (`src/parser.c`): a new `NODE_` kind for interpolated strings,
-  holding an ordered list of segments. Each segment is either a literal
-  (unescaped with the same rules as `string_()`) or a parsed expression.
-  Placeholder bodies sit inside the token's text, so the parser re-lexes the
-  text between `{` and the matching `}` and parses it as an ordinary
-  expression.
-- **Type-checker** (`src/typecheck.c`): infer `string` for the new node. No
-  other changes — placeholder expressions check as ordinary expressions, and
-  any `@numberToString` wrapping checks against the existing native
-  signature.
+`print $"Hello {"World"}! {b} {n}";` scans as:
+
+```
+TOKEN_PRINT
+TOKEN_INTERP_START    $"Hello {
+TOKEN_STRING          "World"
+TOKEN_INTERP_MIDDLE   }! {
+TOKEN_IDENTIFIER      b
+TOKEN_INTERP_MIDDLE   } {
+TOKEN_IDENTIFIER      n
+TOKEN_INTERP_END      }"
+TOKEN_SEMICOLON
+```
+
+Tokens keep pointing into the source, so line numbers stay correct.
+
+In the text, a single `{` starts a placeholder, and a doubled `{{` is literal
+text. Inside a placeholder the scanner scans ordinary code, so `"World"` is an
+ordinary string. It tracks how many `{` are open inside each placeholder
+(`interpBraces` in `Scanner`), so a `}` only ends the placeholder when none
+are open: in `{Point { x: 1 }.x}`, the first `}` closes the struct literal
+and the second closes the placeholder. Up to 16 interpolated strings can nest
+(`MAX_INTERP_DEPTH`); deeper is the error "Interpolated strings nested too
+deeply."
+
+`TOKEN_INTERP_END` is needed, rather than ending with an ordinary
+`TOKEN_STRING`, because an ordinary string can follow a placeholder's
+expression. In `$"{a "b"}"`, a separate end token lets the parser report
+"Expect '}' after placeholder expression." at `"b"`. If the end were a
+`TOKEN_STRING`, `"b"` would be taken as the end of the string.
+
+#### AST
+
+- **`NODE_INTERP_STRING`** holds an `InterpStringNode`: an arena-allocated
+  array of `InterpPart`, in source order.
+- **`InterpPart`** is an expression (a string literal for text, or the
+  placeholder's expression) and a `StringConversion`.
+- **`StringConversion`** is `STRING_CONVERSION_NONE` (already a string),
+  `STRING_CONVERSION_NUMBER` (`@numberToString`), `STRING_CONVERSION_BOOL`
+  (`@boolToString`), or `STRING_CONVERSION_DISPLAY` (the value's `toString()`).
+  The parser sets `NONE`; the type-checker sets the rest.
+- **`BinaryNode.isStringConcat`** marks a `+` on two strings, set by the
+  type-checker for the compiler's `+` chain lowering.
+
+`$"text"` with no placeholders produces an ordinary string `NODE_LITERAL`.
+
+#### Parser
+
+A prefix rule for `TOKEN_INTERP_START` parses an expression after it and each
+`TOKEN_INTERP_MIDDLE`, until `TOKEN_INTERP_END`. Text pieces are unescaped by
+the same code as ordinary strings, which also turns `{{` and `}}` into single
+braces, and rejects a single `}`, when the text comes from an interpolated
+string. The errors are:
+
+- `$"a {} b"`: "Expect expression inside '{}'."
+- `$"a {x "b"} c"`: "Expect '}' after placeholder expression."
+- `$"a } b"`: "Single '}' in interpolated string. Write '}}' for a literal
+  '}'."
+- `$"\{a"`: "Invalid escape sequence: \{", as in an ordinary string.
+
+#### Type-checker
+
+`typchkInferInterpString` infers `string` for the node and records each
+placeholder's conversion from its type, using `chooseStringConversion`. Any
+other type is an error, for example "Can't interpolate [f64]. Only string,
+f64, bool, and types that implement Display can be interpolated."
+
+The compiler turns a part into a string with `compileToString`, which compiles
+the value followed by its conversion.
+
+A placeholder whose type the checker can't tell is also an error
+([Q-unknown-types]):
+
+```
+Can't tell the type of this placeholder. Declare it before this line, or give it a type, e.g. 'let n: f64 = ...;'.
+```
 
 ## Impacts
 
 ### Existing Syntax Or Behavior
 
-- `$` is an error character today, so reserving `$`+`"` breaks no existing
-  program. A lone `$`, or `$` followed by anything but a quote, still errors.
+- `$` is an error character at `from_commit`, so reserving `$`+`"` breaks no
+  existing program. A lone `$`, or `$` followed by anything but a quote,
+  still errors.
 - Ordinary string literals are untouched; no interpolation happens inside a
-  plain `"..."`, so existing code with braces in string literals is
-  unaffected.
-- `stdlib/stdlib.krb` gains a `StringBuilder` global. A user program that
-  declares its own top-level `StringBuilder` will now fail with "Already
-  declared in this scope." (verified against a clean `from_commit` build
-  with the Part 2 definition in stdlib). See [Q-stdlib-name].
-- An interpolated string with more than 256 literal segments in one function
-  would hit the existing "Too many constants in one chunk." limit
-  (`makeConstant` in `src/compiler.c` caps chunk constants at `UINT8_MAX`).
-  Not a realistic limit for hand-written code; noted for completeness.
+  plain `"..."`, and `{{` there is just two braces.
+- Chains of three or more strings joined with `+` compile to `@strConcat`.
+  Their output is unchanged; only their bytecode differs.
+- Nothing is added to `stdlib/stdlib.krb`, so no global name can collide with
+  user code.
+- Each join adds constants for the natives it names, and a function has at
+  most 256 constants ("Too many constants in one chunk."). A function with
+  many interpolated strings reaches that limit sooner.
+
+### Limitations
+
+- **Placeholders must have a known type** ([Q-unknown-types]). This rejects
+  calls to natives with no signature yet, such as `$"{@len(items)}"`, and
+  globals used in a function before they're declared in the file.
+- **At most 255 parts** per interpolated string ([Part 3]).
+- **At most 16 levels** of interpolated strings nested inside placeholders.
 
 ### Related Proposals
 
-- [Primitive Impls Proposal] — that proposal adds `impl Display for f64`
-  with a `toString` method. Once merged, f64 (and eventually other) segments
-  could convert through the trait instead of `@numberToString`. This
-  proposal uses `@numberToString` in the meantime.
+- [Primitive Impls Proposal] — adds `impl Display for f64` with a `toString`
+  method. Once merged, number (and other) placeholders could convert through
+  the trait instead of `@numberToString`.
+- Display for structs and enums — a placeholder whose type implements the
+  built-in `Display` trait converts with its `toString()` method, and so do
+  `print` and the `@print` natives. Values whose parts are only known at
+  runtime, such as an array of `Display` structs, aren't converted yet: that
+  needs a native to call a Kirby method.
+- [Generic Types Proposal] — `@strConcat` gets a type signature once arrays
+  of unknown element type can be checked. Signatures for natives such as
+  `@len` also remove most of the unknown-type limitation.
+- [Top-Level Declarations Proposal] — makes globals known before function
+  bodies are checked, which removes the rest of the unknown-type limitation
+  ([Q-unknown-types]).
 - [Macros Proposal] — interpolation could alternatively be implemented as a
-  built-in macro emitting the Part 3 chain. This proposal takes the direct
-  lowering route and does not depend on macros.
-- [Collection Methods Proposal] — the Part 2 `StringBuilder` uses `@arrPush`
-  on its internal `Array`. If array methods land, the stdlib definition could
-  switch to a method call.
-- [Testing Proposal] — acceptance tests for this feature (scanning, parsing,
-  lowering, runtime output) would land with the test framework.
-- [Debugger Proposal] — the Part 3 lowering calls into the stdlib
-  `StringBuilder`, so stepping into a line with an interpolated string would
-  enter stdlib code unless library code is skipped ([Q-library] there). The
-  lowered instructions should carry the line of the interpolated string, so
-  breakpoints and error traces point at the line the programmer wrote.
-- [Tooling Data Proposal] — the lowered code is generated, so its spans should be
-  the span of the interpolated string (or of the placeholder, for code inside
-  `{...}`), and never a location in the stdlib. Today a string that runs over
-  several lines is given the line where it _ends_. That proposal changes it to
-  where it starts, which matters here because interpolated strings may span
-  lines.
-- [Top-Level Declarations Proposal] — the stdlib is loaded, not run, so
-  `stdlib/stdlib.krb` may hold only declarations. The `StringBuilder` in Part 2
-  is a `struct` and some `impl`s, so it already fits. The samples here that use
-  a top-level `print` are converted when [Q-samples] there is settled.
+  built-in macro. This proposal lowers directly and does not depend on
+  macros.
+- [Testing Proposal] — acceptance tests for this feature would land with the
+  test framework.
+- [Debugger Proposal] — interpolated strings compile to native calls, so
+  stepping into one never enters stdlib code. The generated instructions carry
+  the line of the interpolated string.
+- [Tooling Data Proposal] — the generated code should carry the span of the
+  interpolated string (or of the placeholder, for code inside `{...}`). A
+  string that runs over several lines is currently given the line where its
+  first piece _ends_; that proposal changes strings to where they start.
+- [Embedded Library Proposal] — interpolation no longer adds anything to the
+  stdlib, so it costs new instances nothing.
 
 ## Questions
 
@@ -274,20 +372,62 @@ type-checks, and runs on a clean build — including with the definition in
 
 <!-- [Q-strategy]: #q-which-construction-strategy-should-the-compiler-use -->
 
-**Status:** Open
+**Status:** Answered
 
-The issue's acceptance criteria name a stdlib `StringBuilder` but leave the
-door open to "a better way." The candidates:
+The candidates were:
 
-- **(a) stdlib `StringBuilder` chain** — the Part 2/Part 3 design. N pushes
-  (amortized) plus one final `@arrJoin` allocation. Requires the stdlib
-  definition to land with this feature. Verified end to end at
-  `from_commit`. It also polutions the global namespace.
-- **(b) `+` chain** — compile `$"a {x} b"` to `CONST "a " + x + CONST " b"
-`. Zero stdlib dependency, but each `OP_ADD` allocates a fresh string, so
-  a long interpolation copies the whole accumulated result per segment.
-- **(c) new native** — A new native function like `@strConcat`
-- **(c) a dedicated opcode** — A new OP code is not desirable
+- **(a) stdlib `StringBuilder` chain**: `StringBuilder.default().add(...)
+  ...toString()`, with a `StringBuilder` struct in `stdlib/stdlib.krb`.
+- **(b) `+` chain**: compile `$"a {x} b"` to `"a " + x + " b"`.
+- **(c) a new native**: `@strConcat([...])`.
+- **(d) a dedicated opcode**: a new instruction that joins strings.
+
+**(a) `StringBuilder`**
+
+- Pros: written in Kirby, with no new native. Matches the issue's suggestion,
+  and verified to work at the proposal's original `from_commit`.
+- Cons:
+  - Puts a `StringBuilder` global in every program, which collides with a
+    user's own `StringBuilder` ("Already declared in this scope.").
+  - Depends on the stdlib being found and loaded. Without it, no program
+    using interpolation can run.
+  - Much more work per string: creating the struct, one method call and one
+    `@arrPush` per part, then a final `@arrJoin`.
+  - Stepping into an interpolated string in a debugger enters stdlib code,
+    and a program transpiled to Lua has to carry a translated copy of the
+    stdlib.
+
+**(b) `+` chain**
+
+- Pros: no dependencies at all.
+- Cons: each `OP_ADD` makes a new string, copying everything built so far,
+  so a string with `n` parts copies its start `n - 1` times.
+
+**(c) `@strConcat` native** (chosen)
+
+- Pros:
+  - One call; the result is allocated once and each part copied once.
+  - No global name, and no dependency on the stdlib.
+  - Small, simple bytecode.
+  - Also speeds up `+` chains of strings.
+- Cons:
+  - A new native in every program's namespace. Its name is `@`-prefixed, so
+    it can't collide with user code.
+  - A native can't call Kirby methods, so conversions must be chosen by the
+    compiler. That's workable, including for `Display`.
+  - Builds a temporary array for every join.
+  - Limited to 255 parts by `OP_ARRAY`.
+  - No type signature until generics.
+
+**(d) Opcode**
+
+- Pros: fastest, with no array and no native call.
+- Cons: a new opcode is not desirable.
+
+#### Answer
+
+(c): `@strConcat`. It keeps most of (d)'s speed without a new opcode, and
+avoids (a)'s global name and stdlib dependency.
 
 ### **Q:** Which placeholder types should be accepted?
 
@@ -295,20 +435,18 @@ door open to "a better way." The candidates:
 
 **Status:** Answered
 
-At `from_commit` the only conversion from a non-string type to a string is
-`@numberToString` for `f64`. `bool`, `nil`, and struct values have none —
-`Display` impls on primitives are unmerged work in [Primitive Impls
-Proposal].
-
-Options: (a) accept `string` and `f64` placeholders now, and type-error on
-everything else; (b) accept only `string` now and open up other types as
-conversions become available (e.g. `impl Display for bool` once primitive
-impls land). (a) is simpler and more honest about what the compiler can
-lower today.
+At the proposal's original `from_commit` the only conversion from a
+non-string type to a string was `@numberToString` for `f64`. `bool`, `nil`,
+and struct values had none — `Display` impls on primitives are unmerged work
+in [Primitive Impls Proposal].
 
 #### Answer
 
-`string`, `f64`, and `bool` for now.
+`string`, `f64`, and `bool` for now. `@boolToString` is added for `bool`
+([Part 2]).
+
+Update: types that implement the built-in `Display` trait are also accepted,
+converting with their `toString()` method.
 
 ### **Q:** How do literal braces in segments work?
 
@@ -327,23 +465,74 @@ syntax.
 
 Escaping `\{` and `\}` for now. If `{{expr}}` is supported in the future, it will be a new proposal.
 
+Revised: (b), doubled braces, as in C# and Python. `{{` is a literal `{` and
+`}}` is a literal `}`, so `$"{{{n}}}"` wraps a value in braces. `\{` and `\}`
+are invalid escapes, as in ordinary strings.
+
+### **Q:** Should a single `}` in literal text be an error?
+
+<!-- [Q-bare-brace]: #q-should-a-single--in-literal-text-be-an-error -->
+
+**Status:** Answered
+
+With doubled braces ([Q-braces]), `}}` means one literal `}`. A single `}`
+could still be read as a literal brace, as JavaScript and Swift do with their
+own escapes.
+
+#### Answer
+
+It is an error, "Single '}' in interpolated string. Write '}}' for a literal
+'}'.", as in C#, Python, and Rust. Since `}}` means one brace, allowing a
+single `}` too would make text like `a}}` ambiguous: one brace or two. The
+message says how to write a literal brace.
+
+### **Q:** What happens to a placeholder whose type isn't known?
+
+<!-- [Q-unknown-types]: #q-what-happens-to-a-placeholder-whose-type-isnt-known -->
+
+**Status:** Answered
+
+The type-checker allows expressions of unknown type elsewhere, and leaves
+them to runtime checks (a `+` of unknown operands compiles to `OP_ADD`,
+which the VM checks). A placeholder's conversion has to be chosen at compile
+time, though. Unknown types come from natives with no signature yet
+(`$"{@len(items)}"`) and from globals used in a function before they're
+declared:
+
+```kirby
+fun describe(): string = $"later={later}";
+
+let later = "x";
+```
+
+Options: (a) reject them with a compile error; (b) pass them to `@strConcat`
+unconverted, so a string works and anything else fails at runtime, with an
+error that names `@strConcat` though the program never calls it.
+
+#### Answer
+
+(a), with an error that says how to fix it: "Can't tell the type of this
+placeholder. Declare it before this line, or give it a type, e.g. 'let n: f64
+= ...;'." Accepting more programs later breaks nothing, while going from (b)
+to (a) later would. [Generic Types Proposal] and [Top-Level Declarations
+Proposal] remove most of these cases.
+
 ### **Q:** Is `StringBuilder` the right name for a stdlib global?
 
 <!-- [Q-stdlib-name]: #q-is-stringbuilder-the-right-name-for-a-stdlib-global -->
 
 **Status:** Answered
 
-Part 2 puts `StringBuilder` in every program's global namespace (the stdlib
-loads first in every run mode), and a user program that declares its own
-`StringBuilder` collides with it (verified: "Already declared in this
-scope."). The name follows the existing example, but there is no stdlib
-naming convention to follow yet — the file is empty. Worth settling before
-the definition lands, since renaming later is a breaking change for anyone
-who wrote against it.
+The original design put `StringBuilder` in every program's global namespace
+(the stdlib loads first in every run mode), where a user program that
+declares its own `StringBuilder` collides with it.
 
 #### Answer
 
 This is ok right now. I do wonder if how this will work as the language scales, and [[modules]] are added.
+
+No longer applies: the chosen strategy ([Q-strategy]) adds nothing to the
+stdlib.
 
 ## Glossary
 
@@ -357,11 +546,16 @@ proposal.
   expression's value.
 - **Segment**: one element of an interpolated string's body — either literal
   text or a single `{expression}` placeholder.
-- **Lowering**: the compiler's rewrite of an interpolated string into the
-  equivalent `StringBuilder.default().add(...)...toString()` expression.
-- **StringBuilder**: the struct from Part 2, in `stdlib/stdlib.krb`, that
-  accumulates string segments in an `Array` and joins them in `toString`.
-  Modeled on `examples/stringBuilder.krb`.
+- **Part**: one element of an `InterpStringNode` after parsing: a text
+  segment (empty ones are left out) or a placeholder's expression, each with
+  its conversion.
+- **Conversion**: how a part becomes a string — none for strings,
+  `@numberToString` for `f64`, `@boolToString` for `bool`, and `toString()`
+  for a type that implements `Display`.
+- **Lowering**: the compiler's rewrite of an interpolated string, or of a `+`
+  chain of strings, into a single `@strConcat([...])` call.
+- **`+` chain**: a `+` expression whose operands are strings, together with
+  any `+` of strings nested in its operands, e.g. `a + (b + c) + d`.
 
 ## Link References
 
@@ -371,31 +565,32 @@ proposal.
 [Glossary]: #glossary
 [Questions]: #questions
 [Problem Statement]: #problem-statement
+[Part 2]: #part-2--strconcat-and-booltostring-natives
+[Part 3]: #part-3--compiler-lowering
+[Part 4]: #part-4--scanner-parser-and-type-checker-changes
 
 <!-- Proposals -->
 
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
 [Macros Proposal]: ../macros/PROPOSAL.md
-[Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
 [Testing Proposal]: ../testing/PROPOSAL.md
 [Modules]: ../modules/PROPOSAL.md
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
-
-<!-- Other proposals' questions -->
-
-[Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
-
-[Q-library]: ../debugger/PROPOSAL.md#q-how-does-step-into-treat-code-the-programmer-did-not-write
+[Generic Types Proposal]: ../generic-types/PROPOSAL.md
+[Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
 
 <!-- External -->
 
 [Issue #15]: https://github.com/kirbylang/kirbylang/issues/15
+[PR #95]: https://github.com/kirbylang/kirbylang/pull/95
 
 <!-- Questions -->
 
 [Q-strategy]: #q-which-construction-strategy-should-the-compiler-use
 [Q-segment-types]: #q-which-placeholder-types-should-be-accepted
 [Q-braces]: #q-how-do-literal-braces-in-segments-work
+[Q-bare-brace]: #q-should-a-single--in-literal-text-be-an-error
+[Q-unknown-types]: #q-what-happens-to-a-placeholder-whose-type-isnt-known
 [Q-stdlib-name]: #q-is-stringbuilder-the-right-name-for-a-stdlib-global

@@ -502,9 +502,9 @@ translation.
 - [Generic Types Proposal] — specialization makes each use its own compiled code,
   so the writer sees ordinary functions and structs and never a type parameter.
 - [Macros Proposal] — macros are expanded before the writer runs.
-- [String Interpolation Proposal] — its lowered code calls `StringBuilder` in the
-  stdlib, which is Kirby code. A program that uses interpolation carries a
-  translated copy of it.
+- [String Interpolation Proposal] — interpolated strings compile to calls to
+  the `@strConcat`, `@numberToString` and `@boolToString` natives, which become
+  support functions like any other native.
 - [Primitive Impls Proposal] and [Collection Methods Proposal] — a method on a
   number, string or array is a call to a support function.
 - [Prefixed Native Functions Proposal] (Closed) and [Additional Native Functions

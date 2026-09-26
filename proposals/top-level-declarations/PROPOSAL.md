@@ -561,9 +561,11 @@ version.
   declarations (its Part 6) is not a side effect, so the check should run on the
   expanded program ([Q-check-where]). Option (c) of [Q-comptime] would use the
   mechanism in its Part 3. That proposal is updated to say so.
-- [String Interpolation Proposal] — the stdlib is loaded, not run, so it may
-  hold only declarations. The `StringBuilder` in its Part 2 is a `struct` and
-  some `impl`s, so it already fits. That proposal is updated to say so.
+- [String Interpolation Proposal] — it compiles to a native and adds nothing to
+  the stdlib, so the stdlib holding only declarations doesn't affect it. It
+  rejects placeholders whose type isn't known, which includes globals used in
+  a function before they're declared; making globals known first removes that
+  case. That proposal is updated to say so.
 - [Tooling Data Proposal] — also adds a parameter to `compileSource`, a source
   name (its Part 5). The two parameters are separate, and either proposal can
   land first. It also splits `runFile` into `loadFile` and `runFile`, and both
@@ -1011,11 +1013,11 @@ run, and under this proposal they need a `main`.
 
 **Status:** Open
 
-63 code blocks in ten other proposals use top-level statements: the [Tuple
+65 code blocks in ten other proposals use top-level statements: the [Tuple
 Structs Proposal] (12), the [Tuples Proposal] (12), the [Enums Proposal] (11),
 the [Pattern Matching Proposal] (10), the [Destructuring Proposal] (6), the
 [Generic Types Proposal] (4), the [Primitive Impls Proposal] (4), the [String
-Interpolation Proposal] (2), the [Unimplemented Proposal] (1) and the [Debugger
+Interpolation Proposal] (4), the [Unimplemented Proposal] (1) and the [Debugger
 Proposal] (1).
 
 Proposed: leave them. A sample that shows today's behavior is a checked fact

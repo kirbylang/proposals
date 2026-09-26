@@ -398,9 +398,9 @@ places.
 binary as a C string, by a small script in the style of
 `generate_version_c.sh`, and `krbNew` loads it. The `runFile("stdlib/stdlib.krb")`
 calls in `main.c` go away, which also fixes the crash when `krb` runs from
-another folder ([A.9]). The file is empty today. It will not be once the
-[String Interpolation Proposal] puts `StringBuilder` in it, so what it costs
-each new instance is [Q-stdlib].
+another folder ([A.9]). The file is empty today. Nothing planned needs it yet
+(the [String Interpolation Proposal] compiles to a native instead), but once
+it holds code, what that costs each new instance is [Q-stdlib].
 
 Test first: `unit/instances.c` makes two instances, runs `var x = 1;` in one
 and `var x = 2;` in the other, and checks that each reads its own. It cannot be
@@ -1266,7 +1266,7 @@ becomes 8 bytes, every host must be rebuilt.
 
 `stdlib/stdlib.krb` is empty today, and [Part 2] compiles it into the binary and
 loads it in every `krbNew`. That is free now. The [String Interpolation
-Proposal] puts `StringBuilder` in it.
+Proposal] no longer puts anything in it, but other features may.
 
 - **(a) Compile and run it in every new instance** (proposed now). A game that
   makes an instance per entity pays each time.
