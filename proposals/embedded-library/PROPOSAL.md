@@ -388,7 +388,10 @@ lives inside the instance. The front-end code reaches it through a single
 pointer, which `krbLoad` and `krbEval` set when they start and put back when
 they finish. Two instances can be compiled one after the other. Two compiles at
 the same instant still have to take turns. [Q-frontend-context] covers passing
-the pointer explicitly through all 7,400 lines instead.
+the pointer explicitly through all 7,400 lines instead. If the
+[Diagnostics Proposal] lands first, the type checker's `hadError` is replaced
+by that module's sink, `user` pointer and flag, which go into the bundle in its
+place.
 
 `typchkSessionBegin`, `typchkSessionEnd` and `compilerSessionEnd` become part of
 making and freeing an instance. Today `main.c` calls them by hand in three
@@ -521,10 +524,14 @@ checker is written by one of five small functions: one in `parser.c`, two in
 `compiler.c`, two in `typecheck.c`. (`definite_assignment.c` uses the
 checker's.) Each writes to stderr with `fprintf` a piece at a time: first
 `[line 3] Error`, then ` at 'x'`, then the message. They change to build one line and give
-it to the same hook and buffer. The text and its order stay the same. When the
-[Tooling Data Proposal] adds spans, these five functions are also where a
-structured record (file, line, column, message) can be handed over instead of
-only text.
+it to the same hook and buffer. The text and its order stay the same. The
+[Diagnostics Proposal] replaces the five with one module. Each function there
+builds a record (severity, code, span, message) and hands it to a sink, and the
+default sink builds the one line and writes it. If that proposal lands first,
+the hook here is what its default sink writes to, and a host that wants the
+records sets a sink of its own. Where the spans in a record come from is the
+[Tooling Data Proposal]'s work, and which of the two lands first is
+[Q-order] in the diagnostics proposal.
 
 **Left alone:** the `DEBUG_*` build flags write with `fprintf` and `printf` from
 `debug.c`, `gc.c` and `object.c`. They are for people working on Kirby, not for
@@ -870,6 +877,13 @@ version, and each must return an error.
   [Part 4] are where structured spans would be reported. The size of shipped
   scripts ([Part 9]) is evidence for its [Q-strip]. That proposal is updated to
   say so.
+- [Diagnostics Proposal] — replaces the five compile-error functions of [Part 4]
+  with one module. Its default sink writes to this proposal's hook, and a second
+  sink keeps the records for an editor. The module's state joins the bundle of
+  [Part 2] ([Q-frontend-context]). Which of the two lands first is open, and
+  [Part 4] is smaller if that proposal lands first. If [Q-flag] there is
+  answered (a), `parse` loses the `hadError` out-parameter that the harness in
+  Appendix A.1 uses. That proposal is updated to say so.
 - [Debugger Proposal] — the debugger's check before each instruction and this
   proposal's check at loops and calls are both in the loop of `run()`
   ([Q-check]). The output hook lets a debug session send a script's `print`
@@ -2223,6 +2237,7 @@ These are both technical and non technical terms used throughout the proposal.
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 [Modules Proposal]: ../modules/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
+[Diagnostics Proposal]: ../diagnostics/PROPOSAL.md
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Testing Proposal]: ../testing/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md
@@ -2242,6 +2257,8 @@ These are both technical and non technical terms used throughout the proposal.
 [Q-strip]: ../tooling-support-data/PROPOSAL.md#q-is-tooling-data-always-recorded
 [Q-check]: ../debugger/PROPOSAL.md#q-how-does-the-vm-check-whether-to-stop
 [Q-register]: ../testing/PROPOSAL.md#q-how-are-tests-registered-when-the-top-level-cannot-make-calls
+[Q-order]: ../diagnostics/PROPOSAL.md#q-does-this-land-before-or-after-the-tooling-data
+[Q-flag]: ../diagnostics/PROPOSAL.md#q-does-parse-keep-its-out-parameter
 
 <!-- External pages -->
 

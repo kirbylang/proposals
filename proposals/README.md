@@ -10,6 +10,7 @@
 - [collection-methods](./collection-methods/PROPOSAL.md)
 - [debugger](/proposals/debugger/PROPOSAL.md)
 - [destructuring](/proposals/destructuring/PROPOSAL.md)
+- [diagnostics](/proposals/diagnostics/PROPOSAL.md)
 - [embedded-library](/proposals/embedded-library/PROPOSAL.md)
 - [enums](/proposals/enums/PROPOSAL.md)
 - [generic-types](/proposals/generic-types/PROPOSAL.md)

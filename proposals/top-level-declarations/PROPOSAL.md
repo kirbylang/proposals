@@ -568,6 +568,13 @@ version.
   name (its Part 5). The two parameters are separate, and either proposal can
   land first. It also splits `runFile` into `loadFile` and `runFile`, and both
   pass the path on. That proposal is updated to say so.
+- [Diagnostics Proposal] — `checkTopLevel` reports errors that point at a
+  statement, which has a line and no token. It would report with
+  `diagErrorAtNode`, the function the compiler's node errors use, and its text
+  does not change. With a span on the node, an error can point at the statement
+  and not only at its line. Its change to `compileSource` reads `hadError`, and
+  if [Q-flag] there is answered (a) it reads `diagHadError()`. That proposal is
+  updated to say so.
 - [Enums Proposal] — `enum` would join the declarations a top level may hold.
   A variant value only builds data, so it would be a comptime value when its
   contents are, once [Q-variant-access] and [Q-variant-fields] settle how it is
@@ -1287,9 +1294,11 @@ These are both technical and non-technical terms used throughout the proposal.
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
 [Unimplemented Proposal]: ../unimplemented/PROPOSAL.md
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
+[Diagnostics Proposal]: ../diagnostics/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
+[Q-flag]: ../diagnostics/PROPOSAL.md#q-does-parse-keep-its-out-parameter
 [Q-assembly]: ../modules/PROPOSAL.md#q-how-are-modules-named-resolved-and-assembled
 [Q-naming]: ../modules/PROPOSAL.md#q-is-a-module-named-by-its-file-path-or-by-a-namespace
 [Q-variant-access]: ../enums/PROPOSAL.md#q-how-is-a-variant-written-and-what-else-shares-its-name

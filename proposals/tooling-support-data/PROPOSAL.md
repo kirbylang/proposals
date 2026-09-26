@@ -69,8 +69,10 @@ Checked at `from_commit` (see [Appendix A]):
 
 - **Tokens.** A `Token` (`src/token.h`) holds a type, a pointer into the source
   text, a length, and a line. Because it points into the text, its byte position
-  in the file can be worked out. It has no column. For a string that runs over
-  several lines, `line` is the line where the string _ends_.
+  in the file can be worked out. That holds for every token except an error
+  token, whose text is a message, or the rest of the file ([Diagnostics
+  Proposal], Part 5). It has no column. For a string that runs over several
+  lines, `line` is the line where the string _ends_.
 - **AST nodes.** Every `AstNode` (`src/ast.h`) has one `line`. Some kinds of
   node also keep `endLine`, `declEndLine`, or `bodyEndLine`. Nodes that hold a
   name or an operator keep its `Token`, which points into the text.
@@ -129,7 +131,7 @@ Checked at `from_commit` (see [Appendix A]):
 
 | Who                                                   | Needs                                                                                                                                              |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Compile errors                                        | A span on every node, so an error can underline the exact code                                                                                     |
+| Compile errors                                        | A span on every node, so an error can underline the exact code. The [Diagnostics Proposal] is where an error is built                              |
 | Runtime error traces                                  | The file, the function name, and where the running instruction came from                                                                           |
 | [Debugger Proposal]                                   | A file for each function, a line for every instruction, local variable names with the range of code each is alive for, and captured variable names |
 | Editors (go to definition, find references, complete) | A span on every node. These tools read source, not compiled output, so they need only the AST side                                                 |
@@ -195,13 +197,14 @@ typedef struct {
 
 **Where the numbers come from.** The scanner already counts lines. It will also
 remember where the current line started, so a column is the token's start minus
-the line's start, plus one. `Token` gets a `column`, and its `line`
-becomes the line where the token _starts_. Today `line` is where it ends. The
-two differ only for a string that runs over several lines, and no test has one.
-A token's end is worked out from its text when a node's span is built: only a
-string can contain a newline, so for every other token the end is on the same
-line, one length further along. `Token` stays 24 bytes: the new field fits once
-its fields are reordered ([Appendix B]).
+the line's start, plus one. `Token` gets a `column`, and its `line` becomes the
+line where the token _starts_. Today `line` is where it ends. The two differ
+only for a string that runs over several lines, and no test has one. A token's
+end is worked out from its text when a node's span is built: only a string can
+contain a newline, so for every other token the end is on the same line, one
+length further along. `Token` stays 24 bytes: the new field fits once its fields
+are reordered ([Appendix B]). An error token needs a range in the source too,
+and the [Diagnostics Proposal] gives it one (its Part 5).
 
 ### Part 2 — A span on every AST node
 
@@ -425,6 +428,10 @@ unchanged:
    its own.
 7. The loader flag from Part 7.
 
+The [Diagnostics Proposal] needs steps 1 and 2. If it lands first, its Part 4
+does them, in slices (a column on every token first, then a span on nodes one
+kind at a time), and this order starts at step 3 ([Q-order] there).
+
 Origin (Part 3) waits for macros.
 
 ## Impacts
@@ -491,6 +498,15 @@ Origin (Part 3) waits for macros.
   where a span would be handed over as data and not only as text. The size of
   the compiled scripts it ships ([Embedded Lbrary Part 9]) is evidence for [Q-strip].
   That proposal is updated to say so.
+- [Diagnostics Proposal] — the one place a compile error is built and handed on,
+  as data and as text. It needs steps 1 and 2 of [Part 9]: a column on every
+  token and a span on every node. Either proposal can land first, and whichever
+  does those steps first, the other is updated ([Q-order] there). An error
+  token's text is a message or the rest of the file, so it has no position to
+  work out, and that proposal gives it one (its Part 5). Both proposals change
+  `parse`: it gains a source name here (Part 5), and it loses its out-parameter
+  there ([Q-flag] there), so the two should be done in one pass. That proposal
+  is updated to say so.
 
 ## Questions
 
@@ -884,9 +900,12 @@ These are both technical and non-technical terms used throughout the proposal.
 [Projects Proposal]: ../projects/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
+[Diagnostics Proposal]: ../diagnostics/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
+[Q-order]: ../diagnostics/PROPOSAL.md#q-does-this-land-before-or-after-the-tooling-data
+[Q-flag]: ../diagnostics/PROPOSAL.md#q-does-parse-keep-its-out-parameter
 [Q-naming]: ../modules/PROPOSAL.md#q-is-a-module-named-by-its-file-path-or-by-a-namespace
 [Q-root]: ../projects/PROPOSAL.md#q-how-is-the-project-root-found
 [Q-syntax]: ../macros/PROPOSAL.md#q-what-form-of-syntax-value-do-macros-receive-and-return

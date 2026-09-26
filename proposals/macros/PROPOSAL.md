@@ -91,6 +91,10 @@ and not fused with the generics system.
   expanded program ([Q-check-where]). Its option (c) for comptime values,
   running code at compile time so that initializers may call functions, would
   use the mechanism in Part 3 here ([Q-comptime]).
+- The [Diagnostics Proposal] is where a compile error is built. A problem in
+  generated syntax should be reported at the macro call that produced it, so
+  that one place follows a span's origin (see the [Tooling Data Proposal]).
+  That proposal is updated to say so.
 
 ## The Changes
 
@@ -267,6 +271,7 @@ These are both technical and non technical terms used throughout the proposal.
 
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
+[Diagnostics Proposal]: ../diagnostics/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Pattern Matching Proposal]: ../pattern-matching/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
