@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Closed
 created: 2026-09-19
 from_commit: 8d21cbd
 ---
@@ -13,7 +13,7 @@ native, `@strConcat`, which joins its pieces in a single step. There is no new
 opcode and nothing is added to `stdlib/stdlib.krb`. The same join is used for
 chains of three or more strings joined with `+`.
 
-It is implemented in [PR #95]. The sections below describe that
+It was implemented and merged in [PR #95]. The sections below describe that
 implementation.
 
 ## How to read this document
@@ -270,10 +270,11 @@ expression. In `$"{a "b"}"`, a separate end token lets the parser report
   array of `InterpPart`, in source order.
 - **`InterpPart`** is an expression (a string literal for text, or the
   placeholder's expression) and a `StringConversion`.
-- **`StringConversion`** is `STRING_CONVERSION_NONE` (already a string),
-  `STRING_CONVERSION_NUMBER` (`@numberToString`), `STRING_CONVERSION_BOOL`
-  (`@boolToString`), or `STRING_CONVERSION_DISPLAY` (the value's `toString()`).
-  The parser sets `NONE`; the type-checker sets the rest.
+- **`StringConversion`** is `STRING_CONVERSION_UNDEFINED` (not chosen yet),
+  `STRING_CONVERSION_STRING` (already a string), `STRING_CONVERSION_NUMBER`
+  (`@numberToString`), `STRING_CONVERSION_BOOL` (`@boolToString`), or
+  `STRING_CONVERSION_DISPLAY` (the value's `toString()`). The parser sets
+  `UNDEFINED`; the type-checker sets the rest.
 - **`BinaryNode.isStringConcat`** marks a `+` on two strings, set by the
   type-checker for the compiler's `+` chain lowering.
 
@@ -365,6 +366,12 @@ Can't tell the type of this placeholder. Declare it before this line, or give it
   first piece _ends_; that proposal changes strings to where they start.
 - [Embedded Library Proposal] — interpolation no longer adds anything to the
   stdlib, so it costs new instances nothing.
+
+## Outcome
+
+**Status:** Accepted
+
+Implemented and delivered in commit `a7bf464` ([PR #95]).
 
 ## Questions
 
@@ -549,7 +556,7 @@ proposal.
 - **Part**: one element of an `InterpStringNode` after parsing: a text
   segment (empty ones are left out) or a placeholder's expression, each with
   its conversion.
-- **Conversion**: how a part becomes a string — none for strings,
+- **Conversion**: how a part becomes a string — nothing for strings,
   `@numberToString` for `f64`, `@boolToString` for `bool`, and `toString()`
   for a type that implements `Display`.
 - **Lowering**: the compiler's rewrite of an interpolated string, or of a `+`

@@ -651,7 +651,7 @@ but nothing new that has to be recorded.
 **Testing before macros exist.** Nothing in Kirby makes generated syntax today.
 `src/parser.c` is the only code that creates a node, and nothing else writes
 into one (checked at `from_commit`, [Appendix A]). String interpolation, as
-proposed, is lowered straight to bytecode, so it makes none either. Until macros
+implemented, is lowered straight to bytecode, so it makes none either. Until macros
 or generics arrive, chains can only be tested with a stand-in, in a C unit test
 in `unit/` in the style of `unit/parser.c`:
 
