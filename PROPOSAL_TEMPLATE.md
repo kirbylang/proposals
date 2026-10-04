@@ -87,7 +87,14 @@ How do we know the implemented proposal works?
 
 The E2E syntax tests should cover all valid and invalid parser/compiler/runtime error cases.
 
-##### <!-- NEW | CHANGED -->: <!-- tests/path/to/this/test.krb -->
+A test is an `.argv` file: the arguments for `krb`, one per line. The program it
+runs is the file of the same name without `.argv`, written `$file` in the
+arguments. Language tests go in `tests/run/` and run with `run` and `$file`;
+tests of other commands have their own folders, such as `tests/exec/`. A
+program without an `.argv` file is not a test. See `tests/README.md` in
+kirbylang.
+
+##### <!-- NEW | CHANGED -->: <!-- tests/run/path/to/this/test.krb -->
 
 <!--
   NEW: Code block with test written in Kirby code

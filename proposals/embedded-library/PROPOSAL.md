@@ -46,6 +46,9 @@ up.
   `from_commit`, and [Appendix A] shows how to check it again.
 - When the proposal text says Kirby "should" or "will" do something, that is
   true after changes presented in this proposal.
+- Command lines in transcripts are the ones that worked at `from_commit`, when
+  `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
+  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
 
 ### Code & Changes
 
@@ -84,11 +87,15 @@ Checked at `from_commit` ([Appendix A]):
   ([A.1])
 - **Script errors are survivable.** A runtime error or a compile error in a
   script returns a status, and the same VM runs the next script. ([A.1])
-- **The runtime half stands nearly on its own.** `vm.c` does not depend on the
-  compiler (see `interpret()` in `src/vm.h`). Linking only the runtime files
-  fails on exactly one thing: `native.c` also holds the signature table for the
-  type checker, which pulls in eight functions from `types.c` and
-  `typecheck.c`. ([A.4])
+- **The runtime half stands on its own.** `vm.c` does not depend on the
+  compiler (see `interpret()` in `src/vm.h`). At `from_commit`, linking only
+  the runtime files failed on exactly one thing: `native.c` also held the
+  signature table for the type checker, which pulls in eight functions from
+  `types.c` and `typecheck.c` ([A.4]). That table now lives in
+  `src/native_signatures.c` (kirbylang #117), and `kirby_runtime`, a library of
+  the runtime files only, is built, along with an executable made from it,
+  `krb-runtime` (#118). Checked at `a097505`: `kirby-runtime-link-unit-test`
+  links nothing but `kirby_runtime`. See [Part 1].
 - **The collector is already a separate object.** `GC` (`src/gc.h`) has its own
   struct and a callback that marks the VM's roots. Every object on the heap is
   allocated through one function, `reallocate` in `gc.c`. A few helper buffers
@@ -135,8 +142,11 @@ Checked at `from_commit` ([Appendix A]):
    parameters, each one of five kinds. ([A.3])
 7. **Everything ships together, and it assumes it is a program.** The front end
    (parser, type checker, compiler) is 98,809 bytes of code and the runtime is
-   45,669. There is no file format for compiled scripts. `krb -f` opens
-   `stdlib/stdlib.krb` relative to the current folder and crashes (exit code 139) when it is not there. The shared library that CMake already builds
+   45,669. At `from_commit` there was no file format for compiled scripts, and
+   `krb -f` opened `stdlib/stdlib.krb` relative to the current folder and
+   crashed (exit code 139) when it was not there. Both are fixed now: the
+   stdlib is built into the binary (kirbylang #96), and a compiled unit has a
+   byte form ([Part 9]). The shared library that CMake already builds
    exports 206 symbols when built from the same files, among them the variables
    `vm` and `gcInstance` and general names like `parse` and `compile` that can
    collide with the host's own.
@@ -334,6 +344,13 @@ CMake target, `kirby_runtime`, made of the runtime files only (the list is in
 Test first: a test target that links only `kirby_runtime` and calls `initVM`
 and `freeVM`. It fails to link today with eight undefined names.
 
+**Done** (kirbylang #117 and #118, checked at `a097505`).
+`src/native_signatures.c` holds the table. `kirby_runtime` is built from
+`KIRBY_RUNTIME_SOURCES` in `CMakeLists.txt`, and `unit/runtime_link.c` is the
+test: `kirby-runtime-link-unit-test` links only `kirby_runtime` and calls
+`initVM` and `freeVM`. #118 also builds an executable from the library,
+`krb-runtime` ([Part 9]).
+
 #### Part 2: One instance, no hidden shared state
 
 Three changes and one bundle.
@@ -401,6 +418,13 @@ calls in `main.c` go away, which also fixes the crash when `krb` runs from
 another folder ([A.9]). The file is empty today. Nothing planned needs it yet
 (the [String Interpolation Proposal] compiles to a native instead), but once
 it holds code, what that costs each new instance is [Q-stdlib].
+
+**Done in part** (kirbylang #96, checked at `a097505`). `stdlib/stdlib.krb` is
+compiled into the binary as the text `KIRBY_STDLIB` by
+`scripts/generate_stdlib_c.sh`, and `src/main.c` runs that text with `runCode`
+(in `sessionBegin`). The `runFile("stdlib/stdlib.krb")` calls are gone, and
+`krb run` works from any folder. What is left of this paragraph is `krbNew`
+loading it.
 
 Test first: `unit/instances.c` makes two instances, runs `var x = 1;` in one
 and `var x = 2;` in the other, and checks that each reads its own. It cannot be
@@ -748,8 +772,8 @@ compile error, and that `@getenv` is the same without `OS`.
   uses it. `src/` stops being a public include directory. `kirby_runtime` from
   [Part 1] stays as its own target.
 - **`krb` uses the interface.** `main.c` creates an instance and calls
-  `krbLoad` and `krbEval`. Its own options (`-l` prints tokens, `-p` prints the
-  syntax tree) still use the front end directly.
+  `krbLoad` and `krbEval`. Its own commands (`lex` prints tokens, `parse` prints the
+  syntax tree, `compile` and `build` compile) still use the front end directly.
 - **An example and a guide.** `examples/embed/` holds the game loop above with a
   stub world, and `docs/KIRBYLIB.md` explains how to use the interface.
 
@@ -774,10 +798,12 @@ KrbStatus krbLoadBytes(Kirby *k, const char *name, const void *bytes,
                        size_t length);
 ```
 
-`krb` gets `krb --compile file.krb -o file.krbc`, and `krb -f file.krbc` runs a
-compiled file, recognized by its first bytes. This overlaps with the "check
-without running" question in the [Top-Level Declarations Proposal]
-([Q-check-only]) and should be settled with it.
+`krb compile file.krb` gets an output, `-o file.krbc`, and `krb run file.krbc`
+runs a compiled file, recognized by its first bytes. `krb compile` exists today
+without the output: it type checks and compiles a file, runs nothing, and prints
+`Compiled!` (checked at `a097505`). This overlaps with the "check without
+running" question in the [Top-Level Declarations Proposal] ([Q-check-only]) and
+should be settled with it.
 
 **The format** is a header followed by the unit:
 
@@ -817,6 +843,33 @@ to bytes, loads it, runs it, and compares `.out` and `.exit` with the snapshot.
 There are also tests for a truncated file, a wrong magic number, and a wrong
 version, and each must return an error.
 
+**What exists so far** (kirbylang #118, checked at `a097505`). The byte form and
+a runtime-only executable were built for `krb build`, not for a host:
+
+- `src/unit_bytes.c` writes and reads a `CompiledUnit` (`unitEncode` and
+  `unitDecode`). The format is the one above: the magic `KRBC`, a format version
+  (1), the Kirby version, the string blob, then the functions. A truncated unit,
+  a wrong magic number, a wrong format version, a unit from another Kirby
+  version and an index or count out of range are each refused with their own
+  status. It does not check that the bytecode is safe to run, as above. There is
+  no `allowBytecode`, because no host interface loads bytes yet.
+- `krb build FILE -o OUT` compiles the stdlib and the file and attaches both
+  units to a copy of `krb-runtime`, an executable made from `kirby_runtime`
+  ([Part 1]). Each unit is its length and then its bytes, and a 16-byte trailer
+  ends the file: the text `KRBAPP01` and the length of the units
+  (`src/packaged_program.h`). `krb-runtime` reads the trailer from its own file,
+  decodes each unit, and interprets them in order. It is a file for a program,
+  not a call for a host.
+- Not done: `krbCompileToBytes` and `krbLoadBytes`, `.krbc` files, `krb compile
+  -o`, `krb run file.krbc`, `allowBytecode`, and `KRB_NO_FRONTEND`. The separate
+  `kirby_runtime` target does the job of the build flag for the executable.
+- Tests: `unit/unit_bytes.c` writes, reads and compares units, and has a case
+  for every truncation, a wrong magic number, a wrong format version and a wrong
+  Kirby version. The "run every test as bytes" mode is
+  `scripts/tests-packaged.sh`. It builds each test of a fixed list of 19 with
+  `krb build`, runs it, and compares it with the test's own snapshots. It does
+  not run all of `tests/`.
+
 ## Impacts
 
 ### Existing Syntax Or Behavior
@@ -828,8 +881,9 @@ version, and each must return an error.
     instead of a runtime error (exit 70) ([Part 6]).
   - `@stdin(1)`, which crashes today (exit 139), reports its error and exits
     with 70 ([Part 3]).
-  - `krb -f file.krb` works from any folder. It crashes today when `stdlib/`
-    is not in the current folder ([Part 2]).
+  - `krb run file.krb` works from any folder. It crashed when `stdlib/` was not
+    in the current folder (`krb -f` at `from_commit`); the built-in stdlib of
+    [Part 2] fixed that in kirbylang #96.
 - **`@exit` still ends `krb` with the code it was given.** It now goes through a
   status and not straight to `exit()` ([Part 3]).
 - **Random numbers.** `@rand` and its two siblings come from the instance's own
@@ -857,9 +911,10 @@ version, and each must return an error.
   general `krbCallGlobal` ([Part 5]). A script an embedded host loads is what
   that proposal calls a library file: it declares things and is never run, so it
   has no `main`. `krbLoad` follows the file rules and `krbEval` the snippet
-  rules. Until that proposal lands, both accept statements. The `--compile`
-  option of [Part 9] and its `--check` question ([Q-check-only]) should be
-  settled together. That proposal is updated to say so.
+  rules. Until that proposal lands, both accept statements. The compile-only
+  mode of [Part 9] (`krb compile` today, which would gain `-o`) and the
+  check-only question ([Q-check-only]) should be settled together. That
+  proposal is updated to say so.
 - [Modules Proposal] — the bytecode file of [Part 9] is the container that
   proposal's compiled modules need ([Q-interface]), and its interface data would
   go beside the unit in the same file. Whether host functions become a module
@@ -960,7 +1015,7 @@ the collector cannot see is found at once.
 | `unit/limits.c`         | 7    | `interrupt`, `maxHeapBytes` and `maxFrames` stop a script and leave the instance usable.                                               |
 | `unit/sandbox.c`        | 7    | A native from a group the instance lacks is a compile error.                                                                           |
 | `unit/public_header.c`  | 8    | `kirby.h` alone is enough to build a host, under `-std=c99 -Wall -Wextra -Wpedantic`.                                                  |
-| `unit/bytecode.c`       | 9    | Write, read, run. A truncated, foreign or wrong-version file is an error, not a crash.                                                 |
+| `unit/bytecode.c`       | 9    | Write, read, run. A truncated, foreign or wrong-version file is an error, not a crash. Done as `unit/unit_bytes.c` (kirbylang #118). |
 
 ##### NEW: unit/errors.c
 

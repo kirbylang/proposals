@@ -49,7 +49,7 @@ Kirby doesn't have a way to write and run tests that test Kirby code.
 ## Related Proposals
 
 - [Debugger Proposal] — debugging a single test would be a natural use of the
-  debugger. The debugger's first version only supports `krb -f`, so supporting
+  debugger. The debugger's first version only supports `krb run`, so supporting
   `krb test` is left to whichever of the two proposals lands second.
 - [Top-Level Declarations Proposal] — a call at the top level becomes an error, so
   `@test(description, closure)` can no longer register a test by being called
@@ -84,7 +84,7 @@ If the [Top-Level Declarations Proposal] is accepted, loading a file no longer h
 
 `@test(description, closure)` registers a test when it is called, which would be at the top level of a `*.test.krb` file. The [Top-Level Declarations Proposal] makes a call at the top level an error. Options:
 
-- **(a) The file's `main` registers the tests.** `fun main(): unit { @test("adds", fun () { ... }); }`, and `krb test` runs each matching file the way `krb -f` does. Nothing new in the language, but a test file cannot share a file with code that has its own `main`.
+- **(a) The file's `main` registers the tests.** `fun main(): unit { @test("adds", fun () { ... }); }`, and `krb test` runs each matching file the way `krb run` does. Nothing new in the language, but a test file cannot share a file with code that has its own `main`.
 - **(b) A test is a declaration**, such as `test "adds" { ... }`, and `krb test` finds tests among the declarations of a loaded file. It needs new syntax, but tests can sit next to the code they test, and loading the file still does nothing.
 - **(c) Tests are functions found by name**, for example `fun test_adds(): unit`. No new syntax, but a naming rule that is easy to get wrong. Finding them needs a way to list a file's functions, which the [Embedded Library Proposal] could provide.
 

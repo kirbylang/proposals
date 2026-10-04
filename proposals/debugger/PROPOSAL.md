@@ -43,6 +43,11 @@ defined in the [Glossary] below.
   for the current implementation.
 - When the proposal text says Kirby "should" or "will" do something, that is
   true after changes presented in this proposal.
+- Command lines in transcripts are the ones that worked at `from_commit`, when
+  `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
+  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`. `krb` has subcommands
+  now, so where the options this proposal adds (`--debug`, `--debug-script`) go,
+  before the subcommand as written here or on `run`, is not decided.
 
 ### Code & Changes
 
@@ -88,8 +93,9 @@ Checked at `from_commit` (see [Appendix A]):
 ### What is missing
 
 1. **No file name.** A `CompiledUnit` does not say which file it came from.
-   This matters because `krb -f` runs two units one after the other:
-   `stdlib/stdlib.krb`, then the program.
+   This matters because `krb run` runs two units one after the other:
+   the stdlib, then the program. A program made with `krb build` carries the
+   same two.
 2. **No local variable names.** The compiler knows them, but each one is a
    `Local` holding a `Token`, which points into the source text. `runFile` in
    `src/main.c` frees the source text as soon as compiling ends. What is left
@@ -137,7 +143,7 @@ parts below:
   changes made while running take effect at the next stop.
 - **Attaching** to a `krb` that is already running.
 - **Changing variable values.**
-- **The REPL (`-r`) and `-c`.** Only `-f` is debugged.
+- **The REPL (`krb repl`) and `krb exec`.** Only `krb run` is debugged.
 - **Column-precise breakpoints**, and choosing which call on a line to step
   into. These need columns in the compiled output. The [Tooling Data Proposal]
   leaves that open ([Q-compiled]).
@@ -385,7 +391,7 @@ extension can give VS Code an adapter object directly
 
 | VS Code asks for                        | The adapter                                                                                                                          |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `launch`                                | listens on a free port, asks VS Code to run `krb --debug PORT -f PROGRAM` in the integrated terminal, and waits for `krb` to connect |
+| `launch`                                | listens on a free port, asks VS Code to run `krb --debug PORT run PROGRAM` in the integrated terminal, and waits for `krb` to connect |
 | `setBreakpoints`                        | sends `break`, and shows the answers                                                                                                 |
 | `configurationDone`                     | sends `go`                                                                                                                           |
 | `threads`                               | answers with one thread, since the VM has one                                                                                        |
@@ -398,9 +404,12 @@ Running in the integrated terminal means `print` output and `@stdin` input
 behave as they do with "Run Kirby File". Frames from library code are marked as
 less important, so VS Code shows them dimmed.
 
-**Working folder.** `krb -f` opens `stdlib/stdlib.krb` relative to the current
-folder. Run from a folder without it, `krb` crashes (checked, see [Appendix
-A]). The debug launch therefore starts in the same folder "Run Kirby File" does.
+**Working folder.** At `from_commit`, `krb -f` opened `stdlib/stdlib.krb`
+relative to the current folder, and `krb` crashed when run from a folder without
+it (checked, see [Appendix A]). The stdlib is built into the binary now
+(kirbylang #96), so `krb run` works from any folder (checked at `a097505`). The
+debug launch still starts in the same folder "Run Kirby File" does, so that
+relative paths in the program mean the same in both.
 This is an existing limit and this proposal does not change it.
 
 **Paths.** The adapter starts `krb`, so it passes the absolute path of the
@@ -418,7 +427,7 @@ The repo uses snapshot tests, and this work follows the same TDD loop: write
 one failing test, see it fail, make it pass.
 
 - **The C side** is tested through the script channel. `krb --debug-script
-FILE -f PROGRAM` reads its commands from `FILE` instead of a network
+FILE run PROGRAM` reads its commands from `FILE` instead of a network
   connection, and writes the replies to stdout. It uses the same code as the
   network path; only the channel differs. When the script runs out while the
   program is paused, the program runs to the end. The replies and the program's

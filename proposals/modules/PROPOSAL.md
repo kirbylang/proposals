@@ -175,7 +175,11 @@ Options and sub-questions: what serialization format (an extension of
 consumer can detect an incompatible producer; whether the interface is a
 separate artifact from the bytecode or embedded alongside it. This is the
 central open question of the whole proposal. The [Embedded Library Proposal] proposes the container for a bare
-unit ([Embedded Lbrary Part 9]).
+unit ([Embedded Lbrary Part 9]), and that container exists now: `src/unit_bytes.c`
+(kirbylang #118) writes a `CompiledUnit` as the magic `KRBC`, a format version,
+the Kirby version and the unit, and a unit made by another Kirby version is
+refused. So a bare unit already has an answer to the versioning question; the
+interface would need its own.
 
 ### **Q:** In what form does a module ship its generic bodies?
 

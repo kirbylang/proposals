@@ -44,6 +44,9 @@ still undecided is tracked as [Questions] rather than settled in the prose.
   for the current implementation.
 - When the proposal text says Kirby "should" or "will" do something, that is
   true after the changes presented here.
+- Command lines in transcripts are the ones that worked at `from_commit`, when
+  `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
+  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
 
 ### Code & Changes
 

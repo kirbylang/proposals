@@ -276,7 +276,7 @@ directory:
 
 ### Other
 
-- `krb -l` (token dump) prints the new token name.
+- `krb lex FILE` (token dump) prints the new token name.
 - No impact on the standard library, the loader, or the GC (the node and
   opcode allocate nothing).
 

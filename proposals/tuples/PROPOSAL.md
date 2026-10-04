@@ -140,7 +140,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 - In `grouping()` in `src/parser.c`, after the first expression, a `,` starts a tuple literal instead of expecting `)`.
 - The type parser accepts `(` at the start of a type.
-- `.` followed by a number is accepted as a property access. There is a scanner problem here. `number()` in `src/scanner.c` reads digits and then an optional `.` and more digits, so `pair.0.1` is scanned as `pair`, `.`, and the single number `0.1` (verified with `krb -l`). See [Q-nested-access].
+- `.` followed by a number is accepted as a property access. There is a scanner problem here. `number()` in `src/scanner.c` reads digits and then an optional `.` and more digits, so `pair.0.1` is scanned as `pair`, `.`, and the single number `0.1` (verified with `krb -l`, today `krb lex`). See [Q-nested-access].
 
 #### Part 2: AST and type checker
 

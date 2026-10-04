@@ -49,6 +49,11 @@ defined in the [Glossary] below.
   true after changes presented in this proposal.
 - When the text says what Lua "does", that was checked by running Lua 5.1.5,
   LuaJIT 2.1 and Lua 5.4.6 ([Appendix A]).
+- Command lines in transcripts are the ones that worked at `from_commit`, when
+  `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
+  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`. `krb` has subcommands
+  now, so the Lua writer could be a subcommand, `krb lua FILE`, and not the
+  option `--lua`. Its spelling is not decided here.
 
 ### Code & Changes
 

@@ -37,7 +37,22 @@ Technical terms are kept to a minimum. Where a term is unavoidable, it' is defin
 
 ## Problem Statement
 
-Kirby has no concept of a project and without [Modules], Kirby is limited to executing single files.
+Kirby has only the smallest concept of a project (see What Exists Today) and without [Modules], Kirby is limited to executing single files.
+
+## What Exists Today
+
+Checked at `a097505`:
+
+- `krb init` writes `kirby.project.toml` in the current folder. It has two
+  settings, both commented out until set: `bin`, the file `krb run` runs when
+  it is given no path, and `examples`, the folder `krb example NAME` runs
+  `NAME.krb` from (`examples` by default).
+- `krb config` prints the file, and `krb config KEY` prints one setting.
+- The file is read from the current folder only. `krb` does not look in the
+  folders above it, and `krb run path/to/file.krb` does not read it at all
+  ([Q-root]).
+- The file is named `kirby.project.toml`, not the `kirby.toml` of the
+  [Conventions] below, and there is no setting for a source folder.
 
 ## Conventions
 
@@ -59,7 +74,7 @@ the same on every machine. That needs answers this proposal does not give yet:
 - **Finding the root.** Given a single file, how does `krb` know where the root
   is: an option, or looking for `kirby.toml` in the file's folder and the
   folders above it?
-- **A file outside a project.** `krb -f file.krb` with no project around has no
+- **A file outside a project.** `krb run file.krb` with no project around has no
   root. What path is recorded then?
 - **What the path looks like.** Does it include the source folder
   (`src/main.krb` or `main.krb`)? Is it written with `/` on every system?

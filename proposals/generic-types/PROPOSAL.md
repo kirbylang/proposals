@@ -1380,7 +1380,8 @@ substitute for the parts above.
 
 ## Appendix B — Reproducing the baseline claims
 
-Every "today" claim in Part 1 can be checked on a clean `main` build:
+Every "today" claim in Part 1 can be checked on a clean `main` build at
+`from_commit` (`krb -f FILE` is `krb run FILE` on a newer `main`):
 
 ```shell
 # build

@@ -49,6 +49,9 @@ defined in the [Glossary] below.
   the current implementation.
 - When the proposal text says Kirby "should" or "will" do something, that is
   true after changes presented in this proposal.
+- Command lines in transcripts are the ones that worked at `from_commit`, when
+  `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
+  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
 
 ### Code & Changes
 
@@ -104,8 +107,8 @@ Checked at `from_commit` (see [Appendix A]):
    line 3, so a breakpoint on line 1 can never be hit as written. Python, Node,
    Lua, Java, and C all put such a call on its first line ([Appendix B]).
 
-3. **No file.** A `CompiledUnit` does not say which file it came from. `krb -f`
-   runs two units in one process: `stdlib/stdlib.krb`, then the program.
+3. **No file.** A `CompiledUnit` does not say which file it came from. `krb run`
+   runs two units in one process: the stdlib, then the program.
 4. **No variable names in the compiled output.** The compiler knows each local's
    name, but holds it as a `Token` that points into the source text, and
    `runFile` in `src/main.c` frees that text as soon as compiling ends. What is
@@ -180,7 +183,7 @@ typedef struct {
 
 - **Offsets** count bytes from the start of the file, exactly as `readFile`
   reads it. The end is one past the last byte, so `endOffset - startOffset` is
-  the length. For the REPL and `-c`, the text is the line or argument given.
+  the length. For the REPL and `krb exec`, the text is the line or argument given.
 - **Line and column** both start at 1, as `line` does today. A column counts
   bytes from the start of the line, so a tab is one and a character outside
   ASCII is several. An editor adapter converts to whatever unit its editor uses.
@@ -272,14 +275,15 @@ traces need a line on every run. Anything beyond a line is Part 7.
 **The path of the file.** `CompiledUnit` gets a list of the files its code came
 from, stored in the unit's string blob like function names are. Today the list
 has one entry. `parse()`, `compile()`, and `compileSource()` take a source name;
-the REPL and `-c` pass `<repl>` and `<code>`. An embedded host passes the name it likes ([Embedded Library Proposal]). For a file, the name is the path
+the REPL and `krb exec` pass `<repl>` and `<code>`. An embedded host passes the name it likes ([Embedded Library Proposal]). For a file, the name is the path
 `krb` was given ([Q-paths]): `runFile` already has it, and passes it on. The
 loader puts an interned copy of the name on each `ObjFunction` as `sourcePath`,
 and the garbage collector marks it next to `name`.
 
 **A `fileId` belongs to its unit.** It is an index into the list of the unit it
-sits in, and has no meaning outside it. This matters because `krb -f` loads two
-units into one VM, and both have a file 0. The VM does not depend on the
+sits in, and has no meaning outside it. This matters because `krb run` loads two
+units into one VM (and so does a program made with `krb build`), and both have
+a file 0. The VM does not depend on the
 compiler (see `interpret()` in `src/vm.h`), so the list has to travel inside the
 unit and cannot stay in the compiler. What the list holds is [Q-paths]. How
 files are told apart once programs have several is [Q-files].
@@ -679,7 +683,7 @@ in `unit/` in the style of `unit/parser.c`:
 **Status:** Open
 
 A span must say _which_ file it points into. Today Kirby compiles from a single
-source at a time, but `krb -f` already loads two units, and once modules and
+source at a time, but `krb run` already loads two units, and once modules and
 multi-file programs exist, spans must tell files apart.
 
 Options:
@@ -820,6 +824,15 @@ compile-time work. Options:
 
 An embeddable language may care about size, so this should be measured before
 being settled.
+
+**Since `from_commit`.** Compiled units are saved and shipped now, which option
+(c) treats as still ahead: `krb build` writes the byte form of the stdlib and of
+the program into every executable it makes (`src/unit_bytes.c`, format version
+1, kirbylang #118). That form carries only what a `CompiledUnit` has today. A
+record that Parts 4 to 6 add reaches built programs only if the byte form is
+extended to carry it, which is a new format version. Otherwise it is left out.
+So (a) against (b) is also a question about what `krb build` writes. (Checked at
+`a097505`.)
 
 The [Embedded Library Proposal] is the case that (c) has in mind: a game that ships
 compiled scripts ([Embedded Lbrary Part 9]). A shipped game wants the least, and a game

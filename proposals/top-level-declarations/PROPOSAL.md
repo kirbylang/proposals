@@ -41,6 +41,13 @@ defined in the [Glossary] below.
   `from_commit`, and [Appendix A] shows how to check it again.
 - When the proposal text says Kirby "should" or "will" do something, that is
   true after changes presented in this proposal.
+- The C diffs are against `src/main.c` at `from_commit`, which had one `getopt`
+  switch with `-f`, `-r` and `-c` cases. `main.c` now has a function for each
+  subcommand (`cmdRun`, `cmdExec`, `cmdRepl`, and others), and the stdlib is run
+  from the built-in text `KIRBY_STDLIB`, not read from a file. The changes apply
+  to those functions. Command lines in transcripts are the ones that worked at
+  `from_commit`, when `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today
+  those are `krb run FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
 
 ### Code & Changes
 
@@ -62,10 +69,12 @@ top level, and the compiler turns the whole file into one function (shown as
 - Every top-level `let` and `var` runs its initializer when the file loads.
   That includes calls to natives such as `@prompt`, `@argv` and `@clock`, and
   calls to functions the file defines.
-- `krb -f` loads the stdlib by running `stdlib/stdlib.krb` through the same
-  `runFile` it uses for the program (`src/main.c`). That is the only "import"
-  Kirby has today. The file is empty.
-- The REPL (`-r`) and `-c` compile their code through the same path.
+- `krb run` loads the stdlib by running it through `runCode` (`sessionBegin` in
+  `src/main.c`), the function `krb exec` uses for its code. The stdlib is built
+  into the binary as the text `KIRBY_STDLIB` (kirbylang #96), and is not read
+  from `stdlib/stdlib.krb` at run time. That is the only "import" Kirby has
+  today. The file is empty. (Checked at `a097505`.)
+- The REPL (`krb repl`) and `krb exec` compile their code through the same path.
 - There is no entry point. The file is the program.
 
 While a program is a single file, none of that hurts. It hurts as soon as a
@@ -124,13 +133,15 @@ The new file prints the same output as the old one for the same input
 
 Kirby reads source in two ways, and only one of them changes:
 
-- A **file** is read from disk: the program named after `krb -f`, and the
-  stdlib that is loaded before it. The new rules apply to files.
-- A **snippet** is code typed into the REPL (`-r`) or given with `-c`. Snippets
-  keep today's rules: statements are allowed, no `main` is needed, and
-  initializers are unrestricted. `krb -c 'print "Hello, World!";'` is the
-  example in `docs/CLI.md`, and the REPL runs one statement at a time. See
-  [Q-snippets].
+- A **file** is read from disk: the program named after `krb run`. The stdlib
+  that is loaded before it is built into the binary and goes through `runCode`
+  today, but this proposal treats it as a file (Part 2). The new rules apply to
+  files.
+- A **snippet** is code typed into the REPL (`krb repl`) or given to
+  `krb exec`. Snippets keep today's rules: statements are allowed, no `main` is
+  needed, and initializers are unrestricted.
+  `krb exec '@println("Hello World");'` is the example in `docs/CLI.md`, and
+  the REPL runs one statement at a time. See [Q-snippets].
 
 Files play one of two roles:
 
@@ -255,10 +266,14 @@ fun main(): unit {
   return type `unit`. The return type is spelled out because every function
   needs one today: `fun main() {}` is refused with "needs a return type"
   ([Appendix A], A.3). See [Q-main-signature].
-- Running `krb -f app.krb` does this, in order: load the stdlib, load
+- Running `krb run app.krb` does this, in order: load the stdlib, load
   `app.krb` (declarations only, so this defines names and does nothing else),
   call `main`. When `main` returns, the program ends with exit code 0.
-  `@exit(code)` ends it earlier with another code.
+  `@exit(code)` ends it earlier with another code. A program made with
+  `krb build` has to do the same. `krb-runtime` (`src/runtime.c`) interprets
+  the units attached to it in order, the stdlib and then the program, and
+  stops, so the call to `main` and the error for a missing one are added there
+  as well.
 - Arguments are read with `@argv` and `@argc`, as today.
 - A `main` in a library file is never called. Until modules have their own
   namespaces, two files that both define `main` collide the way any two files
@@ -291,7 +306,7 @@ What this proposal covers:
 
 - Loading a file cannot call code, read the environment, or write anything.
 - A file states its entry point.
-- Keep the REPL and `-c` working as they do today.
+- Keep the REPL and `krb exec` working as they do today.
 - Give the [Modules Proposal], [Testing Proposal] and [Projects Proposal] a
   base to build on.
 
@@ -344,6 +359,11 @@ In `src/main.c`, `compileSource` learns which kind of source it has, and
 `runFile` is split in two: `loadFile` for library files and `runFile` for the
 entry file.
 
+The stdlib is source text, not a file, since kirbylang #96 (`KIRBY_STDLIB`, run
+by `runCode`). So the library-file call has to take text as well as a path.
+Where the diff below says `loadFile("stdlib/stdlib.krb")`, the call today is
+`runCode(KIRBY_STDLIB)`, and it becomes a load of that text as a library file.
+
 ```diff
 +typedef enum {
 +  SOURCE_ENTRY_FILE,
@@ -365,7 +385,8 @@ entry file.
        runFile(argv[optind]);
 ```
 
-The `-r` and `-c` cases change the same line. `repl` and `runCode` pass
+The `-r` and `-c` cases (`cmdRepl` and `cmdExec` today) change the same line.
+`repl` and `runCode` pass
 `SOURCE_SNIPPET`. This part changes no behavior, so it has no new test of its
 own: the existing suite is the test.
 
@@ -507,8 +528,8 @@ all of those change. The migration follows these rules:
   `fun main(): unit {}` if they succeed ([Q-check-only]).
 
 The 9 programs in `examples/` all have top-level statements and are migrated the
-same way. The docs to update are `docs/CLI.md` (`-f` needs `main`, `-c` does
-not), step 2 of "Writing A Test" in `tests/README.md`, the samples in
+same way. The docs to update are `docs/CLI.md` (`krb run` needs `main`, `krb exec`
+does not), step 2 of "Writing A Test" in `tests/README.md`, the samples in
 `README.md` and `docs/TYPES.md`, the `print 1 + 1;` example in
 `wiki/pages/docs/compiler/Opcodes.md`, and `docs/CHANGELOG.md` under the next
 version.
@@ -522,7 +543,7 @@ version.
   `main`.
 - **Top-level initializers that are not comptime stop compiling.** In `tests/`
   that is 80 of 410, plus 11 with no initializer.
-- **`krb -f FILE` needs a `main`.** A file made only of declarations used to run
+- **`krb run FILE` needs a `main`.** A file made only of declarations used to run
   and do nothing. Now it is an error.
 - **`main` becomes a special name in the entry file.** It must be
   `fun main(): unit`. `tests/closures/upvalue_global.krb` uses `main` as a
@@ -534,8 +555,9 @@ version.
   tests only change if their code has top-level statements.
 - **The "might not be assigned yet" error can no longer come from a top-level
   `var`**, because a top-level `var` always has a value.
-- **Unchanged:** the REPL and `-c` ([Q-snippets]), `-p` and `-l` (the pass runs
-  after parsing, so `-p` still prints the tree of an old-style script),
+- **Unchanged:** the REPL and `krb exec` ([Q-snippets]), `krb parse` and
+  `krb lex` (the pass runs after parsing, so `krb parse` still prints the tree
+  of an old-style script),
   hoisting, forward references between functions, and where `struct`, `impl`,
   `trait` and `type` may appear.
 
@@ -594,8 +616,8 @@ version.
   and becomes `krbCallGlobal(k, "main", 0, NULL, &result)` there, so it needs no
   function of its own ([Q-call-main]). The interface follows the rules of
   [Q-snippets]: `krbLoad` takes a file and `krbEval` takes a snippet. Its
-  `--compile` option overlaps with [Q-check-only]. That proposal is updated to
-  say so.
+  compile-only mode (`krb compile`, which that proposal would give an output
+  file) overlaps with [Q-check-only]. That proposal is updated to say so.
 
 ### Testing Plan
 
@@ -604,8 +626,9 @@ How do we know the implemented proposal works?
 #### E2E Tests
 
 The E2E syntax tests should cover all valid and invalid parser/compiler/runtime
-error cases. The harness (`scripts/tests.sh`) always runs `krb -f`, so nothing
-in `tests/` runs `-c` or the REPL today ([Q-snippets]).
+error cases. The harness (`scripts/tests.sh`) runs the command in each test's
+`.argv` file. Language tests run `krb run`, `tests/exec/` runs `krb exec` and
+`tests/repl/` runs `krb repl`, so snippets have tests today ([Q-snippets]).
 
 ##### NEW: tests/declarations_only_scripts.krb
 
@@ -942,15 +965,17 @@ a file that cannot be run.
 
 **Status:** Open
 
-Proposed: yes. The REPL and `-c` keep today's rules: statements, no `main`, no
+Proposed: yes. The REPL and `krb exec` keep today's rules: statements, no `main`, no
 limit on initializers. The stdlib that is loaded before a snippet is a library
 file, so it follows the new rules.
 
-There is a testing gap. `scripts/tests.sh` always runs `krb -f`, so no file in
-`tests/` exercises `-c` or the REPL, and once every test is migrated nothing
-would show that snippets still allow statements. Options: (a) let the harness
-run a test file's contents with `-c` when a marker file is next to it, or (b)
-add a small C unit test in `unit/` for `compileSource`. Neither is decided.
+There was a testing gap: `scripts/tests.sh` always ran `krb -f`, so no file in
+`tests/` exercised `-c` or the REPL. It is closed. The harness runs the command
+in each test's `.argv` file, so a snippet test is an `.argv` of `exec` and
+`$(cat $file)`, which runs the contents of the test's program as a snippet.
+`tests/exec/` and `tests/repl/` exist today (checked at `a097505`). What is left
+is the tests that show snippets still allow statements once every other test is
+migrated.
 
 ### **Q:** How does Kirby call `main`?
 
@@ -978,7 +1003,7 @@ add a small C unit test in `unit/` for `compileSource`. Neither is decided.
 Proposed: a separate pass after parsing and before type checking, for files
 only (Part 3).
 
-- **(a) A separate pass** (proposed). `-p` keeps printing the tree of an old-style
+- **(a) A separate pass** (proposed). `krb parse` keeps printing the tree of an old-style
   script, because it only calls `parse`. Every offending statement is reported
   in one run. The cost is that statement nodes have a line but no token, so
   messages have no `at 'x'` part.
@@ -1002,10 +1027,13 @@ run, and under this proposal they need a `main`.
 
 - **(a) An empty `fun main(): unit {}`** (proposed for now). It adds nothing to
   the CLI, but it adds noise to every such test.
-- **(b) A check-only mode**, such as `krb --check FILE`, that compiles and type
-  checks without running and without needing `main`. The harness could use it
-  through a per-test option. This is useful for tools too, but it is a new part
-  of the CLI.
+- **(b) A check-only mode** that compiles and type checks without running and
+  without needing `main`. `krb compile FILE` is that mode today: it type checks
+  and compiles the file and the stdlib, runs nothing, and prints `Compiled!`
+  (checked at `a097505`). A test uses it through its own `.argv` file
+  (`compile`, then `$file`), so the harness needs no per-test option either.
+  This is useful for tools too. Nothing new is needed in the CLI or the harness;
+  what is left to decide is whether tests like these use it.
 
 ### **Q:** When do code samples in other proposals change?
 
@@ -1242,10 +1270,10 @@ These are both technical and non-technical terms used throughout the proposal.
 - **Load**: Compile a file and run its top level once, so that the names it
   declares exist. With this proposal that run only defines things.
 - **Run**: Load an entry file, then call its `main`.
-- **Entry file**: The file named after `krb -f`.
+- **Entry file**: The file named after `krb run`.
 - **Library file**: A file loaded for what it declares and never run: the stdlib
   today, and imported modules later.
-- **Snippet**: Code given to the REPL or to `-c`.
+- **Snippet**: Code given to the REPL or to `krb exec`.
 - **Comptime value**: An expression whose result is fixed by the source text
   alone. It cannot call a function, read a `var`, or reach outside the program.
   The exact list for the first version is in [Top-level `let` and `var` take
