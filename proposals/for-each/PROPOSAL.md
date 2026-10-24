@@ -194,6 +194,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Enums Proposal] — `Option[T]` is the result of `next()`, and `enum` has the same keyword question ([Q-keyword-enum]).
 - [Generic Types Proposal] — `Iterator[T]` and `Iterable[T]` are generic traits.
 - [Collection Methods Proposal] — methods like `map` and `filter` on arrays would be built from the same iteration rule.
+- [Lists Proposal] — the loop works on a list `[T]` and a fixed size array `[T; n]` alike.
 - [Trait Types Proposal] — a function that takes any `Iterable` is a use of a trait type, though generic traits would need to be allowed ([Q-iterator-trait]).
 - [Tooling Data Proposal] and [Debugger Proposal] — the binding is a local variable with a short life, and the hidden locals have no name.
 
@@ -410,6 +411,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Debugger Proposal]: ../debugger/PROPOSAL.md
+[Lists Proposal]: ../lists/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

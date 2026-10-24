@@ -237,7 +237,7 @@ two mechanisms instead of one.
 
 The plan for arrays has a third shape in it: `[T]` is a growable array now
 and becomes a list later, and `[T; n]` will be a fixed size array with one
-item type. A fixed size array sits between the two groups: its size is fixed
+item type (see the [Lists Proposal]). A fixed size array sits between the two groups: its size is fixed
 like a tuple's, but every item has the same type, like a list's.
 
 ### **Q:** Do arrays actually fit the static/mangled mechanism?
@@ -348,6 +348,7 @@ proposal.
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [Map Proposal]: ../map/PROPOSAL.md
 [For-Each Proposal]: ../for-each/PROPOSAL.md
+[Lists Proposal]: ../lists/PROPOSAL.md
 
 <!-- External -->
 

@@ -84,7 +84,7 @@ Several things that already exist shape the design. Each was verified:
 - **A declaration holds one name.** `varDeclaration` in `src/parser.c` reads one identifier, and the AST node for a declaration (`NODE_VAR_DECL`) holds one name token.
 - **Field shorthand is not supported for struct literals.** `Box { value }` reports `Expect ':' after field name.` The sketch uses that shorthand in a pattern. See [Q-shorthand].
 - **Field privacy is per struct and checked at run time.** A private field can be used by the struct's own `impl` methods, and reading one from outside reports `Field 'balance' is private to 'Account'.` at run time. A pattern that names a private field has to follow the same rule.
-- **An array's length is not part of its type.** The checker knows an array's item type (`let s: string = values[0];` reports `Expected string, got i64.`) but not how many items it has. So `let [a, b, c, d] = values;` can only be found wrong when the program runs. An out of range index reports `Array index out of bounds.` at run time (exit code 70).
+- **An array's length is not part of its type.** (The [Lists Proposal] would change this for a new fixed size array type, `[T; n]`, and leave `[T]` as a list.) The checker knows an array's item type (`let s: string = values[0];` reports `Expected string, got i64.`) but not how many items it has. So `let [a, b, c, d] = values;` can only be found wrong when the program runs. An out of range index reports `Array index out of bounds.` at run time (exit code 70).
 - **The keyword decides mutability.** `let a = 1; a = 2;` reports `Cannot assign to immutable binding`. A `let` pattern should make every name in it immutable, and `var` should make them all assignable.
 - **Destructuring is needed for pattern matching.** [Issue #39] says as much. The pattern syntax defined here is what a `match` arm would use.
 
@@ -182,6 +182,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 ### Related Proposals
 
+- [Lists Proposal] — a fixed size array `[T; n]` has its length in its type, so a pattern of the wrong length can be a compile error instead of a run time error. A list `[T]` keeps the run time check ([Q-array-mismatch]).
 - [Tuples Proposal] — tuple patterns depend on it.
 - [Tuple Structs Proposal] — tuple struct patterns depend on it.
 - [Pattern Matching Proposal] — depends on this proposal. It reuses the pattern nodes and adds patterns that can fail, such as literals and enum variants.
@@ -452,6 +453,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 [For-Each Proposal]: ../for-each/PROPOSAL.md
 [Map Proposal]: ../map/PROPOSAL.md
+[Lists Proposal]: ../lists/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

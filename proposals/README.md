@@ -16,6 +16,7 @@
 - [enums](/proposals/enums/PROPOSAL.md)
 - [for-each](/proposals/for-each/PROPOSAL.md)
 - [generic-types](/proposals/generic-types/PROPOSAL.md)
+- [lists](/proposals/lists/PROPOSAL.md)
 - [lua-transpiler](/proposals/lua-transpiler/PROPOSAL.md)
 - [macros](/proposals/macros/PROPOSAL.md)
 - [map](/proposals/map/PROPOSAL.md)

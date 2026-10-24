@@ -179,6 +179,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Enums Proposal] — the main reason for this proposal. An enum with values inside a variant cannot be used without it. Fieldless enums can be used with `==` alone.
 - [Tuples Proposal] and [Tuple Structs Proposal] — their patterns depend on them.
 - [Unimplemented Proposal] — `???` type-checks only where an expected type exists, and `if` branches are not such a place. Whether arms are one is [Q-arms-expected].
+- [Lists Proposal] — an array pattern has a fixed length. It always fits a fixed size array `[T; n]` of that length, and a list `[T]` always needs a catch-all.
 - [Generic Types Proposal] — matching an `Option[T]` needs generic enums. A literal pattern compares with `==`, so it depends on how `==` behaves (10.4 there).
 - [Sized Number Types Proposal] — Closed. A whole number literal takes the expected kind where its value fits, and is an `i64` otherwise. A literal pattern like `1` should follow the same rule and take the kind of the value being matched, so `1` matches a `u8` or an `f64`.
 - [Macros Proposal] — macros are described as ordinary Kirby code working on syntax as data. `match` and enums would be the natural way to write that code.
@@ -485,6 +486,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Result Proposal]: ../result/PROPOSAL.md
 [For-Each Proposal]: ../for-each/PROPOSAL.md
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md
+[Lists Proposal]: ../lists/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

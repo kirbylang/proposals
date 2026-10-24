@@ -371,7 +371,7 @@ The sketch writes `(number, number)`. A spelling like `Tuple[f64, string]` was a
 
 #### Answer
 
-`(A, B)`. The type looks like the value: `(1, "a")` has the type `(i64, string)`. Square brackets are taken. After a name they are generic arguments (`Box[f64]`), and on their own they are an array type (`[f64]`). `[i64, string]` would read as an odd array type, and `[T; n]` is planned for fixed size arrays. The [Collection Methods Proposal] uses the same spelling.
+`(A, B)`. The type looks like the value: `(1, "a")` has the type `(i64, string)`. Square brackets are taken. After a name they are generic arguments (`Box[f64]`), and on their own they are an array type (`[f64]`). `[i64, string]` would read as an odd array type, and `[T; n]` is planned for fixed size arrays (see the [Lists Proposal]). The [Collection Methods Proposal] uses the same spelling.
 
 ### **Q:** Should a tuple have a length native?
 
@@ -419,6 +419,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [For-Each Proposal]: ../for-each/PROPOSAL.md
 [Sized Number Types Proposal]: ../sized-number-types/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
+[Lists Proposal]: ../lists/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

@@ -256,7 +256,7 @@ The **type checker rejects** almost all of it:
   name (`Box[f64]`) are generic arguments, and square brackets with nothing in
   front are an array type. The plan is that `[T]` is a growable array now and
   becomes a list later, `[T; n]` is a fixed size array, and a tuple type is
-  `(A, B)` (see the [Tuples Proposal]).
+  `(A, B)` (see the [Tuples Proposal] and the [Lists Proposal]).
 - A generic function does not work either. `fun id[T](x: T): T = x;` fails
   because `T` is not a known type — `typchkResolveType` reaches its final case
   and reports:
@@ -1499,5 +1499,6 @@ just build                 # produces build/krb
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md
 [Map Proposal]: ../map/PROPOSAL.md
 [Result Proposal]: ../result/PROPOSAL.md
+[Lists Proposal]: ../lists/PROPOSAL.md
 [Q-equality-tuples]: ../tuples/PROPOSAL.md#q-how-does-tuple-equality-compare-items
 [Q-equality-enums]: ../enums/PROPOSAL.md#q-how-does-equality-work-on-enums
