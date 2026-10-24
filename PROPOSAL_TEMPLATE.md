@@ -1,5 +1,6 @@
 ---
 status: Draft # Draft | Closed
+category: feature # epic | feature | tooling | experimental. See ROADMAP.md
 created: YYYY-MM-DD
 from_commit: $commit # Commit kirbylang at time of proposal creation/update.
 ---

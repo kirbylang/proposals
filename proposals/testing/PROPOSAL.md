@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: tooling
 created: 2026-09-18
 from_commit: b09db2e
 ---

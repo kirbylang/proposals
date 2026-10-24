@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: feature
 created: 2026-10-24
 from_commit: d9279e4
 ---
@@ -109,15 +110,15 @@ ages["bob"] = 25;
 - `Map.new()` creates an empty map. The element types come from the annotation or the first use.
 - The operations, in the style of the list natives (`@listPush`, `@listLen`, ...), are in the table below. Whether they are natives or methods is [Q-api-shape].
 
-| Operation                | Native                          | Signature                              |
-| ------------------------ | ------------------------------- | -------------------------------------- |
-| Add or replace an entry  | `@mapSet(map, key, value)`      | `fun (Map[K, V], K, V) => unit`        |
-| Read an entry            | `@mapGet(map, key)`             | `fun (Map[K, V], K) => Option[V]`      |
-| Remove an entry          | `@mapRemove(map, key)`          | `fun (Map[K, V], K) => Option[V]`      |
-| Is there an entry        | `@mapContains(map, key)`        | `fun (Map[K, V], K) => bool`           |
-| How many entries         | `@mapLen(map)`                  | `fun (Map[K, V]) => i64`               |
-| All keys, in order       | `@mapKeys(map)`                 | `fun (Map[K, V]) => [K]`               |
-| All values, in order     | `@mapValues(map)`               | `fun (Map[K, V]) => [V]`               |
+| Operation               | Native                     | Signature                         |
+| ----------------------- | -------------------------- | --------------------------------- |
+| Add or replace an entry | `@mapSet(map, key, value)` | `fun (Map[K, V], K, V) => unit`   |
+| Read an entry           | `@mapGet(map, key)`        | `fun (Map[K, V], K) => Option[V]` |
+| Remove an entry         | `@mapRemove(map, key)`     | `fun (Map[K, V], K) => Option[V]` |
+| Is there an entry       | `@mapContains(map, key)`   | `fun (Map[K, V], K) => bool`      |
+| How many entries        | `@mapLen(map)`             | `fun (Map[K, V]) => i64`          |
+| All keys, in order      | `@mapKeys(map)`            | `fun (Map[K, V]) => [K]`          |
+| All values, in order    | `@mapValues(map)`          | `fun (Map[K, V]) => [V]`          |
 
 `@mapGet` returns an `Option[V]` because a missing key is a normal answer. `m[key]` as a shorthand is [Q-index-syntax].
 

@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: epic
 created: 2026-09-19
 from_commit: 662d98b
 ---
@@ -51,7 +52,7 @@ defined in the [Glossary] below.
   true after changes presented in this proposal.
 - Command lines in transcripts are the ones that worked at `from_commit`, when
   `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
-  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
+FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
 
 ### Code & Changes
 

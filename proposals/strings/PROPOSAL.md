@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: feature
 created: 2026-10-24
 from_commit: d9279e4
 ---
@@ -105,18 +106,18 @@ The braces make the length clear: four digits can not reach past `FFFF`, and a f
 
 Two new natives, in the style of `src/native_signatures.c`:
 
-| Native                | Signature                  | Result                                                      |
-| --------------------- | -------------------------- | ----------------------------------------------------------- |
-| `@strFromBytes(bytes)`| `fun ([u8]) => string`     | The string those bytes hold. Inverse of `@strToBytes`.      |
-| `@strFromCode(code)`  | `fun (i64) => string`      | The one character string for a code point.                  |
+| Native                 | Signature              | Result                                                 |
+| ---------------------- | ---------------------- | ------------------------------------------------------ |
+| `@strFromBytes(bytes)` | `fun ([u8]) => string` | The string those bytes hold. Inverse of `@strToBytes`. |
+| `@strFromCode(code)`   | `fun (i64) => string`  | The one character string for a code point.             |
 
 Both stop with a runtime error on input that is not valid text: bytes that are not valid UTF-8, a code that is a surrogate or above `10FFFF`, or a negative code. That follows the [String Encoding Proposal] Part D. Once the [Result Proposal] lands they are natural candidates for returning a `Result`.
 
 ### Part C: Reading a character's code
 
-| Native                   | Signature                   | Result                                                          |
-| ------------------------ | --------------------------- | --------------------------------------------------------------- |
-| `@strCodeAt(s, position)`| `fun (string, i64) => i64`  | The code point of the character that starts at `position`.      |
+| Native                    | Signature                  | Result                                                     |
+| ------------------------- | -------------------------- | ---------------------------------------------------------- |
+| `@strCodeAt(s, position)` | `fun (string, i64) => i64` | The code point of the character that starts at `position`. |
 
 It copies nothing, so a loop can test a character without making a string. With `@strCharSize` from the [String Encoding Proposal] it walks a string:
 

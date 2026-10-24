@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: epic
 created: 2026-09-20
 from_commit: 2f96a2e
 ---

@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: feature
 created: 2026-10-24
 from_commit: d9279e4
 ---
@@ -101,14 +102,14 @@ This is the rule Rust uses, and it keeps `Result` out of every array read.
 
 Under the rule, these natives change. Signatures are written in the style of `src/native_signatures.c`:
 
-| Native                      | Today                          | Proposed                                    |
-| --------------------------- | ------------------------------ | ------------------------------------------- |
-| `@parseInt`                 | `fun (string) => i64`          | `fun (string) => Result[i64, string]`       |
-| `@parseFloat`               | `fun (string) => f64`          | `fun (string) => Result[f64, string]`       |
-| `@readFileToString`         | `fun (string) => string`       | `fun (string) => Result[string, string]`    |
-| `@writeStringToFile`        | `fun (string, string) => unit` | `fun (string, string) => Result[unit, string]` |
-| `@getenv`                   | `fun (string) => string`       | `fun (string) => Option[string]`            |
-| `@strFromBytes`, `@strFromCode` | see the [Strings Proposal] | `Result[string, string]`                    |
+| Native                          | Today                          | Proposed                                       |
+| ------------------------------- | ------------------------------ | ---------------------------------------------- |
+| `@parseInt`                     | `fun (string) => i64`          | `fun (string) => Result[i64, string]`          |
+| `@parseFloat`                   | `fun (string) => f64`          | `fun (string) => Result[f64, string]`          |
+| `@readFileToString`             | `fun (string) => string`       | `fun (string) => Result[string, string]`       |
+| `@writeStringToFile`            | `fun (string, string) => unit` | `fun (string, string) => Result[unit, string]` |
+| `@getenv`                       | `fun (string) => string`       | `fun (string) => Option[string]`               |
+| `@strFromBytes`, `@strFromCode` | see the [Strings Proposal]     | `Result[string, string]`                       |
 
 - `Err` holds the message the native prints today, so no information is lost. What type that is, for natives and for user code, is [Q-error-type]. This table assumes `string`. `@parseInt("12x")` gives `Err("expected a whole number but got \"12x\"")`.
 - `@getenv` returns an `Option` because a missing variable is a normal answer and not an error.

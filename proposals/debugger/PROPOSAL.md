@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: tooling
 created: 2026-09-19
 from_commit: 662d98b
 ---
@@ -45,7 +46,7 @@ defined in the [Glossary] below.
   true after changes presented in this proposal.
 - Command lines in transcripts are the ones that worked at `from_commit`, when
   `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
-  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`. `krb` has subcommands
+FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`. `krb` has subcommands
   now, so where the options this proposal adds (`--debug`, `--debug-script`) go,
   before the subcommand as written here or on `run`, is not decided.
 
@@ -389,16 +390,16 @@ protocol above ([Q-adapter]). The adapter needs no new runtime dependency: an
 extension can give VS Code an adapter object directly
 (`DebugAdapterInlineImplementation`).
 
-| VS Code asks for                        | The adapter                                                                                                                          |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| VS Code asks for                        | The adapter                                                                                                                           |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `launch`                                | listens on a free port, asks VS Code to run `krb --debug PORT run PROGRAM` in the integrated terminal, and waits for `krb` to connect |
-| `setBreakpoints`                        | sends `break`, and shows the answers                                                                                                 |
-| `configurationDone`                     | sends `go`                                                                                                                           |
-| `threads`                               | answers with one thread, since the VM has one                                                                                        |
-| `stackTrace`                            | sends `stack`                                                                                                                        |
-| `scopes` / `variables`                  | send `scopes` / `vars`                                                                                                               |
-| `continue`, `next`, `stepIn`, `stepOut` | send `go`, `over`, `in`, `out`                                                                                                       |
-| `disconnect`                            | sends `quit` and closes the connection                                                                                               |
+| `setBreakpoints`                        | sends `break`, and shows the answers                                                                                                  |
+| `configurationDone`                     | sends `go`                                                                                                                            |
+| `threads`                               | answers with one thread, since the VM has one                                                                                         |
+| `stackTrace`                            | sends `stack`                                                                                                                         |
+| `scopes` / `variables`                  | send `scopes` / `vars`                                                                                                                |
+| `continue`, `next`, `stepIn`, `stepOut` | send `go`, `over`, `in`, `out`                                                                                                        |
+| `disconnect`                            | sends `quit` and closes the connection                                                                                                |
 
 Running in the integrated terminal means `print` output and `@stdin` input
 behave as they do with "Run Kirby File". Frames from library code are marked as

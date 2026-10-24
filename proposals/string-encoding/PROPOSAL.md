@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: feature
 created: 2026-10-24
 from_commit: d9279e4
 ---
@@ -112,10 +113,10 @@ This follows the other position errors in `assertStringPosition`, which already 
 
 Two new natives, with signatures in the style of `src/native_signatures.c`:
 
-| Native                      | Signature                     | Result                                                          |
-| --------------------------- | ----------------------------- | --------------------------------------------------------------- |
-| `@strCharSize(s, position)` | `fun (string, i64) => i64`    | Bytes taken by the character that starts at `position`: 1 to 4  |
-| `@strCharCount(s)`          | `fun (string) => i64`         | Number of characters in `s`                                     |
+| Native                      | Signature                  | Result                                                         |
+| --------------------------- | -------------------------- | -------------------------------------------------------------- |
+| `@strCharSize(s, position)` | `fun (string, i64) => i64` | Bytes taken by the character that starts at `position`: 1 to 4 |
+| `@strCharCount(s)`          | `fun (string) => i64`      | Number of characters in `s`                                    |
 
 `@strCharSize` makes a character-by-character loop short and keeps it fast:
 

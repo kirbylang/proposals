@@ -10,27 +10,41 @@
 
 ## Draft
 
-- [collection-methods](./collection-methods/PROPOSAL.md)
-- [debugger](/proposals/debugger/PROPOSAL.md)
+Grouped by category. See the [roadmap](/ROADMAP.md) for what each category means and the order they are built in.
+
+### Epics
+
+- [generic-types](/proposals/generic-types/PROPOSAL.md)
+- [macros](/proposals/macros/PROPOSAL.md)
+- [modules](/proposals/modules/PROPOSAL.md)
+- [projects](/proposals/projects/PROPOSAL.md)
+- [tooling-support-data](/proposals/tooling-support-data/PROPOSAL.md)
+- [top-level-declarations](/proposals/top-level-declarations/PROPOSAL.md)
+
+### Features
+
+- [collection-methods](/proposals/collection-methods/PROPOSAL.md)
 - [destructuring](/proposals/destructuring/PROPOSAL.md)
-- [embedded-library](/proposals/embedded-library/PROPOSAL.md)
 - [enums](/proposals/enums/PROPOSAL.md)
 - [for-each](/proposals/for-each/PROPOSAL.md)
-- [generic-types](/proposals/generic-types/PROPOSAL.md)
-- [lua-transpiler](/proposals/lua-transpiler/PROPOSAL.md)
-- [macros](/proposals/macros/PROPOSAL.md)
 - [map](/proposals/map/PROPOSAL.md)
-- [modules](/proposals/modules/PROPOSAL.md)
 - [pattern-matching](/proposals/pattern-matching/PROPOSAL.md)
 - [primitive-impls](/proposals/primitive-impls/PROPOSAL.md)
-- [projects](/proposals/projects/PROPOSAL.md)
 - [result](/proposals/result/PROPOSAL.md)
 - [string-encoding](/proposals/string-encoding/PROPOSAL.md)
 - [strings](/proposals/strings/PROPOSAL.md)
-- [testing](/proposals/testing/PROPOSAL.md)
-- [tooling-support-data](/proposals/tooling-support-data/PROPOSAL.md)
-- [top-level-declarations](/proposals/top-level-declarations/PROPOSAL.md)
 - [trait-types](/proposals/trait-types/PROPOSAL.md)
 - [tuple-structs](/proposals/tuple-structs/PROPOSAL.md)
 - [tuples](/proposals/tuples/PROPOSAL.md)
 - [unimplemented](/proposals/unimplemented/PROPOSAL.md)
+
+### Tooling
+
+- [debugger](/proposals/debugger/PROPOSAL.md)
+- [embedded-library](/proposals/embedded-library/PROPOSAL.md)
+- [lua-transpiler](/proposals/lua-transpiler/PROPOSAL.md)
+- [testing](/proposals/testing/PROPOSAL.md)
+
+### Experimental
+
+None.

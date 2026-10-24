@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: feature
 created: 2026-10-24
 from_commit: d9279e4
 ---

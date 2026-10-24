@@ -1,5 +1,6 @@
 ---
 status: Draft
+category: feature
 created: 2026-09-20
 from_commit: 662d98b
 ---
@@ -145,12 +146,12 @@ struct Point(pub f64, pub f64); // public, cannot be assigned
 struct Counter(pub var f64);    // public, can be assigned
 ```
 
-| Declared as | Read outside `impl` | Assign |
-| ----------- | ------------------- | ------ |
-| `f64`       | no                  | no     |
-| `pub f64`   | yes                 | no     |
-| `var f64`   | no                  | yes, inside `impl` only |
-| `pub var f64` | yes               | yes    |
+| Declared as   | Read outside `impl` | Assign                  |
+| ------------- | ------------------- | ----------------------- |
+| `f64`         | no                  | no                      |
+| `pub f64`     | yes                 | no                      |
+| `var f64`     | no                  | yes, inside `impl` only |
+| `pub var f64` | yes                 | yes                     |
 
 Like a regular struct, a tuple struct has its own type, and two tuple structs with the same fields are still different types. The declaration must be at the top level, the same as `struct`.
 
