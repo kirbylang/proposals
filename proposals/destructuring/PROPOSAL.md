@@ -1,7 +1,7 @@
 ---
 status: Draft
 created: 2026-09-20
-from_commit: 662d98b
+from_commit: 2f96a2e
 ---
 
 # Proposal: Destructuring
@@ -64,7 +64,7 @@ let box = Box { value: 123 };
 
 let Box { value } = box;
 
-print value; // 123.000000
+@println(value); // 123
 
 let values = [1, 2, 3];
 let [a, b, c] = values;
@@ -84,7 +84,7 @@ Several things that already exist shape the design. Each was verified:
 - **A declaration holds one name.** `varDeclaration` in `src/parser.c` reads one identifier, and the AST node for a declaration (`NODE_VAR_DECL`) holds one name token.
 - **Field shorthand is not supported for struct literals.** `Box { value }` reports `Expect ':' after field name.` The sketch uses that shorthand in a pattern. See [Q-shorthand].
 - **Field privacy is per struct and checked at run time.** A private field can be used by the struct's own `impl` methods, and reading one from outside reports `Field 'balance' is private to 'Account'.` at run time. A pattern that names a private field has to follow the same rule.
-- **An array's length is not part of its type.** The checker knows an array's item type (`let s: string = values[0];` reports `Expected string, got f64.`) but not how many items it has. So `let [a, b, c, d] = values;` can only be found wrong when the program runs. An out of range index reports `Array index out of bounds.` at run time (exit code 70).
+- **An array's length is not part of its type.** The checker knows an array's item type (`let s: string = values[0];` reports `Expected string, got i64.`) but not how many items it has. So `let [a, b, c, d] = values;` can only be found wrong when the program runs. An out of range index reports `Array index out of bounds.` at run time (exit code 70).
 - **The keyword decides mutability.** `let a = 1; a = 2;` reports `Cannot assign to immutable binding`. A `let` pattern should make every name in it immutable, and `var` should make them all assignable.
 - **Destructuring is needed for pattern matching.** [Issue #39] says as much. The pattern syntax defined here is what a `match` arm would use.
 
@@ -94,7 +94,7 @@ Several things that already exist shape the design. Each was verified:
 
 A pattern can be used in place of the name in a `let` or `var` declaration. It must have an initializer, like `let` does today. `let` makes every name in the pattern immutable and `var` makes every name assignable.
 
-Where a type annotation goes, like `: Array`, is [Q-annotation].
+Where a type annotation goes, like `: [i64]`, is [Q-annotation].
 
 ### Struct patterns
 
@@ -164,8 +164,8 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 #### Part 4: Compiler
 
 - The initializer is evaluated once and kept in a hidden temporary. Each new variable is then read from it, with the existing opcodes `OP_GET_PROPERTY` for a struct field and `OP_GET_INDEX` for an array item.
-- At the top level each name becomes a global (`OP_DEFINE_GLOBAL`). Inside a function or block each name takes a stack slot, and the hidden temporary takes one too. The bookkeeping that tracks stack slots needs care here. There is an existing test for locals, `tests/locals_bookkeeping.krb`.
-- The array length check needs either a new opcode or a call to `@len`. It should run before any name is defined, so a pattern that does not fit does not leave some of its names defined.
+- At the top level each name becomes a global (`OP_DEFINE_GLOBAL`). Inside a function or block each name takes a stack slot, and the hidden temporary takes one too. The bookkeeping that tracks stack slots needs care here. There is an existing test for locals, `tests/run/locals_bookkeeping.krb`.
+- The array length check needs either a new opcode or a call to `@arrLen`. It should run before any name is defined, so a pattern that does not fit does not leave some of its names defined.
 
 #### Part 5: Docs and tooling
 
@@ -198,7 +198,7 @@ How do we know the implemented proposal works?
 
 The E2E syntax tests should cover all valid and invalid parser/compiler/runtime error cases.
 
-##### NEW: tests/destructuring/destructure_struct.krb
+##### NEW: tests/run/destructuring/destructure_struct.krb
 
 ```kirby
 struct Box {
@@ -209,43 +209,43 @@ let box = Box { value: 123 };
 
 let Box { value } = box;
 
-print value;
+@println(value);
 ```
 
 ###### Expected Outcome
 
-Prints `123.000000`. Exit code 0.
+Prints `123`. Exit code 0.
 
-##### NEW: tests/destructuring/destructure_array.krb
+##### NEW: tests/run/destructuring/destructure_array.krb
 
 ```kirby
 let values = [1, 2, 3];
 let [a, b, c] = values;
 
-print a;
-print b;
-print c;
+@println(a);
+@println(b);
+@println(c);
 ```
 
 ###### Expected Outcome
 
-Prints `1.000000`, `2.000000`, `3.000000`.
+Prints `1`, `2`, `3`.
 
-##### NEW: tests/destructuring/destructure_var_assignable.krb
+##### NEW: tests/run/destructuring/destructure_var_assignable.krb
 
 ```kirby
 var [a, b] = [1, 2];
 
 a = 5;
 
-print a;
+@println(a);
 ```
 
 ###### Expected Outcome
 
-Prints `5.000000`.
+Prints `5`.
 
-##### NEW: tests/destructuring/destructure_let_immutable.krb
+##### NEW: tests/run/destructuring/destructure_let_immutable.krb
 
 ```kirby
 let [a, b] = [1, 2];
@@ -257,7 +257,7 @@ a = 5;
 
 Compile error `Cannot assign to immutable binding`. Exit code 65.
 
-##### NEW: tests/destructuring/destructure_array_too_short.krb
+##### NEW: tests/run/destructuring/destructure_array_too_short.krb
 
 ```kirby
 let values = [1, 2, 3];
@@ -268,26 +268,26 @@ let [a, b, c, d] = values;
 
 Run time error. Exit code 70. The message is to be decided ([Q-array-mismatch]).
 
-##### NEW: tests/destructuring/destructure_initializer_evaluated_once.krb
+##### NEW: tests/run/destructuring/destructure_initializer_evaluated_once.krb
 
 ```kirby
 var calls = 0;
 
-fun make(): Array {
+fun make(): [i64] {
   calls = calls + 1;
   [1, 2]
 }
 
 let [a, b] = make();
 
-print calls;
+@println(calls);
 ```
 
 ###### Expected Outcome
 
-Prints `1.000000`.
+Prints `1`.
 
-##### NEW: tests/destructuring/destructure_struct_private_field.krb
+##### NEW: tests/run/destructuring/destructure_struct_private_field.krb
 
 ```kirby
 struct Account {
@@ -303,7 +303,7 @@ let Account { balance } = account;
 
 An error saying the field is private. Whether it is found at compile time or run time is to be decided, and should match how a private `account.balance` read is reported.
 
-##### NEW: tests/destructuring/destructure_struct_unknown_field.krb
+##### NEW: tests/run/destructuring/destructure_struct_unknown_field.krb
 
 ```kirby
 struct Box {
@@ -319,7 +319,7 @@ let Box { missing } = box;
 
 Compile error that `Box` has no field `missing`. Exit code 65.
 
-##### NEW: tests/destructuring/destructure_struct_wrong_type.krb
+##### NEW: tests/run/destructuring/destructure_struct_wrong_type.krb
 
 ```kirby
 struct Box {
@@ -339,7 +339,7 @@ let Other { value } = box;
 
 Compile error that `Other` was expected and `Box` was given. Exit code 65.
 
-##### NEW: tests/destructuring/destructure_without_initializer.krb
+##### NEW: tests/run/destructuring/destructure_without_initializer.krb
 
 ```kirby
 var [a, b];
@@ -398,7 +398,7 @@ The length of an array is not in its type, so the checker cannot see a mismatch.
 
 **Status:** Open
 
-An item that is not needed, like the second in `let [a, _, c] = values;`, needs a name that says "ignore this". `_` is the usual choice. But `_` is a valid variable name in Kirby today (`var _ = 3; print _;` prints `3.000000`, and no `.krb` file in the repository uses it).
+An item that is not needed, like the second in `let [a, _, c] = values;`, needs a name that says "ignore this". `_` is the usual choice. But `_` is a valid variable name in Kirby today (`var _ = 3; @println(_);` prints `3`, and no `.krb` file in the repository uses it as a name).
 
 Options: (a) Reserve `_` so it can never be a variable name. Simple, but it breaks any program that uses `_`. (b) `_` only means "ignore" inside patterns, and stays a normal name elsewhere. Nothing breaks, but `let _ = 1;` then means something different in each place. (c) No placeholder. Every item gets a real name, and repeated names are an "already declared" error.
 
@@ -410,7 +410,7 @@ The [Pattern Matching Proposal] needs the same answer for a catch-all arm.
 
 **Status:** Open
 
-A declaration can have a type annotation after the name, like `let count: f64 = 1;`. With a pattern there are several names, and no single name to put it after. Options: (a) After the whole pattern, describing the initializer's type, like `let [a, b]: Array = values;`. (b) Not allowed on patterns. The types come from the initializer, and each name can be checked when it is used.
+A declaration can have a type annotation after the name, like `let count: f64 = 1;`. With a pattern there are several names, and no single name to put it after. Options: (a) After the whole pattern, describing the initializer's type, like `let [a, b]: [i64] = values;`. (b) Not allowed on patterns. The types come from the initializer, and each name can be checked when it is used.
 
 ## Glossary
 

@@ -1,7 +1,7 @@
 ---
 status: Draft
 created: 2026-09-20
-from_commit: 662d98b
+from_commit: 2f96a2e
 ---
 
 # Proposal: Turning Kirby Into Lua
@@ -48,12 +48,10 @@ defined in the [Glossary] below.
 - When the proposal text says Kirby "should" or "will" do something, that is
   true after changes presented in this proposal.
 - When the text says what Lua "does", that was checked by running Lua 5.1.5,
-  LuaJIT 2.1 and Lua 5.4.6 ([Appendix A]).
-- Command lines in transcripts are the ones that worked at `from_commit`, when
-  `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
-  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`. `krb` has subcommands
-  now, so the Lua writer could be a subcommand, `krb lua FILE`, and not the
-  option `--lua`. Its spelling is not decided here.
+  LuaJIT 2.1 and Lua 5.4.8 ([Appendix A]).
+- `krb` has subcommands (`krb run`, `krb exec`, `krb build` and others), so the
+  Lua writer could be a subcommand, `krb lua FILE`, or an option. This document
+  writes `krb --lua`. Its spelling is not decided here.
 
 ### Code & Changes
 
@@ -80,24 +78,24 @@ machine, and it keeps working with whatever tools that host has for Lua.
 Checked at `from_commit` ([Appendix A]):
 
 - **A front end that already understands the program.** The parser and type
-  checker turn source into a syntax tree of 34 kinds of node (`src/ast.h`) and
+  checker turn source into a syntax tree of 36 kinds of node (`src/ast.h`) and
   reject programs that do not type check. `compiler.c` walks that tree and
-  writes bytecode. It is 1,340 lines. A Lua writer would do the same walk and
+  writes bytecode. It is 1,691 lines. A Lua writer would do the same walk and
   write text. ([A.5])
 - **A language that is close to Lua in the ways that matter.** Both have closures
   that capture variables and not values ([A.1], row F). Both use byte strings
-  (`@len("é")` is 2 in Kirby and `#"é"` is 2 in Lua, [A.5]). A condition in Kirby
+  (`@strLen("é")` is 2 in Kirby and `#"é"` is 2 in Lua, [A.5]). A condition in Kirby
   has to be a `bool`, so Lua's different rule for what counts as true can never
   show through in an `if` or a `while` ([A.5]). `and` and `or` accept only
   `bool` values, so they map straight onto Lua's.
 - **Programs that translate exactly.** By hand, `examples/fizzbuzz.krb` and
   `examples/stringBuilder.krb` (structs, `impl`, two trait impls, methods,
-  `Self`, method chaining) each produce output identical to Kirby's on Lua 5.1,
-  LuaJIT and Lua 5.4. So does a loop that uses both `break` and `continue`, and
+  `Self`, method chaining, printing through `Display`) each produce output
+  identical to Kirby's on Lua 5.1, LuaJIT and Lua 5.4. So does a loop that uses both `break` and `continue`, and
   a program that makes closures in a loop. ([A.2], [A.3])
 - **A speed story that does not need help.** The benchmark from the [Debugger
-  Proposal], translated by hand, ran faster than Kirby's own VM in every run: 1.1
-  to 1.4 times as fast on Lua 5.1, 1.2 to 1.6 times on Lua 5.4 and 2.7 to 4.0
+  Proposal], translated by hand, ran faster than Kirby's own VM in every run: 2.8
+  to 3.6 times as fast on Lua 5.1, 4.4 to 4.9 times on Lua 5.4 and 7.4 to 8.5
   times on LuaJIT, across three sets of runs ([A.4]).
   That is a pleasant side effect, but it is not the reason to do this. The reason
   is reach.
@@ -116,34 +114,37 @@ Checked at `from_commit` ([Appendix A]):
    `impl` is for (`resolved_impl_targets.c`). ([A.5])
 3. **The two languages disagree in small, sharp places.** All of these were run:
 
-   | Kirby                                                      | Lua, written the obvious way                                            |
-   | ---------------------------------------------------------- | ----------------------------------------------------------------------- |
-   | `-5 % 3` is `-2`                                           | `-5 % 3` is `1`; `math.fmod(-5, 3)` is `-2`                             |
-   | `1 / 0` stops the program                                  | `1 / 0` is `inf`                                                        |
-   | `print 3` shows `3.000000`                                 | `print(3.0)` shows `3` (5.1, LuaJIT) or `3.0` (5.4)                     |
-   | `@numberToString(1/3)` has 15 digits                       | `tostring(1/3)` has 14 digits                                           |
-   | an array can hold `nil`, and `@len` counts it              | `#` of a table with holes is 0, 1 or 2, depending on version and layout |
-   | closures made in a `for` loop share one variable (`3 3 3`) | a numeric `for` gives each its own (`0 1 2`)                            |
-   | `a + b` joins two strings                                  | `"a" + "b"` is an error                                                 |
-   | `floor(2^62) * 4` is `1.8e19`                              | on Lua 5.4 the same is `0`, because whole numbers wrap around           |
-   | `pub` is checked when the program runs                     | a plain table has no privacy                                            |
+   | Kirby                                                      | Lua, written the obvious way                                                         |
+   | ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+   | `-5 % 3` is `-2`                                           | `-5 % 3` is `1`; `math.fmod(-5, 3)` is `-2`                                          |
+   | `1.0 / 0.0` stops the program                              | `1 / 0` is `inf`                                                                     |
+   | `@println(3.0)` shows `3`                                  | `print(3.0)` shows `3` (5.1, LuaJIT) or `3.0` (5.4)                                  |
+   | `@numberToString(1.0 / 3.0)` has 16 digits                 | `tostring(1/3)` has 14 digits                                                        |
+   | an array of `unit` holds `nil`s, and `@arrLen` counts them | `#` of a table with holes is 0 or 2, depending on version and layout                 |
+   | closures made in a `for` loop share one variable (`3 3 3`) | a numeric `for` gives each its own (`0 1 2`)                                         |
+   | `a + b` joins two strings                                  | `"a" + "b"` is an error                                                              |
+   | `i64` math that overflows stops the program                | Lua 5.4 wraps around (`4611686018427387904 * 4` is `0`); 5.1 and LuaJIT give a float |
+   | `-7 / 2` is `-3`                                           | `-7 / 2` is `-3.5`, and `math.floor(-7 / 2)` is `-4`                                 |
+   | `pub` is checked when the program runs                     | a plain table has no privacy                                                         |
 
-   Each one has a rule that makes Lua behave like Kirby, and the rules are in
-   [Proposed Changes]. The point of listing them here is that the last column is
-   what a careless translation would get wrong without any error.
+   All but the two integer rows have a rule that makes Lua behave like Kirby,
+   and the rules are in [Proposed Changes]. The two integer rows wait on
+   [Q-numbers]. The point of listing them here is that the last column is what
+   a careless translation would get wrong without any error.
 
 4. **The Lua versions disagree with each other.** `goto`, which is the neat way to
    write `continue`, is a syntax error on Lua 5.1 and works on LuaJIT and 5.4.
    `unpack` is `table.unpack` on 5.4. `math.round` and `math.trunc` do not exist on
    any of the three. Lua 5.4 has a second kind of number, the integer, that wraps
-   around instead of growing. ([A.1], [A.3], [A.7])
+   around on overflow. Lua 5.1 and LuaJIT have only doubles. ([A.1], [A.3],
+   [A.7])
 5. **Lua has limits that Kirby does not.** A Lua function may have at most 200
    local variables on all three versions, and a closure may use at most 60
    variables from outside itself on Lua 5.1 and LuaJIT (255 on 5.4). A Kirby
    file with a few hundred top-level names cannot be written as a file full of
    `local` lines. ([A.7])
 6. **There is no support library.** Printing a number in Kirby's way, checking
-   for a zero divisor, keeping an array's length, and most of the 63 natives
+   for a zero divisor, keeping an array's length, and most of the 73 natives
    need small Lua functions that ship with the output.
 7. **Errors and line numbers are different.** A Kirby runtime error prints its
    message and `[line 3] in script`, and the process exits with 70. A Lua error
@@ -166,7 +167,7 @@ and Lua 5.4, the same as Kirby does ([A.2]).
 
 ```kirby
 struct StringBuilder {
-    var value: Array;
+    let value: [string];
 }
 
 impl StringBuilder {
@@ -182,7 +183,7 @@ impl Default for StringBuilder {
 }
 
 impl Display for StringBuilder {
-    fun toString(self): string = @arrJoin(self.value, "");
+    fun toString(self): string = @strConcat(self.value);
 }
 
 let builder = StringBuilder.default()
@@ -190,7 +191,7 @@ let builder = StringBuilder.default()
     .add(" ")
     .add("World");
 
-print builder.toString();
+@println(builder);
 ```
 
 ```lua
@@ -209,27 +210,30 @@ function StringBuilder.default()
 end
 
 function StringBuilder.toString(self)
-  return krt.arrJoin(self.value, "")
+  return krt.strConcat(self.value)
 end
 
 local builder = StringBuilder.default():add("Hello"):add(" "):add("World")
-krt.print(builder:toString())
+krt.println(builder:toString())
 ```
 
 Things to notice: a struct is a table, and its methods live in a second table
 that Lua finds through the struct's _metatable_ (a table that tells Lua where to
 look when a name is not found). A method that takes `self` is called with a
-colon. An array is a table with a count kept next to its items. `print` goes
-through a support function, because Kirby shows numbers differently from Lua.
+colon. An array is a table with a count kept next to its items. `@println`
+goes through a support function, because Kirby shows numbers differently from
+Lua. `StringBuilder` implements `Display`, so the writer calls `toString()`
+before printing, as Kirby's compiler does.
 
 ### Rules
 
 Five rules for the Lua that is written:
 
 1. **Same output.** For a program that does not fail, the text written to stdout
-   is byte for byte what Kirby writes. The 46 test programs that use a native
+   is byte for byte what Kirby writes. The 66 test programs that use a native
    Lua cannot offer everywhere, or that check a private field, are the known
-   exceptions ([A.8]).
+   exceptions ([A.8]). Integer arithmetic past what the target can hold is the
+   other ([Q-numbers]).
 2. **Failure is a Lua error.** A program that would stop with a runtime error in
    Kirby raises a Lua error with the same message. A small runner turns it into
    Kirby's report and exit code 70 ([Part 8]).
@@ -243,32 +247,33 @@ Five rules for the Lua that is written:
 
 ### The rules, one construct at a time
 
-Every row was tried by hand ([A.1] to [A.3]) except the ones marked _design_.
+Every row was tried by hand ([A.1] to [A.3]) except the ones marked _design_ or _open_.
 
-| Kirby                                              | Lua                                                                                                                                    | Needs from the checker            |
-| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| a number, `3`                                      | written as a float, `3.0`, so that Lua 5.4 stays out of its integer arithmetic                                                         | —                                 |
-| `a % b`                                            | `math.fmod(a, b)`                                                                                                                      | —                                 |
-| `a / b`                                            | `krt.div(a, b)`, which stops on a zero divisor. Plain `a / b` when `b` is a non-zero number written in the source (_design_)           | —                                 |
-| `a + b`                                            | `a + b` for numbers, `a .. b` for strings                                                                                              | operand types                     |
-| `a == b` on numbers, strings, bools, nil, arrays   | `a == b` (an array is equal only to itself, as in Kirby)                                                                               | operand types                     |
-| `a == b` on structs                                | `Type.equals(a, b)`, from the `impl Eq` that Kirby already requires                                                                    | operand types                     |
-| `a and b`, `a or b`, `!a`                          | `a and b`, `a or b`, `not a`                                                                                                           | —                                 |
-| `a ?? b`                                           | a temporary: `local t = a; if t == nil then t = b end`. Lua's `or` would also replace `false`                                          | —                                 |
-| `print v`                                          | `krt.print(v)`: numbers with six decimals, arrays as `[1.000000, 2.000000]`, an instance as `Name instance`                            | operand type (or a run-time test) |
-| `if` and blocks used as values                     | statements that store into a temporary. `return if ...` becomes a `return` in each branch                                              | —                                 |
-| `for (init; cond; step) body`                      | `do init; while cond do body; step end end`, so all closures share one variable, like Kirby                                            | —                                 |
-| `break`, `continue`                                | a flag and a `repeat ... until true` block on every target, or `goto` on the targets that have it ([Part 7])                           | —                                 |
-| `fun` and lambdas, closures                        | Lua functions and closures                                                                                                             | —                                 |
-| top-level `fun`, `let`, `var`, `struct`            | fields of one table for the file (`M.tick`), not `local` names, so that the 200-locals and 60-upvalues limits cannot be hit (_design_) | —                                 |
-| `struct S { ... }`, `S { a: 1 }`                   | a table `S` with `S.__index = S`; `setmetatable({ a = 1 }, S)`, fields in the order written                                            | —                                 |
-| `impl S { fun m(self) }`, trait impls              | `function S.m(self)`. A trait is a name for the checker and needs no Lua                                                               | —                                 |
-| `obj.m(x)` where `m` is a method                   | `obj:m(x)`                                                                                                                             | receiver type                     |
-| `obj.f(x)` where `f` is a field holding a function | `obj.f(x)`                                                                                                                             | receiver type                     |
-| `S.make(x)`, a static method                       | `S.make(x)`                                                                                                                            | —                                 |
-| `[a, b]`, `a[i]`, `a[i] = v`, `@len(a)`            | `krt.array({a, b}, 2)`, `krt.get(a, i)`, `krt.set(a, i, v)`, `a.n`. Item 0 is stored at `[1]`, and the count is kept in `n`            | —                                 |
-| natives                                            | a Lua function, a short support function, or a compile error where the target has no such thing ([Part 5])                             | —                                 |
-| a runtime error                                    | `error(message)` with Kirby's message ([Part 8])                                                                                       | —                                 |
+| Kirby                                              | Lua                                                                                                                                                             | Needs from the checker            |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| a number                                           | an `f64` is a Lua float. How an integer kind such as `i64` is written is [Q-numbers] (_open_)                                                                   | operand types                     |
+| `a % b`                                            | `math.fmod(a, b)`                                                                                                                                               | —                                 |
+| `a / b` on floats                                  | `krt.div(a, b)`, which stops on a zero divisor. Plain `a / b` when `b` is a non-zero number written in the source (_design_)                                    | operand types                     |
+| `a + b`, `a - b`, `a * b`, `a / b` on integers     | must stop on overflow, and `/` must drop the remainder toward zero, as Kirby does. How is [Q-numbers] (_open_)                                                  | operand types                     |
+| `a + b`                                            | `a + b` for numbers, `a .. b` for strings                                                                                                                       | operand types                     |
+| `a == b` on numbers, strings, bools, nil, arrays   | `a == b` (an array is equal only to itself, as in Kirby)                                                                                                        | operand types                     |
+| `a == b` on structs                                | `Type.equals(a, b)`, from the `impl Eq` that Kirby already requires                                                                                             | operand types                     |
+| `a and b`, `a or b`, `!a`                          | `a and b`, `a or b`, `not a`                                                                                                                                    | —                                 |
+| `a ?? b`                                           | a temporary: `local t = a; if t == nil then t = b end`. Lua's `or` would also replace `false`                                                                   | —                                 |
+| `@println(v)`                                      | `krt.println(v)`: a float with the fewest digits that read back the same, arrays as `[1.5, 2]`, an instance through its `Display` impl, else as `Name instance` | operand type (or a run-time test) |
+| `if` and blocks used as values                     | statements that store into a temporary. `return if ...` becomes a `return` in each branch                                                                       | —                                 |
+| `for (init; cond; step) body`                      | `do init; while cond do body; step end end`, so all closures share one variable, like Kirby                                                                     | —                                 |
+| `break`, `continue`                                | a flag and a `repeat ... until true` block on every target, or `goto` on the targets that have it ([Part 7])                                                    | —                                 |
+| `fun` and lambdas, closures                        | Lua functions and closures                                                                                                                                      | —                                 |
+| top-level `fun`, `let`, `var`, `struct`            | fields of one table for the file (`M.tick`), not `local` names, so that the 200-locals and 60-upvalues limits cannot be hit (_design_)                          | —                                 |
+| `struct S { ... }`, `S { a: 1 }`                   | a table `S` with `S.__index = S`; `setmetatable({ a = 1 }, S)`, fields in the order written                                                                     | —                                 |
+| `impl S { fun m(self) }`, trait impls              | `function S.m(self)`. A trait is a name for the checker and needs no Lua                                                                                        | —                                 |
+| `obj.m(x)` where `m` is a method                   | `obj:m(x)`                                                                                                                                                      | receiver type                     |
+| `obj.f(x)` where `f` is a field holding a function | `obj.f(x)`                                                                                                                                                      | receiver type                     |
+| `S.make(x)`, a static method                       | `S.make(x)`                                                                                                                                                     | —                                 |
+| `[a, b]`, `a[i]`, `a[i] = v`, `@arrLen(a)`         | `krt.array({a, b}, 2)`, `krt.get(a, i)`, `krt.set(a, i, v)`, `a.n`. Item 0 is stored at `[1]`, and the count is kept in `n`                                     | —                                 |
+| natives                                            | a Lua function, a short support function, or a compile error where the target has no such thing ([Part 5])                                                      | —                                 |
+| a runtime error                                    | `error(message)` with Kirby's message ([Part 8])                                                                                                                | —                                 |
 
 Two rows deserve a word. The **file-as-a-table** rule costs a table lookup for each
 use of a top-level name, and it is what keeps a large file from breaking Lua's
@@ -311,7 +316,7 @@ option is not used. The parts are ordered so that stopping after any of them
 leaves something that runs.
 
 How big is this? `compiler.c`, which walks the same tree and writes bytecode, is
-1,340 lines, and the type checker is 2,261. A writer for the same 34 kinds of
+1,691 lines, and the type checker is 2,990. A writer for the same 36 kinds of
 node is likely to be of the same order as `compiler.c`, plus a support library
 and a test runner. That is a guess, not a measurement.
 
@@ -328,7 +333,7 @@ The other way is a `Type *type` field on `AstNode`. The [Tooling Data Proposal]
 measured a node at 160 bytes and a pointer field as growing it to 168.
 
 Test first: a unit test checks `let a = 1 + 2; let b = "x" + "y";` and asks the
-table for the type of each `+`. It should answer `f64` for the first and `string`
+table for the type of each `+`. It should answer `i64` for the first and `string`
 for the second.
 
 #### Part 2: The smallest writer
@@ -337,7 +342,7 @@ A new file, `src/lua_emit.c`, and a long option, `krb --lua file.krb`, that
 writes Lua to stdout. It handles what a program needs without structs or
 arrays: numbers, strings, booleans and `nil`; variables and assignment; the
 operators; functions, lambdas and closures; `if`, `while` and `for`; `break` and
-`continue`; `return`; and `print`. It also does the two lowerings that are not
+`continue`; `return`; and `@println`. It also does the two lowerings that are not
 line for line: `if` and blocks used as values, and evaluation order
 ([Q-order]).
 
@@ -349,22 +354,23 @@ run.
 #### Part 3: The support library
 
 `kirby_rt.lua` holds what the output calls: the `%` and `/` helpers, number
-formatting for `print` and for `@numberToString` (`%f` and `%.15g`), the array
-functions that keep a count, and the error function. It ships as a file, and the
+formatting for `@println` and for `@numberToString` (the fewest digits that read
+back as the same number, [A.1] rows C and D), the array functions that keep a
+count, and the error function. It ships as a file, and the
 binary carries a copy, so that `krb --lua --with-runtime` can paste it into the
 output for a single-file result. The helpers have to give the same answers on
 every target, and there is one place for that to be tested.
 
 Test first: a Lua file, `lua/test_rt.lua`, run under each Lua, that checks the
-helpers against answers Kirby gives: `-5 % 3`, `1/3` as text, an array holding
-`nil`, and the six-decimal `print`.
+helpers against answers Kirby gives: `-5 % 3`, `1.0 / 3.0` as text, an array
+holding `nil`, and a whole float printed without a point.
 
 #### Part 4: Structs, impls and traits
 
 `struct`, `impl`, `Self`, static methods, methods called with `self`, function
 fields, and `==` on structs through `impl Eq`. This needs the receiver types of
-[Part 1]. A call whose receiver's type is not known (an item taken out of an
-`Array`, for one) goes through a support function that does what Kirby's VM does:
+[Part 1]. A call whose receiver's type is not known (the result of a native
+with no signature, for one) goes through a support function that does what Kirby's VM does:
 look for a field first and a method second.
 
 Test first: `examples/stringBuilder.krb`, whose expected Lua is in [Proposed
@@ -372,7 +378,7 @@ Changes], and a test for each of the two call forms.
 
 #### Part 5: Arrays, strings and natives
 
-Arrays and strings, and the 63 natives, group by group. Whether an array index is
+Arrays and strings, and the 73 natives, group by group. Whether an array index is
 checked is [Q-array-checks]. Each native ends up as
 one of three things: a Lua function that does the same (`@sqrt` is `math.sqrt`),
 a short support function (`@round` and `@trunc`, since Lua has neither; the array
@@ -400,9 +406,10 @@ because the same front end stops it. For the rest, a skip file,
 `tests/lua-skip.txt`, lists each test that cannot match, with a reason.
 
 The length of that file is the honest measure of how faithful the translation is.
-46 of the 703 programs are known to belong on it ([A.8]): 20 use file or stdin
-natives, 21 use environment, process or clock natives, and 6 expect a
-private-field error. Some overlap, which is why the parts do not add up to 46.
+66 of the 1,110 programs are known to belong on it ([A.8]): 20 use file or stdin
+natives, 41 use environment, process or clock natives, and 6 expect a
+private-field error. Some overlap, which is why the parts do not add up to 66.
+Depending on [Q-numbers], programs that test integer overflow may join them.
 
 Test first: the script itself, run against `fib` and `fizzbuzz` before any other
 part exists.
@@ -412,12 +419,12 @@ part exists.
 `--lua-target 5.1|jit|5.4`, with 5.1 as the default and the floor ([Q-target]).
 What changes between them:
 
-| Difference                                          | 5.1 (floor)                        | LuaJIT, 5.4                                                                |
-| --------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------- |
-| `continue`                                          | a flag and `repeat ... until true` | `goto` ([A.3])                                                             |
-| the upvalue limit for a closure                     | 60                                 | 60 (LuaJIT), 255 (5.4)                                                     |
-| whole numbers from `math.floor`, `#` and `tonumber` | plain numbers                      | on 5.4, converted back to floats so they cannot wrap around ([A.1], row G) |
-| `unpack`                                            | not used (Kirby has no varargs)    | not used                                                                   |
+| Difference                      | 5.1 (floor)                        | LuaJIT, 5.4                                                                |
+| ------------------------------- | ---------------------------------- | -------------------------------------------------------------------------- |
+| `continue`                      | a flag and `repeat ... until true` | `goto` ([A.3])                                                             |
+| the upvalue limit for a closure | 60                                 | 60 (LuaJIT), 255 (5.4)                                                     |
+| integers                        | doubles only ([Q-numbers])         | LuaJIT: doubles only. 5.4: 64-bit integers that wrap around ([A.1], row G) |
+| `unpack`                        | not used (Kirby has no varargs)    | not used                                                                   |
 
 Luau, the Lua variant Roblox uses, is a possible further target. It has not been
 looked at for this proposal.
@@ -495,10 +502,10 @@ translation.
   would let a Lua debugger show Kirby lines.
 - [Testing Proposal] — `krb test` and the run of the suite through Lua are
   separate, and they can share a runner.
-- [Sized Number Types Proposal] — if `u8`, `i32` and `i64` stay plain doubles at
-  run time and differ only for the checker, nothing changes here. If a narrowing
-  needs the value to wrap, that is arithmetic in Lua, and `i64` cannot be held
-  exactly by Lua 5.1 or LuaJIT ([Q-numbers]).
+- [Sized Number Types Proposal] — Closed. Numbers carry one of ten kinds, a
+  whole number literal is an `i64`, integer overflow stops the program, and
+  integer division drops the remainder toward zero. How the writer matches that
+  is [Q-numbers].
 - [Enums Proposal], [Tuples Proposal], [Tuple Structs Proposal], [Destructuring
   Proposal], [Pattern Matching Proposal] — each has an open question about its
   run-time form. Whatever it settles on, the Lua form is a table and, for
@@ -522,8 +529,8 @@ How do we know the implemented proposal works?
 **The existing suite is the measure.** [Part 6] runs every test through Lua. A
 test passes when its stdout and exit code equal the snapshot's. The size of the
 skip file, and the reason on each line of it, says how close the translation is.
-The 280 tests that end in a compile error need no Lua, because they never reach
-the writer. Of the rest, 46 programs are already known not to translate
+The 499 tests that end in a compile error need no Lua, because they never reach
+the writer. Of the rest, 66 programs are already known not to translate
 faithfully ([A.8]).
 
 #### E2E Tests
@@ -539,42 +546,42 @@ for (var i = 0; i < 12; i = i + 1) {
   out = out + i;
   log = log + @numberToString(i) + ",";
 }
-print out;
-print log;
-var fs = [];
+@println(out);
+@println(log);
+var fs: [fun () => i64] = [];
 var j = 0;
-while (j < 3) { @arrPush(fs, fun (): f64 { j }); j = j + 1; }
-print fs[0]();
-print fs[2]();
+while (j < 3) { @arrPush(fs, fun (): i64 { j }); j = j + 1; }
+@println(fs[0]());
+@println(fs[2]());
 ```
 
 ###### Expected Outcome
 
-Kirby prints `16.000000`, `1,3,5,7,`, `3.000000` and `3.000000`. So must the Lua,
-on every target, with both forms of `continue` ([A.3]).
+Kirby prints `16`, `1,3,5,7,`, `3` and `3`. So must the Lua, on every target,
+with both forms of `continue` ([A.3]).
 
 ##### NEW: tests/lua/array_holding_nil.krb
 
 ```kirby
-let a: Array = [nil, 1, nil];
-print @len(a);
+let a: [unit] = [nil, nil, nil];
+@println(@arrLen(a));
 ```
 
 ###### Expected Outcome
 
-`3.000000`. A Lua table written the plain way gives 0 on Lua 5.1 and 2 on the
-others for the same three items ([A.1], row E).
+`3`. A Lua table written the plain way gives 0 on every Lua for the same three
+items ([A.1], row E).
 
 ##### NEW: tests/lua/remainder_and_division.krb
 
 ```kirby
-print -5 % 3;
-print 1 / 0;
+@println(-5 % 3);
+@println(1.0 / 0.0);
 ```
 
 ###### Expected Outcome
 
-`-2.000000` on stdout, then a runtime error with the message
+`-2` on stdout, then a runtime error with the message
 `function / expects argument 1 to be a non-zero number but got 0.` and exit code
 70 ([A.1], rows A and B).
 
@@ -598,7 +605,8 @@ That is the question this proposal was written to answer.
 
 #### Answer
 
-Yes, for the language as it is today. What was checked:
+Yes, for the language as it is today, except for integer arithmetic past what
+a target can hold, which is [Q-numbers]. What was checked:
 
 - Two example programs, a loop with `break` and `continue`, and a program that
   makes closures in a loop, were translated by hand and matched Kirby's output on
@@ -606,7 +614,7 @@ Yes, for the language as it is today. What was checked:
 - Every difference found between the languages has a rule that removes it
   ([A.1]), and the two that Lua's own limits cause (200 locals, 60 upvalues) are
   avoided by putting a file's names in a table ([A.7]).
-- The tree the writer would walk has 34 kinds of node, and a walk of the same
+- The tree the writer would walk has 36 kinds of node, and a walk of the same
   size already exists ([A.5]).
 
 What is not answered, and would be the first things to learn by building it:
@@ -623,13 +631,14 @@ is for the project to decide, and this document is meant to inform that.
 
 - **(a) A floor of Lua 5.1 that also runs on LuaJIT and Lua 5.4** (proposed).
   It costs a slower `continue` (a flag, [A.3]), and it works on every Lua that
-  was tried. Faster forms are options for a target ([Part 7]). Others have made
+  was tried. Lua 5.1 and LuaJIT have only doubles, so this floor depends on the
+  answer to [Q-numbers]. Faster forms are options for a target ([Part 7]). Others have made
   the same choice. TypeScriptToLua's default target, `universal`, is code that
   works on every Lua target it supports. The OpenMW game engine runs Lua 5.1 with
   a few 5.2 extensions and says it will not move to a newer Lua because LuaJIT
   does not support one ([A.9]).
-- **(b) Lua 5.4 first.** It has `goto`, and a larger upvalue limit (255). It
-  leaves out the engines that embed Lua 5.1 or LuaJIT.
+- **(b) Lua 5.4 first.** It has `goto`, 64-bit integers, and a larger upvalue
+  limit (255). It leaves out the engines that embed Lua 5.1 or LuaJIT.
 - **(c) LuaJIT only.** It runs fastest ([A.4]) and it has `goto`.
 - **(d) Luau as well.** A candidate, not tried here.
 
@@ -712,8 +721,9 @@ often has no `io` or `os`.
   (proposed). It uses the same groups as the [Embedded Library Proposal].
 - **(b) Emit a call that fails when it runs.** Simpler, and it finds the mistake
   too late.
-- **`@rand` and `@clock`.** A sequence of random numbers cannot match Kirby's.
-  `@clock` is CPU time in Kirby, and Lua has `os.clock` where `os` exists.
+- **`@rand`, `@clock` and `@now`.** A sequence of random numbers cannot match
+  Kirby's. `@clock` is CPU time in Kirby, and Lua has `os.clock` where `os`
+  exists.
 
 ### **Q:** What does a translated file export?
 
@@ -727,17 +737,38 @@ often has no `io` or `os`.
   Proposal].
 - **(c) Only `main`.** Right for a command line program, and wrong for a game.
 
-### **Q:** What if numbers stop being plain doubles?
+### **Q:** How are Kirby's integer kinds written in Lua?
 
-<!-- [Q-numbers]: #q-what-if-numbers-stop-being-plain-doubles -->
+<!-- [Q-numbers]: #q-how-are-kirbys-integer-kinds-written-in-lua -->
 
 **Status:** Open
 
-Today every Kirby number is a `double`, which is what a Lua 5.1 or LuaJIT number
-is. If the [Sized Number Types Proposal] keeps that, nothing changes. If `i64`
-must wrap around or hold more than 2^53, then Lua 5.1 and LuaJIT cannot do it
-exactly, and Lua 5.4's integers can. That would make a translation of `i64` code
-depend on the target, or refuse it on the floor.
+Kirby has ten number kinds ([Sized Number Types Proposal]). A whole number
+literal is an `i64` and a decimal literal an `f64`, so `var i = 0;` makes `i64`
+code in almost every program. Integer math that does not fit its kind stops the
+program ([A.1], row G), and integer division drops the remainder, rounding
+toward zero (`-7 / 2` is `-3`, row H). Floats are what a Lua number is on every
+target, and the rules above cover them, printing included (rows C and D).
+
+Lua 5.4 has 64-bit integers, which wrap around on overflow
+(`4611686018427387904 * 4` is `0`), and its `//` rounds toward minus infinity
+(`-7 // 2` is `-4`). Lua 5.1 and LuaJIT have only doubles, which hold every
+whole number exactly only up to 2^53, so an `i64` above that is inexact.
+Options:
+
+- **(a) Lua integers, with Lua 5.4 as the floor for programs that use them.**
+  `+`, `-` and `*` on integers go through support functions that check for
+  overflow, and `/` through one that rounds toward zero. Exact, and it leaves
+  out Lua 5.1 and LuaJIT for most programs.
+- **(b) Doubles on every target,** with a check after each integer operation
+  that the result is a whole number within ±2^53, stopping the program
+  otherwise. It keeps the 5.1 floor, and it stops at run time on values Kirby
+  allows.
+- **(c) By target:** (a) on 5.4 and (b) on 5.1 and LuaJIT.
+
+Whichever is chosen, the smaller kinds (`u8`, `i32` and so on) need a range
+check after each operation on every target, and integer arithmetic costs a
+support call. How much that costs has not been measured.
 
 ### **Q:** When does the writer name a temporary?
 
@@ -754,19 +785,19 @@ Kirby evaluates left to right, and Lua's manual does not say ([A.9]).
 
 ## Appendix A: Checking the claims
 
-Everything here was run at `from_commit` (`662d98b`) on Linux x86-64. Timings come
-from one machine, so they show an order of magnitude and not a benchmark.
+Everything here was run at `from_commit` (`2f96a2e`) on Linux x86-64. Timings
+come from one shared machine with two cores, so they show an order of
+magnitude and not a benchmark.
 
 ### Setup
 
 ```shell
 # Kirby: build krb as in the Setup of the Embedded Library Proposal's Appendix A.
-# krb must be run from a checkout, because it opens stdlib/stdlib.krb.
 K=/path/to/kirbylang
 KRB=/path/to/krb
 
-# Lua, three implementations
-sudo apt-get install lua5.1 luajit lua5.4
+# Lua, three implementations, as bundled with the lupa Python package (2.8)
+pip install lupa
 
 mkdir -p /tmp/lua-appx && cd /tmp/lua-appx     # the files below are saved here
 ```
@@ -775,8 +806,36 @@ Versions used:
 
 ```text
 Lua 5.1.5  Copyright (C) 1994-2012 Lua.org, PUC-Rio
-LuaJIT 2.1.1703358377 -- Copyright (C) 2005-2023 Mike Pall. https://luajit.org/
-Lua 5.4.6  Copyright (C) 1994-2023 Lua.org, PUC-Rio
+LuaJIT 2.1.1774896198
+Lua 5.4.8  Copyright (C) 1994-2025 Lua.org, PUC-Rio
+```
+
+`luarun.py` runs a Lua file on one of the three, the way the `lua` program
+would, and prints a failure as `lua5.1: file.lua:3: message`:
+
+```python
+#!/usr/bin/env python3
+"""Run a Lua file on one of the Lua versions bundled with lupa.
+Usage: luarun.py lua5.1|luajit|lua5.4 FILE.lua"""
+import os, sys, importlib
+NAMES = {"lua5.1": "lupa.lua51", "luajit": "lupa.luajit21", "lua5.4": "lupa.lua54"}
+name, path = sys.argv[1], sys.argv[2]
+lua = importlib.import_module(NAMES[name]).LuaRuntime()
+folder = os.path.dirname(os.path.abspath(path))
+lua.execute("package.path = ... .. '/?.lua;' .. package.path", folder)
+run = lua.eval("""function(path)
+  local chunk, err = loadfile(path)
+  if not chunk then return false, err end
+  local ok, e = pcall(chunk)
+  io.stdout:flush()
+  if not ok then return false, tostring(e) end
+  return true
+end""")
+result = run(os.path.basename(path) if os.getcwd() == folder else path)
+ok, err = (result, None) if result is True else result
+if not ok:
+    sys.stderr.write("%s: %s\n" % (name, err))
+    sys.exit(1)
 ```
 
 The support library that the Lua below uses, `krt.lua`, is a hand-written stand-in for the `kirby_rt.lua` of [Part 3]:
@@ -784,9 +843,9 @@ The support library that the Lua below uses, `krt.lua`, is a hand-written stand-
 ```lua
 -- Runtime support that generated code would rely on (a hand-written stand-in for kirby_rt.lua).
 local krt = {}
-local fmt, concat = string.format, table.concat
+local fmt, concat, floor = string.format, table.concat, math.floor
 
--- Kirby's `%` is C's fmod.
+-- Kirby's `%` keeps the sign of the left side, as C's fmod does.
 krt.fmod = math.fmod
 
 -- Kirby's `/` stops the program on a zero divisor. Lua returns inf/nan.
@@ -795,98 +854,140 @@ function krt.div(a, b)
   return a / b
 end
 
--- @numberToString uses %.15g. Lua's tostring is %.14g (5.1, LuaJIT) or adds ".0" (5.3+).
-function krt.numstr(n) return fmt("%.15g", n) end
+-- A number as Kirby writes it: the fewest digits that read back as the same
+-- number, as a plain number up to 21 digits, else with an exponent.
+function krt.numstr(n)
+  if n ~= n then return "nan" end
+  if n == 1 / 0 then return "inf" elseif n == -1 / 0 then return "-inf" end
+  if n == 0 then return (1 / n < 0) and "-0" or "0" end
+  if math.type and math.type(n) == "integer" then return fmt("%d", n) end
+  local m = math.abs(n)
+  local s
+  for p = 0, 16 do
+    s = fmt("%." .. p .. "e", m)
+    if tonumber(s) == m then break end
+  end
+  local mant, exp = s:match("^([%d%.]+)e([-+]%d+)$")
+  local digits = mant:gsub("%.", ""):gsub("0+$", "")
+  if digits == "" then digits = "0" end
+  local point = tonumber(exp) + 1
+  local out
+  if #digits <= point and point <= 21 then
+    out = digits .. string.rep("0", point - #digits)
+  elseif 0 < point and point <= 21 then
+    out = digits:sub(1, point) .. "." .. digits:sub(point + 1)
+  elseif -6 < point and point <= 0 then
+    out = "0." .. string.rep("0", -point) .. digits
+  else
+    local e = point - 1
+    out = digits:sub(1, 1) .. (#digits > 1 and ("." .. digits:sub(2)) or "") ..
+          "e" .. (e < 0 and "-" or "+") .. math.abs(e)
+  end
+  return (n < 0 and "-" or "") .. out
+end
 
 -- Arrays keep an explicit length so that nil elements survive; index 0 is stored at [1].
 function krt.array(items, n) items.n = n or #items; return items end
 function krt.arrPush(a, v) a.n = a.n + 1; a[a.n] = v end
 function krt.arrJoin(a, sep)
   for i = 1, a.n do
-    if type(a[i]) ~= "string" then error("function arrJoin expects every element of argument 1 to be a string but element " .. (i - 1) .. " is a " .. type(a[i]) .. ".") end
+    if type(a[i]) ~= "string" then error("function @arrJoin expects every element of argument 1 to be a string but element " .. (i - 1) .. " is a " .. type(a[i]) .. ".") end
   end
   return concat(a, sep, 1, a.n)
+end
+function krt.strConcat(a)
+  for i = 1, a.n do
+    if type(a[i]) ~= "string" then error("function @strConcat expects every element of argument 1 to be a string but element " .. (i - 1) .. " is a " .. type(a[i]) .. ".") end
+  end
+  return concat(a, "", 1, a.n)
 end
 function krt.get(a, i)
   if i < 0 or i >= a.n or i % 1 ~= 0 then error("Array index out of bounds.", 2) end
   return a[i + 1]
 end
 
--- print: numbers use %f, arrays print their items, instances print "Name instance".
+-- @println: numbers as krt.numstr, arrays print their items, instances print "Name instance".
 local function show(v)
   local t = type(v)
-  if t == "number" then return fmt("%f", v)
+  if t == "number" then return krt.numstr(v)
   elseif t == "table" and v.n and getmetatable(v) == nil then
     local parts = {}
     for i = 1, v.n do parts[i] = show(v[i]) end
     return "[" .. concat(parts, ", ") .. "]"
   elseif t == "table" then return getmetatable(v).__name .. " instance"
+  elseif v == nil then return "nil"
   else return tostring(v) end
 end
 krt.show = show
-function krt.print(v) io.write(show(v), "\n") end
+function krt.println(v) io.write(show(v), "\n") end
 return krt
 ```
+
+`krt.numstr` writes a float the way Kirby does. Ten values, from `3.0` and
+`1/3` to `2^64`, `1e22` and `1e-7`, give the same text from `krt.numstr` on all
+three Luas as from Kirby's `@print`.
 
 ### A.1 Where Kirby and Lua differ
 
 Claims: the table in [Problem Statement], and the rule that fixes each row.
 
-Each case is a Kirby program, the output Kirby gives, and then Lua written two ways: the obvious way and the way the rules of [Proposed Changes] give. `5.1`, `JIT` and `5.4` are the three Luas. `krt` is `krt.lua` above. The script that ran them is `cases.py`, below.
+Each case is a Kirby program, the output Kirby gives, and then Lua written two ways: the obvious way and the way the rules of [Proposed Changes] give. Rows G and H have no rule yet ([Q-numbers]), so they show only the obvious Lua. `5.1`, `JIT` and `5.4` are the three Luas. `krt` is `krt.lua` above. The script that ran them is `cases.py`, below.
 
 ```python
 import subprocess
 
-K = "/path/to/kirbylang"
 KRB = "/path/to/krb"
 LUAS = ["lua5.1", "luajit", "lua5.4"]
 
 def kirby(source):
     open("c.krb", "w").write(source + "\n")
-    r = subprocess.run([KRB, "-f", "/tmp/lua-appx/c.krb"], cwd=K, capture_output=True, text=True)
+    r = subprocess.run([KRB, "run", "c.krb"], capture_output=True, text=True)
     return (r.stdout + r.stderr).strip().replace("\n", " | "), r.returncode
 
 def lua(binary, source):
     open("c.lua", "w").write("local krt = require('krt')\n" + source + "\n")
-    r = subprocess.run([binary, "c.lua"], capture_output=True, text=True)
+    r = subprocess.run(["python3", "luarun.py", binary, "c.lua"], capture_output=True, text=True)
     return (r.stdout + r.stderr).strip().replace("\n", " | ").replace(binary + ": ", "")
 
 CASES = [
-    ("A: remainder", "print -5 % 3;",
+    ("A: remainder", "@println(-5 % 3);",
      [("obvious: -5 % 3", "print(-5 % 3)"),
       ("rule: math.fmod(-5, 3)", "print(math.fmod(-5, 3))")]),
-    ("B: divide by zero", "print 1 / 0;",
+    ("B: divide by zero", "@println(1.0 / 0.0);",
      [("obvious: 1 / 0", "print(1 / 0)"),
       ("rule: krt.div(1, 0)", "print(pcall(krt.div, 1, 0))")]),
-    ("C: printing a number", "print 3;",
+    ("C: printing a number", "@println(3.0);",
      [("obvious: print(3.0)", "print(3.0)"),
-      ("rule: krt.print(3.0)", "krt.print(3.0)")]),
-    ("D: a number as text", "print @numberToString(1 / 3);",
+      ("rule: krt.println(3.0)", "krt.println(3.0)")]),
+    ("D: a number as text", "@println(@numberToString(1.0 / 3.0));",
      [("obvious: tostring(1/3)", "print(tostring(1/3))"),
       ("rule: krt.numstr(1/3)", "print(krt.numstr(1/3))")]),
-    ("E: an array holding nil", "let a: Array = [nil, 1, nil]; print @len(a);",
-     [("obvious: #{nil, 1, nil}", "print(#{nil, 1, nil})"),
-      ("obvious: #{1, nil, nil}", "print(#{1, nil, nil})"),
-      ("rule: {nil, 1, nil, n = 3}.n", "print(({nil, 1, nil, n = 3}).n)")]),
+    ("E: an array holding nil", "let a: [unit] = [nil, nil, nil]; @println(@arrLen(a));",
+     [("obvious: #{nil, nil, nil}", "print(#{nil, nil, nil})"),
+      ("obvious: #{nil, 1, nil}", "print(#{nil, 1, nil})"),
+      ("rule: {nil, nil, nil, n = 3}.n", "print(({nil, nil, nil, n = 3}).n)")]),
     ("F: closures made in a for loop",
-     "let fs = []; for (var i = 0; i < 3; i = i + 1) { @arrPush(fs, fun (): f64 { i }); } print fs[0](); print fs[1](); print fs[2]();",
+     "let fs: [fun () => i64] = []; for (var i = 0; i < 3; i = i + 1) { @arrPush(fs, fun (): i64 { i }); } @println(fs[0]()); @println(fs[1]()); @println(fs[2]());",
      [("obvious: numeric for",
        "local fs = {}; for i = 0, 2 do fs[#fs+1] = function() return i end end print(fs[1](), fs[2](), fs[3]())"),
       ("rule: one variable, while",
        "local fs = {}; local i = 0; while i < 3 do fs[#fs+1] = function() return i end; i = i + 1 end print(fs[1](), fs[2](), fs[3]())")]),
-    ("G: whole numbers past 2^62", "print @floor(@pow(2, 62)) * 4;",
-     [("obvious: math.floor(2^62) * 4", "print(math.floor(2^62) * 4)"),
-      ("rule: ... * 4.0, printed with %f", "print(string.format('%f', math.floor(2^62) * 4.0))")]),
-    ("H: continue (compares two forms of Lua only)", None,
+    ("G: integer overflow (no rule yet, Q-numbers)",
+     "let x: i64 = 4611686018427387904; @println(x * 4);",
+     [("obvious: 4611686018427387904 * 4", "print(4611686018427387904 * 4)")]),
+    ("H: integer division (no rule yet, Q-numbers)", "@println(-7 / 2);",
+     [("obvious: -7 / 2", "print(-7 / 2)"),
+      ("obvious: math.floor(-7 / 2)", "print(math.floor(-7 / 2))")]),
+    ("I: continue (compares two forms of Lua only)", None,
      [("goto continue (5.2 and later)",
        "for i = 1, 2 do if i == 1 then goto continue end print(i) ::continue:: end"),
       ("flag form", "for i = 1, 2 do repeat if i == 1 then break end print(i) until true end")]),
-    ("I: calling a function stored in a field",
-     "struct S { pub var f: fun (f64) => f64; } let s = S { f: fun (x: f64): f64 { x + 1 } }; print s.f(1);",
+    ("J: calling a function stored in a field",
+     "struct S { pub var f: fun (i64) => i64; } let s = S { f: fun (x: i64): i64 { x + 1 } }; @println(s.f(1));",
      [("obvious, method style: s:f(1)",
        "local s = {f = function(x) return x + 1 end} print(pcall(function() return s:f(1) end))"),
       ("rule, field style: s.f(1)", "local s = {f = function(x) return x + 1 end} print(s.f(1))")]),
-    ("J: joining strings", 'print "a" + "b";',
+    ("K: joining strings", '@println("a" + "b");',
      [('obvious: "a" + "b"', 'print(pcall(function() return "a" + "b" end))'),
       ('rule: "a" .. "b"', 'print("a" .. "b")')]),
 ]
@@ -904,12 +1005,12 @@ for name, kirby_source, variants in CASES:
         print("  %-38s 5.4: %s" % ("", results[2]))
 ```
 
-Saved as `cases.py`, with `K` and `KRB` set to the checkout and the `krb` binary, and run from `/tmp/lua-appx`. Output:
+Saved as `cases.py`, with `KRB` set to the `krb` binary, and run from `/tmp/lua-appx`. Output:
 
 ```text
 === A: remainder
-Kirby program: print -5 % 3;
-Kirby says:    -2.000000
+Kirby program: @println(-5 % 3);
+Kirby says:    -2
   obvious: -5 % 3                        5.1: 1
                                          JIT: 1
                                          5.4: 1
@@ -917,7 +1018,7 @@ Kirby says:    -2.000000
                                          JIT: -2
                                          5.4: -2
 === B: divide by zero
-Kirby program: print 1 / 0;
+Kirby program: @println(1.0 / 0.0);
 Kirby says:    function / expects argument 1 to be a non-zero number but got 0. | [line 1] in script [exit 70]
   obvious: 1 / 0                         5.1: inf
                                          JIT: inf
@@ -926,71 +1027,77 @@ Kirby says:    function / expects argument 1 to be a non-zero number but got 0. 
                                          JIT: false	function / expects argument 1 to be a non-zero number but got 0.
                                          5.4: false	function / expects argument 1 to be a non-zero number but got 0.
 === C: printing a number
-Kirby program: print 3;
-Kirby says:    3.000000
+Kirby program: @println(3.0);
+Kirby says:    3
   obvious: print(3.0)                    5.1: 3
                                          JIT: 3
                                          5.4: 3.0
-  rule: krt.print(3.0)                   5.1: 3.000000
-                                         JIT: 3.000000
-                                         5.4: 3.000000
+  rule: krt.println(3.0)                 5.1: 3
+                                         JIT: 3
+                                         5.4: 3
 === D: a number as text
-Kirby program: print @numberToString(1 / 3);
-Kirby says:    0.333333333333333
+Kirby program: @println(@numberToString(1.0 / 3.0));
+Kirby says:    0.3333333333333333
   obvious: tostring(1/3)                 5.1: 0.33333333333333
                                          JIT: 0.33333333333333
                                          5.4: 0.33333333333333
-  rule: krt.numstr(1/3)                  5.1: 0.333333333333333
-                                         JIT: 0.333333333333333
-                                         5.4: 0.333333333333333
+  rule: krt.numstr(1/3)                  5.1: 0.3333333333333333
+                                         JIT: 0.3333333333333333
+                                         5.4: 0.3333333333333333
 === E: an array holding nil
-Kirby program: let a: Array = [nil, 1, nil]; print @len(a);
-Kirby says:    3.000000
+Kirby program: let a: [unit] = [nil, nil, nil]; @println(@arrLen(a));
+Kirby says:    3
+  obvious: #{nil, nil, nil}              5.1: 0
+                                         JIT: 0
+                                         5.4: 0
   obvious: #{nil, 1, nil}                5.1: 0
                                          JIT: 2
                                          5.4: 2
-  obvious: #{1, nil, nil}                5.1: 1
-                                         JIT: 1
-                                         5.4: 1
-  rule: {nil, 1, nil, n = 3}.n           5.1: 3
+  rule: {nil, nil, nil, n = 3}.n         5.1: 3
                                          JIT: 3
                                          5.4: 3
 === F: closures made in a for loop
-Kirby program: let fs = []; for (var i = 0; i < 3; i = i + 1) { @arrPush(fs, fun (): f64 { i }); } print fs[0](); print fs[1](); print fs[2]();
-Kirby says:    3.000000 | 3.000000 | 3.000000
+Kirby program: let fs: [fun () => i64] = []; for (var i = 0; i < 3; i = i + 1) { @arrPush(fs, fun (): i64 { i }); } @println(fs[0]()); @println(fs[1]()); @println(fs[2]());
+Kirby says:    3 | 3 | 3
   obvious: numeric for                   5.1: 0	1	2
                                          JIT: 0	1	2
                                          5.4: 0	1	2
   rule: one variable, while              5.1: 3	3	3
                                          JIT: 3	3	3
                                          5.4: 3	3	3
-=== G: whole numbers past 2^62
-Kirby program: print @floor(@pow(2, 62)) * 4;
-Kirby says:    18446744073709551616.000000
-  obvious: math.floor(2^62) * 4          5.1: 1.844674407371e+19
+=== G: integer overflow (no rule yet, Q-numbers)
+Kirby program: let x: i64 = 4611686018427387904; @println(x * 4);
+Kirby says:    Integer overflow: 4611686018427387904 * 4 doesn't fit in i64, which holds -9223372036854775808 to 9223372036854775807. | [line 1] in script [exit 70]
+  obvious: 4611686018427387904 * 4       5.1: 1.844674407371e+19
                                          JIT: 1.844674407371e+19
                                          5.4: 0
-  rule: ... * 4.0, printed with %f       5.1: 18446744073709551616.000000
-                                         JIT: 18446744073709551616.000000
-                                         5.4: 18446744073709551616.000000
-=== H: continue (compares two forms of Lua only)
+=== H: integer division (no rule yet, Q-numbers)
+Kirby program: @println(-7 / 2);
+Kirby says:    -3
+  obvious: -7 / 2                        5.1: -3.5
+                                         JIT: -3.5
+                                         5.4: -3.5
+  obvious: math.floor(-7 / 2)            5.1: -4
+                                         JIT: -4
+                                         5.4: -4
+=== I: continue (compares two forms of Lua only)
   goto continue (5.2 and later)          5.1: c.lua:2: '=' expected near 'continue'
                                          JIT: 2
                                          5.4: 2
   flag form                              5.1: 2
                                          JIT: 2
                                          5.4: 2
-=== I: calling a function stored in a field
-Kirby program: struct S { pub var f: fun (f64) => f64; } let s = S { f: fun (x: f64): f64 { x + 1 } }; print s.f(1);
-Kirby says:    2.000000
+=== J: calling a function stored in a field
+Kirby program: struct S { pub var f: fun (i64) => i64; } let s = S { f: fun (x: i64): i64 { x + 1 } }; @println(s.f(1));
+Kirby says:    2
   obvious, method style: s:f(1)          5.1: false	c.lua:2: attempt to perform arithmetic on local 'x' (a table val
                                          JIT: false	c.lua:2: attempt to perform arithmetic on local 'x' (a table val
                                          5.4: false	c.lua:2: attempt to perform arithmetic on a table value (local '
   rule, field style: s.f(1)              5.1: 2
                                          JIT: 2
                                          5.4: 2
-=== J: joining strings
-Kirby program: print "a" + "b";
+=== K: joining strings
+Kirby program: @println("a" + "b");
 Kirby says:    ab
   obvious: "a" + "b"                     5.1: false	c.lua:2: attempt to perform arithmetic on a string value
                                          JIT: false	c.lua:2: attempt to perform arithmetic on a string value
@@ -1000,12 +1107,13 @@ Kirby says:    ab
                                          5.4: ab
 ```
 
-Notes on the rows. In row E the array literal `[nil, 1, nil]` without a type is a
-type error in Kirby (`Expected unit, got f64.`), so the program gives its array the
-type `Array`. In row I the method-style call fails because `s:f(1)` passes `s` as
-the first argument, so `x` is the table. Row G matters on Lua 5.4 only:
-`math.floor` returns a whole-number type there, and the multiplication wraps
-around.
+Notes on the rows. In row E an array literal that mixes `nil` with numbers,
+such as `[nil, 1, nil]`, is a type error in Kirby (`Expected unit, got i64.`),
+because every item must have one type, so the program uses an array of
+`unit`. The second obvious form shows how Lua's `#` depends on where the holes
+are. In row J the method-style call fails because `s:f(1)` passes `s` as the
+first argument, so `x` is the table. Row G is a runtime error in Kirby, a
+wrap-around on Lua 5.4, and a float on 5.1 and LuaJIT.
 
 ### A.2 Two programs translated by hand
 
@@ -1016,7 +1124,7 @@ Claims: `stringBuilder.krb` and `fizzbuzz.krb` translate with the rules and matc
 ```lua
 local krt = require("krt")
 
--- struct StringBuilder { var value: Array; }
+-- struct StringBuilder { let value: [string]; }
 local StringBuilder = { __name = "StringBuilder" }
 StringBuilder.__index = StringBuilder
 
@@ -1033,18 +1141,19 @@ end
 
 -- impl Display for StringBuilder { fun toString(self): string }
 function StringBuilder.toString(self)
-  return krt.arrJoin(self.value, "")
+  return krt.strConcat(self.value)
 end
 
 local builder = StringBuilder.default():add("Hello"):add(" "):add("World")
-krt.print(builder:toString())
+-- @println(builder): StringBuilder implements Display, so its toString() is printed
+krt.println(builder:toString())
 ```
 
 ```lua
 local krt = require("krt")
 local fmod = krt.fmod
 
--- fun fizzbuzz(n: f64): string = if (...) ... else ...;   (an `if` expression in tail position becomes returns)
+-- fun fizzbuzz(n: i64): string = if (...) ... else ...;   (an `if` expression in tail position becomes returns)
 local function fizzbuzz(n)
   if fmod(n, 5) == 0 and fmod(n, 3) == 0 then return "FizzBuzz"
   elseif fmod(n, 3) == 0 then return "Fizz"
@@ -1057,7 +1166,7 @@ local limit = 15
 do
   local i = 1
   while i <= limit do
-    krt.print(fizzbuzz(i))
+    krt.println(fizzbuzz(i))
     i = i + 1
   end
 end
@@ -1074,6 +1183,9 @@ fb.lua  luajit: 1 | 2 | Fizz | 4 | Buzz | Fizz | 7 | 8 | Fizz | Buzz | 11 | Fizz
 fb.lua  lua5.4: 1 | 2 | Fizz | 4 | Buzz | Fizz | 7 | 8 | Fizz | Buzz | 11 | Fizz | 13 | 14 | FizzBuzz
 ```
 
+`fizzbuzz` works on `i64` in Kirby. Its numbers stay small, so every target
+gives Kirby's answers whatever [Q-numbers] decides.
+
 ### A.3 `continue` and `break`
 
 Claims: the flag form works on all three Luas; `goto` does not work on Lua 5.1; closures made in a loop share one variable.
@@ -1087,13 +1199,13 @@ for (var i = 0; i < 12; i = i + 1) {
   out = out + i;
   log = log + @numberToString(i) + ",";
 }
-print out;
-print log;
-var fs = [];
+@println(out);
+@println(log);
+var fs: [fun () => i64] = [];
 var j = 0;
-while (j < 3) { @arrPush(fs, fun (): f64 { j }); j = j + 1; }
-print fs[0]();
-print fs[2]();
+while (j < 3) { @arrPush(fs, fun (): i64 { j }); j = j + 1; }
+@println(fs[0]());
+@println(fs[2]());
 ```
 
 ```lua
@@ -1114,11 +1226,11 @@ do
   end
   ::break_::
 end
-krt.print(out); krt.print(log)
+krt.println(out); krt.println(log)
 local fs = krt.array({})
 local j = 0
 while j < 3 do krt.arrPush(fs, function() return j end); j = j + 1 end
-krt.print(krt.get(fs, 0)()); krt.print(krt.get(fs, 2)())
+krt.println(krt.get(fs, 0)()); krt.println(krt.get(fs, 2)())
 ```
 
 ```lua
@@ -1139,88 +1251,123 @@ do
     i = i + 1
   end
 end
-krt.print(out); krt.print(log)
+krt.println(out); krt.println(log)
 local fs = krt.array({})
 local j = 0
 while j < 3 do krt.arrPush(fs, function() return j end); j = j + 1 end
-krt.print(krt.get(fs, 0)()); krt.print(krt.get(fs, 2)())
+krt.println(krt.get(fs, 0)()); krt.println(krt.get(fs, 2)())
 ```
 
 ```text
-Kirby: 16.000000 | 1,3,5,7, | 3.000000 | 3.000000
+Kirby: 16 | 1,3,5,7, | 3 | 3
 lua5.1 goto: cb_goto.lua:8: '=' expected near 'continue'
-lua5.1 flag: 16.000000 | 1,3,5,7, | 3.000000 | 3.000000
-luajit goto: 16.000000 | 1,3,5,7, | 3.000000 | 3.000000
-luajit flag: 16.000000 | 1,3,5,7, | 3.000000 | 3.000000
-lua5.4 goto: 16.000000 | 1,3,5,7, | 3.000000 | 3.000000
-lua5.4 flag: 16.000000 | 1,3,5,7, | 3.000000 | 3.000000
+lua5.1 flag: 16 | 1,3,5,7, | 3 | 3
+luajit goto: 16 | 1,3,5,7, | 3 | 3
+luajit flag: 16 | 1,3,5,7, | 3 | 3
+lua5.4 goto: 16 | 1,3,5,7, | 3 | 3
+lua5.4 flag: 16 | 1,3,5,7, | 3 | 3
 ```
 
 Both Lua files put the body of the loop in its own block, so that `goto` never jumps into the scope of a local variable.
 
 ### A.4 Speed
 
-Claim: the translated benchmark ran faster than Kirby's VM in every run: 1.1 to 1.4 times as fast on Lua 5.1, 1.2 to 1.6 times on Lua 5.4 and 2.7 to 4.0 times on LuaJIT, across three sets of runs.
+Claim: the translated benchmark ran faster than Kirby's VM in every run: 2.8 to 3.6 times as fast on Lua 5.1, 4.4 to 4.9 times on Lua 5.4 and 7.4 to 8.5 times on LuaJIT, across three sets of runs.
 
-The program is the one from the [Debugger Proposal]'s Appendix A (`bench.krb`: a 3-million-trip `while` loop and `fib(30)`). `bench.lua` is that program written by hand with the rules of [Proposed Changes]: whole numbers written as floats, `%` as `math.fmod`.
+The program is the one from the [Debugger Proposal]'s Appendix A (`bench.krb`: a 3-million-trip `while` loop and `fib(30)`), with its `print` statements written as `@println`. `bench.lua` is that program written by hand with the rules of [Proposed Changes]. `fib` takes an `f64`, so its numbers are written as floats. `i` and `sum` are `i64`, and they are written as plain whole numbers, which are integers on Lua 5.4. That choice is for this one program, not a rule ([Q-numbers]).
 
 ```lua
 local krt = require("krt")
 local fmod = krt.fmod
--- Numbers are written as floats (2.0, not 2) so that Lua 5.4 stays in float arithmetic like Kirby.
+-- fib takes an f64 in Kirby, so its numbers are written as floats.
 local function fib(n)
   if n < 2.0 then return n end
   return fib(n - 2.0) + fib(n - 1.0)
 end
-local i, sum = 0.0, 0.0
-while i < 3000000.0 do
-  sum = sum + fmod(i, 7.0)
-  i = i + 1.0
+-- i and sum are i64 in Kirby. Written as plain whole numbers, they are integers on Lua 5.4.
+local i, sum = 0, 0
+while i < 3000000 do
+  sum = sum + fmod(i, 7)
+  i = i + 1
 end
-krt.print(sum)
-krt.print(fib(30.0))
+krt.println(sum)
+krt.println(fib(30.0))
 ```
 
-Median of 15 runs after 2 warm-up runs, including start-up:
+`speed.py` runs Kirby as a program and each Lua inside one Python process, so
+the Lua times leave out Lua's start-up. Kirby's include its own, which is about
+3 ms. It takes the median of 15 runs after 2 warm-up runs:
+
+```python
+import importlib, os, statistics, subprocess, sys, time
+KRB = sys.argv[1]
+RUNTIMES = {"lua5.1": "lupa.lua51", "luajit": "lupa.luajit21", "lua5.4": "lupa.lua54"}
+
+def kirby():
+    start = time.perf_counter()
+    subprocess.run([KRB, "run", "bench.krb"], stdout=subprocess.DEVNULL)
+    return time.perf_counter() - start
+
+def lua(name):
+    rt = importlib.import_module(RUNTIMES[name]).LuaRuntime()
+    rt.execute("package.path = './?.lua;' .. package.path")
+    chunk = rt.eval("function() local f = assert(loadfile('bench.lua')); io.output('/dev/null'); f(); io.output(io.stdout) end")
+    start = time.perf_counter()
+    chunk()
+    return time.perf_counter() - start
+
+timings = {"kirby": []}
+for name in RUNTIMES: timings[name] = []
+for _ in range(2):
+    kirby(); [lua(n) for n in RUNTIMES]
+for _ in range(15):
+    timings["kirby"].append(kirby())
+    for n in RUNTIMES: timings[n].append(lua(n))
+k = statistics.median(timings["kirby"])
+print("Kirby VM (Release, -O3 -DNDEBUG):  %.3f s" % k)
+for n in RUNTIMES:
+    m = statistics.median(timings[n])
+    print("%-8s hand-translated:          %.3f s   (%.1fx faster than Kirby's VM)" % (n, m, k / m))
+```
 
 ```text
-output   Kirby: 8999994.000000 832040.000000  | lua5.1: 8999994.000000 832040.000000   luajit: 8999994.000000 832040.000000   lua5.4: 8999994.000000 832040.000000
+output   Kirby: 8999994 832040  | lua5.1: 8999994 832040   luajit: 8999994 832040   lua5.4: 8999994 832040
 
-Kirby VM (Release, -O3 -DNDEBUG):  0.207 s
-lua5.1   hand-translated:          0.143 s   (1.4x faster than Kirby's VM)
-lua5.4   hand-translated:          0.131 s   (1.6x faster than Kirby's VM)
-luajit   hand-translated:          0.052 s   (4.0x faster than Kirby's VM)
+Kirby VM (Release, -O3 -DNDEBUG):  1.145 s
+lua5.1   hand-translated:          0.317 s   (3.6x faster than Kirby's VM)
+luajit   hand-translated:          0.135 s   (8.5x faster than Kirby's VM)
+lua5.4   hand-translated:          0.235 s   (4.9x faster than Kirby's VM)
 ```
 
-The set above was the third. The first two, made on the same machine, gave:
+The set above was the first. The next two, made on the same machine, gave:
 
 | Set | Kirby's VM | Lua 5.1        | Lua 5.4        | LuaJIT         |
 | --- | ---------- | -------------- | -------------- | -------------- |
-| 1   | 0.253 s    | 0.208 s (1.2x) | 0.164 s (1.5x) | 0.073 s (3.5x) |
-| 2   | 0.168 s    | 0.149 s (1.1x) | 0.140 s (1.2x) | 0.062 s (2.7x) |
+| 2   | 1.147 s    | 0.332 s (3.5x) | 0.261 s (4.4x) | 0.151 s (7.6x) |
+| 3   | 1.133 s    | 0.411 s (2.8x) | 0.260 s (4.4x) | 0.154 s (7.4x) |
 
-Timings on this machine drift by that much between sets of runs, so the claim is
-the range they span. Only the ordering is firm: LuaJIT is fastest, and Kirby's VM
-is slowest.
+Timings on this machine drift between sets of runs, so the claim is the range
+they span. Only the ordering is firm: LuaJIT is fastest, and Kirby's VM is
+slowest.
 
-The output of all four is identical. The Kirby binary is the `-O3 -DNDEBUG` build described in A.7 of the Embedded Library Proposal's appendix, run from a folder with `stdlib/`. These are hand-written translations, not the output of a program.
+The output of all four is identical. The Kirby binary is the `-O3 -DNDEBUG` build described in A.7 of the Embedded Library Proposal's appendix. These are hand-written translations, not the output of a program.
 
 ### A.5 What the front end records, and how Kirby behaves
 
-Claims: 34 kinds of node; nodes carry no types; a side table records impl targets; `+` is decided at run time; a method call looks for a field first; the size of the compiler; strings are bytes; conditions must be `bool`.
+Claims: 36 kinds of node; nodes carry no types; a side table records impl targets; `+` is decided at run time; a method call looks for a field first; the size of the compiler; strings are bytes; conditions must be `bool`.
 
 ```shell
 cd $K/src
-sed -n '/typedef enum {/,/} NodeType;/p' ast.h | grep -o 'NODE_[A-Z_]*' | sort -u | grep -v NODE_COUNT | wc -l
+sed -n '/typedef enum {/,/} NodeKind;/p' ast.h | grep -o 'NODE_[A-Z_]*' | sort -u | grep -v NODE_COUNT | wc -l
 grep -n "Type \*" ast.h                       # a type on a node? (no output means none)
-cat resolved_impl_targets.h | grep -v '^#\|^$'
-sed -n '/case OP_ADD: {/,/} else {/p' vm.c
-sed -n '/^static bool invoke(/,/vm.stackTop\[-argCount - 1\]/p' vm.c
+cat resolved_impl_targets.h | grep -v '^#\|^$\|^ \*\|^/\*\*'
+sed -n '/case OP_ADD: {/,/break;/p' vm.c
+sed -n '/^static bool invoke(/,/structFieldSlot/p' vm.c
 wc -l compiler.c typecheck.c parser.c
 ```
 
 ```text
-node kinds: 34
+node kinds: 36
 types on AstNode: 0
 
 void resolvedImplTargetsReset(void);
@@ -1233,14 +1380,12 @@ const Token *resolvedImplTargetsLookup(AstNode *implNode);
 
       if (IS_STRING(operand_b) && IS_STRING(operand_a)) {
         concatenate();
-      } else if (IS_NUMBER(operand_b) && IS_NUMBER(operand_a)) {
-        double b = AS_NUMBER(popFromStack());
-        double a = AS_NUMBER(popFromStack());
-
-        Value result = NUMBER_VAL(a + b);
-
-        pushOnStack(result);
-      } else {
+      } else if (!numberBinary(
+                     NUMBER_OP_ADD,
+                     "Operands must be two numbers or two strings.")) {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      break;
 
 static bool invoke(ObjString *name, int argCount) {
   Value caller = peekStack(argCount);
@@ -1260,10 +1405,10 @@ static bool invoke(ObjString *name, int argCount) {
 
   if (structFieldSlot(instance->struct_, name, &slot)) {
 
-  1340 compiler.c
-  2261 typecheck.c
-  1615 parser.c
-  5216 total
+  1691 compiler.c
+  2990 typecheck.c
+  1833 parser.c
+  6514 total
 ```
 
 `invoke` finds the receiver, then looks for a field of that name first and a method
@@ -1273,16 +1418,16 @@ receiver has at run time. In a typed program the checker knows which.
 The last three claims, run through `krb`:
 
 ```text
-$ krb -f  print @len("é");
-2.000000
+$ krb exec '@println(@strLen("é"));'
+2
 
-$ krb -f  if (0) { print 1; } else { print 2; }
-[line 1] Error: Expected bool, got f64. [exit 65]
+$ krb exec 'if (0) { @println(1); } else { @println(2); }'
+[line 1] Error: Expected bool, got i64. [exit 65]
 
-$ krb -f  print !true;
+$ krb exec '@println(!true);'
 false
 
-$ lua5.1 -e 'print(#"é")'
+$ python3 luarun.py lua5.1 len.lua        # len.lua is: print(#"é")
 2
 ```
 
@@ -1291,10 +1436,10 @@ $ lua5.1 -e 'print(#"é")'
 Claim: a private field read from outside the struct compiles, and stops the program at run time.
 
 ```text
-$ krb -f  struct P { var secret: f64; pub var open: f64; } let p = P { secret: 1, open: 2 }; print p.open;
+$ krb exec 'struct P { var secret: f64; pub var open: f64; } let p = P { secret: 1, open: 2 }; @println(p.open);'
 Field 'secret' is private to 'P'. | [line 1] in script [exit 70]
 
-$ krb -f  struct P { pub var open: f64; var secret: f64; } impl P { pub fun make(): P = P { open: 1, secret: 2 }; } let p = P.make(); print p.secret;
+$ krb exec 'struct P { pub var open: f64; var secret: f64; } impl P { pub fun make(): P = P { open: 1, secret: 2 }; } let p = P.make(); @println(p.secret);'
 Field 'secret' is private to 'P'. | [line 1] in script [exit 70]
 ```
 
@@ -1309,7 +1454,7 @@ import subprocess
 
 def lua(binary, source):
     open("limits_case.lua", "w").write(source)
-    r = subprocess.run([binary, "limits_case.lua"], capture_output=True, text=True)
+    r = subprocess.run(["python3", "luarun.py", binary, "limits_case.lua"], capture_output=True, text=True)
     return (r.stdout + r.stderr).strip().replace("\n", " | ")[:100]
 
 def locals_source(n):
@@ -1385,7 +1530,7 @@ Embedded Library Proposal's appendix shows where).
 
 ### A.8 Which test programs would not translate
 
-Claim: 46 of the 703 programs use a native that a host's Lua may not have or expect a private-field error; none expects a stack overflow.
+Claim: 66 of the 1,110 programs use a native that a host's Lua may not have or expect a private-field error; none expects a stack overflow.
 
 Run from the root of the Kirby checkout:
 
@@ -1394,7 +1539,7 @@ import glob, os, re
 root = "tests"
 programs = glob.glob(root + "/**/*.krb", recursive=True)
 IO = r"@(readFileToString|writeStringToFile|fileExists|prompt|stdin)\b"
-OS = r"@(getenv|setenv|exit|argv|argc|clock)\b"
+OS = r"@(getenv|setenv|exit|argv|argc|clock|now)\b"
 n_io = n_os = n_stack = n_private = n_any = 0
 exits = {}
 for path in programs:
@@ -1414,16 +1559,18 @@ print("at least one of those:", n_any)
 ```
 
 ```text
-test programs: 703
-exit codes: {'0': 272, '65': 280, '7': 1, '70': 150}
-use an IO native: 20   use an OS native: 21
+test programs: 1110
+exit codes: {'0': 429, '65': 499, '7': 1, '70': 180, '71': 1}
+use an IO native: 20   use an OS native: 41
 expect a stack overflow: 0   expect a private-field error: 6
-at least one of those: 46
+at least one of those: 66
 ```
 
 The programs that expect exit code 65 end in a compile error and never reach a
-translator. The counts of natives are by name in the source, so a program that
-uses two groups is counted in both.
+translator. Three of the 429 counted as 0 have no `.exit` file. They are
+inputs that other tests read, not tests of their own. The counts of natives
+are by name in the source, so a program that uses two groups is counted in
+both.
 
 ### A.9 Other people's work
 
@@ -1458,14 +1605,14 @@ Claim: if each statement is written on the line it has in the Kirby source, Lua 
 var a = [1];
 var b = 2;
 
-print a[5];
+@println(a[5]);
 ```
 
 ```lua
-local krt = require('krt'); local a = krt.array({1.0}, 1)
-local b = 2.0
+local krt = require('krt'); local a = krt.array({1}, 1)
+local b = 2
 
-krt.print(krt.get(a, 5.0))
+krt.println(krt.get(a, 5))
 ```
 
 ```text
@@ -1554,7 +1701,7 @@ These are both technical and non technical terms used throughout the proposal.
 [Q-source-map]: #q-how-are-lua-errors-tied-back-to-kirby-lines
 [Q-natives]: #q-which-natives-are-available
 [Q-exports]: #q-what-does-a-translated-file-export
-[Q-numbers]: #q-what-if-numbers-stop-being-plain-doubles
+[Q-numbers]: #q-how-are-kirbys-integer-kinds-written-in-lua
 [Q-order]: #q-when-does-the-writer-name-a-temporary
 
 <!-- Proposals -->

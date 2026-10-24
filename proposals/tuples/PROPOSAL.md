@@ -1,7 +1,7 @@
 ---
 status: Draft
 created: 2026-09-20
-from_commit: 662d98b
+from_commit: 2f96a2e
 ---
 
 # Proposal: Tuples
@@ -39,7 +39,7 @@ Technical terms are kept to a minimum. Where a term is unavoidable, it is define
 
 Kirby has two ways to group values today. Neither fits the case of "a few values of different types, with no declaration":
 
-- **`Array`** holds any number of items, but every item must have the same type. Verified against `from_commit`: `let a = [1, "a"];` is the compile error `Expected f64, got string.`
+- **Arrays** (`[T]`) hold any number of items, but every item must have the same type. Verified against `from_commit`: `let a = [1, "a"];` is the compile error `Expected string, got i64.`
 - **Structs** can hold different types, but every group needs a `struct` declaration, named fields, and a `Name { field: value }` literal. A function that wants to return two values has to declare a struct first.
 
 [Issue #33] proposes tuples:
@@ -47,27 +47,27 @@ Kirby has two ways to group values today. Neither fits the case of "a few values
 ```kirby
 let values: (number, number, number, number) = (100, 405, 10, 84);
 
-print @numberToString(values.0); // 100
-print @numberToString(values.1); // 405
-print @numberToString(values.2); // 10
-print @numberToString(values.3); // 84
-print @numberToString(values.4); // Compile Error: (number, number, number, number) does not have field `4` (or similar wording)
+@println(values.0); // 100
+@println(values.1); // 405
+@println(values.2); // 10
+@println(values.3); // 84
+@println(values.4); // Compile Error: (number, number, number, number) does not have field `4` (or similar wording)
 ```
 
-`number` is not a type at `from_commit`. The only number type is `f64`. `number` is on the changelog's Future State list and is discussed in the [Sized Number Types Proposal]. Examples in this proposal use `f64`.
+`number` is not a type in user code: `let x: number = 1;` reports `Unknown type.` Kirby has ten number kinds instead ([Sized Number Types Proposal]). A whole number literal such as `100` is an `i64` and a decimal literal such as `1.5` is an `f64`, so `(100, 405)` would be an `(i64, i64)`. Examples in this proposal use `i64` and `f64`.
 
 None of the sketch works today. Verified against a clean build of `from_commit`:
 
 ```
 let t = (1, 2);                 // Error at ',': Expect ')' after expression.
 let t: (f64, f64) = (1, 2);     // Error at '(': Expect type name.
-print (0,);                     // Error at ',': Expect ')' after expression.
-print s.0;                      // Error at '0': Expect property name after '.'.  (s is a struct)
+@println((0,));                 // Error at ',': Expect ')' after expression.
+@println(s.0);                  // Error at '0': Expect property name after '.'.  (s is a struct)
 ```
 
 Two things that already exist shape the design:
 
-1. **`()` is already a value.** It is the unit value, added in 0.4.0. The parser function `grouping()` in `src/parser.c` checks for `)` straight after `(` and returns a unit literal. At run time unit is `nil`: `let u = (); print u;` prints `nil`.
+1. **`()` is already a value.** It is the unit value, added in 0.4.0. The parser function `grouping()` in `src/parser.c` checks for `)` straight after `(` and returns a unit literal. At run time unit is `nil`: `let u = (); @println(u);` prints `nil`.
 2. **`(x)` is already a grouping**, meaning parentheses around one expression, like `(1 + 2) * 3`. A tuple with one item has to be told apart from it. The issue does this with a trailing comma: `(0,)` is a tuple and `(0)` is a grouping.
 
 ## Proposed Changes
@@ -84,8 +84,8 @@ fun sumAndProduct(a: f64, b: f64): (f64, f64) = (a + b, a * b);
 
 let result = sumAndProduct(3, 4);
 
-print result.0; // 7.000000
-print result.1; // 12.000000
+@println(result.0); // 7
+@println(result.1); // 12
 
 let entry: (string, f64) = ("apples", 3);
 ```
@@ -94,7 +94,7 @@ let entry: (string, f64) = ("apples", 3);
 
 - `values.0`, `values.1`, and so on read an item by position. The position is written in the source, not calculated, so the compiler knows which item is read and what its type is.
 - A position past the end is a compile error. The issue suggests wording like "does not have field `4`".
-- `values[0]` is a compile error: "Tuples can not be indexed". There is already a compile time error of this kind for structs: `let s = S { x: 1 }; print s[0];` reports `Can't index into a S.`
+- `values[0]` is a compile error: "Tuples can not be indexed". There is already a compile time error of this kind for structs: `let s = S { x: 1 }; @println(s[0]);` reports `Can't index into a S.`
 - Whether an item can be assigned to, like `values.0 = 5`, is [Q-mutability].
 
 ### Equality
@@ -110,7 +110,7 @@ How each item is compared is [Q-equality].
 
 ### Length
 
-`@len(values)` returns the number of items. At `from_commit` the native `@len` only accepts a string or an array and reports a run time error for anything else (`lenNative` in `src/native.c`), and the type checker has no signature for it. Whether it is needed at all is [Q-len].
+The sketch asks for the number of items. Kirby has `@strLen`, typed `fun (string) => i64`, and `@arrLen`, typed `fun ([T]) => i64` (`src/native_signatures.c`). Neither accepts a tuple. Whether a tuple gets a length native of its own is [Q-len].
 
 ### Goals and Non Goals
 
@@ -120,7 +120,7 @@ What this proposal covers:
 - Tuple types, compared by their parts
 - Reading an item by position, checked at compile time
 - `==` and `!=` between tuples of the same type
-- `@len` on a tuple
+- A length native for tuples, if [Q-len] keeps it
 
 The following is intentionally left out of scope for this proposal:
 
@@ -130,7 +130,7 @@ The following is intentionally left out of scope for this proposal:
 - Naming the items of a tuple
 - Reading an item by a position that is calculated at run time
 - Joining or splitting tuples
-- Tuple types as generic arguments, like `Array[(f64, f64)]`. See the [Generic Types Proposal].
+- Tuple types inside other types, like `[(f64, f64)]` or `Box[(f64, f64)]`. See the [Generic Types Proposal].
 
 ### Implementation Plan
 
@@ -140,7 +140,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 - In `grouping()` in `src/parser.c`, after the first expression, a `,` starts a tuple literal instead of expecting `)`.
 - The type parser accepts `(` at the start of a type.
-- `.` followed by a number is accepted as a property access. There is a scanner problem here. `number()` in `src/scanner.c` reads digits and then an optional `.` and more digits, so `pair.0.1` is scanned as `pair`, `.`, and the single number `0.1` (verified with `krb -l`, today `krb lex`). See [Q-nested-access].
+- `.` followed by a number is accepted as a property access. There is a scanner problem here. `number()` in `src/scanner.c` reads digits and then an optional `.` and more digits, so `pair.0.1` is scanned as `pair`, `.`, and the single number `0.1` (verified with `krb lex`). See [Q-nested-access].
 
 #### Part 2: AST and type checker
 
@@ -155,7 +155,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - One opcode to build a tuple from the top N values on the stack, and one to read the item at a fixed position.
 - The array opcode `OP_ARRAY` carries its count in one byte, and an array literal with more than 255 items is a compile error (`Too many elements in array literal.`). A tuple opcode built the same way would have the same limit.
 - `valuesEqual` in `src/value.c` compares objects by identity. Tuple equality needs an item by item comparison.
-- `@len`, `print`, and `@typeof` each get a tuple case. The proposed print format is `(1.000000, 2.000000)`, matching how arrays print (`[1.000000, 2.000000, 3.000000]`), and `(1.000000,)` for one item.
+- `@print`, `@println` and `@typeof` each get a tuple case, and so does a length native if [Q-len] adds one. The proposed print format is `(1, 2)`, matching how arrays print (`[1, 2, 3]`), and `(1,)` for one item.
 
 #### Part 4: Docs and tooling
 
@@ -167,18 +167,18 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 ### Existing Syntax Or Behavior
 
 - Every new form is a compile error today (see Problem Statement), so no valid program changes meaning. `(x)` and `()` are unchanged.
-- `==` on two objects compares identity at `from_commit`. `print [1, 2] == [1, 2];` prints `false`. Tuples would be the first object type whose `==` looks inside it, so tuples and arrays would behave differently. See [Q-equality].
-- `@len` gains a case.
+- `==` on two objects compares identity. `@println([1, 2] == [1, 2]);` prints `false`. Tuples would be the first object type whose `==` looks inside it, so tuples and arrays would behave differently. See [Q-equality].
+- A length native may be added ([Q-len]).
 
 ### Related Proposals
 
-- [Collection Methods Proposal] — treats `Tuple` as a possible collection type and spells it `Tuple[f64, string]`. This proposal spells it `(f64, string)` ([Q-type-spelling]). The question there about whether collection types are one category or two ([Q-category]) is informed by this proposal: a tuple has a fixed size and its item types are known at compile time.
+- [Collection Methods Proposal] — treats tuples as a possible collection type. Both proposals spell the type `(f64, string)` ([Q-type-spelling]). The question there about whether collection types are one category or two ([Q-category]) is informed by this proposal: a tuple has a fixed size and its item types are known at compile time.
 - [Primitive Impls Proposal] — asks whether `unit` gets impls ([Q-unit]). Whether `unit` is the empty tuple is [Q-unit-empty] here, and the two answers should agree.
 - [Generic Types Proposal] — 10.4 is about `==` on objects, which tuple equality depends on. Tuple types also need to be handled by the type substitution helper in 3.6. See 10.9 there.
 - [Tuple Structs Proposal] — depends on this proposal for reading an item by position.
 - [Destructuring Proposal] — tuple patterns like `let (a, b) = t;` depend on this proposal.
 - [Pattern Matching Proposal] — tuple patterns depend on this proposal.
-- [Sized Number Types Proposal] — the sketch uses `number`, which that proposal may define.
+- [Sized Number Types Proposal] — Closed. It added ten number kinds and no `number` type, so the sketch's `number` becomes `i64` or `f64`.
 - [Top-Level Declarations Proposal] — a tuple literal only builds data, so it would count as a comptime value when its items do, and could start a top-level `let` or `var`. The samples here that use top-level statements are converted when [Q-samples] there is settled.
 
 ### Testing Plan
@@ -189,102 +189,102 @@ How do we know the implemented proposal works?
 
 The E2E syntax tests should cover all valid and invalid parser/compiler/runtime error cases.
 
-##### NEW: tests/tuples/tuple_literal.krb
+##### NEW: tests/run/tuples/tuple_literal.krb
 
 ```kirby
 let entry: (string, f64) = ("apples", 3);
 
-print entry.0;
-print entry.1;
+@println(entry.0);
+@println(entry.1);
 ```
 
 ###### Expected Outcome
 
-Prints `apples` then `3.000000`. Exit code 0.
+Prints `apples` then `3`. Exit code 0. The `3` is an `f64`, because the type says so.
 
-##### NEW: tests/tuples/tuple_single_item.krb
+##### NEW: tests/run/tuples/tuple_single_item.krb
 
 ```kirby
 let one = (7,);
 let grouped = (7);
 
-print one.0;
-print grouped;
+@println(one.0);
+@println(grouped);
 ```
 
 ###### Expected Outcome
 
-Prints `7.000000` twice. `one` is a tuple with one item and `grouped` is a plain `f64`.
+Prints `7` twice. `one` is a tuple with one item and `grouped` is a plain `i64`.
 
-##### NEW: tests/tuples/tuple_unit_unchanged.krb
+##### NEW: tests/run/tuples/tuple_unit_unchanged.krb
 
 ```kirby
-print ();
+@println(());
 ```
 
 ###### Expected Outcome
 
 Prints `nil`, the same as today. Guards the unit value against the new tuple parsing.
 
-##### NEW: tests/tuples/tuple_nested_position.krb
+##### NEW: tests/run/tuples/tuple_nested_position.krb
 
 ```kirby
 let nested = ((1, 2), 3);
 
-print nested.0.1;
+@println(nested.0.1);
 ```
 
 ###### Expected Outcome
 
-Prints `2.000000`. Guards the `0.1` scanning problem in [Q-nested-access].
+Prints `2`. Guards the `0.1` scanning problem in [Q-nested-access].
 
-##### NEW: tests/tuples/tuple_position_out_of_range.krb
+##### NEW: tests/run/tuples/tuple_position_out_of_range.krb
 
 ```kirby
 let t = (1, 2);
 
-print t.2;
+@println(t.2);
 ```
 
 ###### Expected Outcome
 
 Compile error naming the tuple type and the position. Exit code 65. The exact message is to be decided.
 
-##### NEW: tests/tuples/tuple_index_with_brackets.krb
+##### NEW: tests/run/tuples/tuple_index_with_brackets.krb
 
 ```kirby
 let t = (1, 2);
 
-print t[0];
+@println(t[0]);
 ```
 
 ###### Expected Outcome
 
 Compile error saying tuples can not be indexed. Exit code 65.
 
-##### NEW: tests/tuples/tuple_equality.krb
+##### NEW: tests/run/tuples/tuple_equality.krb
 
 ```kirby
-print (1, 2, 3) == (1, 2, 3);
-print (1, 2, 3) != (4, 5, 5);
-print (1, 2) == (1, 3);
+@println((1, 2, 3) == (1, 2, 3));
+@println((1, 2, 3) != (4, 5, 5));
+@println((1, 2) == (1, 3));
 ```
 
 ###### Expected Outcome
 
 Prints `true`, `true`, `false`.
 
-##### NEW: tests/tuples/tuple_equality_different_types.krb
+##### NEW: tests/run/tuples/tuple_equality_different_types.krb
 
 ```kirby
-print (1, 2) == (1, "a");
+@println((1, 2) == (1, "a"));
 ```
 
 ###### Expected Outcome
 
 Compile error because the two sides are different types. Exit code 65.
 
-##### NEW: tests/tuples/tuple_wrong_item_type.krb
+##### NEW: tests/run/tuples/tuple_wrong_item_type.krb
 
 ```kirby
 let t: (f64, string) = (1, 2);
@@ -292,17 +292,19 @@ let t: (f64, string) = (1, 2);
 
 ###### Expected Outcome
 
-Compile error that item 1 expected `string` and got `f64`. Exit code 65.
+Compile error that item 1 expected `string` and got `i64`. Exit code 65.
 
-##### NEW: tests/tuples/tuple_len.krb
+##### NEW: tests/run/tuples/tuple_len.krb
+
+Only if [Q-len] adds a length native. It is called `@tupleLen` here.
 
 ```kirby
-print @len((1, 2, 3));
+@println(@tupleLen((1, 2, 3)));
 ```
 
 ###### Expected Outcome
 
-Prints `3.000000`.
+Prints `3`.
 
 ## Questions
 
@@ -324,7 +326,7 @@ Options: (a) after a `.` token, the scanner reads only whole number digits, so `
 
 **Status:** Open
 
-Options: (a) A new kind of heap object that holds a fixed list of items, like `ObjArray` but the count never changes. Every place that looks at objects (`@typeof`, printing, `==`, the garbage collector) gets an explicit tuple case. (b) Reuse `ObjArray` and rely on the type checker to stop a tuple being used as an array. This is the least new code, but at run time a tuple and an array look the same, so `@typeof`, `@len` and `print` cannot tell them apart. The `@arr*` natives are unchecked today (the changelog lists them as "pending generics"), so `@arrPush(tuple, x)` would compile and grow the tuple. (c) A struct that the compiler generates with fields named `0`, `1`, and so on, which shares work with [Tuple Structs Proposal]. But tuple types are compared by their parts and struct types by name, so each tuple type would need its own generated struct.
+Options: (a) A new kind of heap object that holds a fixed list of items, like `ObjArray` but the count never changes. Every place that looks at objects (`@typeof`, printing, `==`, the garbage collector) gets an explicit tuple case. (b) Reuse `ObjArray` and rely on the type checker to stop a tuple being used as an array. This is the least new code, but at run time a tuple and an array look the same, so `@typeof` and `@println` cannot tell them apart. The `@arr*` natives take `[T]`, so the type checker stops `@arrPush(tuple, x)`, but nothing at run time would. (c) A struct that the compiler generates with fields named `0`, `1`, and so on, which shares work with [Tuple Structs Proposal]. But tuple types are compared by their parts and struct types by name, so each tuple type would need its own generated struct.
 
 ### **Q:** How does tuple equality compare items?
 
@@ -332,7 +334,7 @@ Options: (a) A new kind of heap object that holds a fixed list of items, like `O
 
 **Status:** Open
 
-The sketch says equality is "based on the items equality". Today `==` on two objects asks whether they are the same object (`valuesEqual` in `src/value.c`). `print [1, 2] == [1, 2];` prints `false`. Two structs that both `impl Eq` also compare by identity under `==`, even though calling `.equals` returns `true` (verified against `from_commit`, and described in the [Generic Types Proposal] Part 1.4).
+The sketch says equality is "based on the items equality". Today `==` on two objects asks whether they are the same object (`valuesEqual` in `src/value.c`). `@println([1, 2] == [1, 2]);` prints `false`. Two structs that both `impl Eq` also compare by identity under `==`, even though calling `.equals` returns `true` (verified against `from_commit`, and described in the [Generic Types Proposal] Part 1.4).
 
 Options: (a) Items are compared the way `==` compares that item's type today: numbers, bools, and strings by value, nested tuples item by item, and anything else by identity. (b) Items are compared through `Eq` where the item's type has one. This needs the decision in the [Generic Types Proposal] 10.4 first.
 
@@ -346,7 +348,7 @@ Either way, tuples and arrays would compare differently. Changing arrays is out 
 
 Options: (a) No. `unit` and `()` stay as they are and no tuple type has zero items. (b) Yes. `()` becomes the tuple with no items and `unit` becomes another way to write its type.
 
-At run time `()` is `nil` today. Making it a tuple object would change what `print ();` shows and how `nil ?? x` behaves. (a) avoids that, and matches the [Primitive Impls Proposal] treating `unit` as a primitive.
+At run time `()` is `nil` today. Making it a tuple object would change what `@println(());` shows and how `nil ?? x` behaves. (a) avoids that, and matches the [Primitive Impls Proposal] treating `unit` as a primitive.
 
 ### **Q:** Can an item of a tuple be assigned to?
 
@@ -362,17 +364,21 @@ Options: (a) Tuple items cannot be assigned. `(1, 2)` never changes, which makes
 
 <!-- [Q-type-spelling]: #q-is-a-tuple-type-written-a-b-or-tuplea-b -->
 
+**Status:** Answered
+
+The sketch writes `(number, number)`. A spelling like `Tuple[f64, string]` was also considered. Square brackets after a name are how Kirby writes generic arguments (`Box[T]`), and a tuple has a different number of type arguments each time, which generics do not support. The parenthesized form matches the value syntax.
+
+#### Answer
+
+`(A, B)`. The type looks like the value: `(1, "a")` has the type `(i64, string)`. Square brackets are taken. After a name they are generic arguments (`Box[f64]`), and on their own they are an array type (`[f64]`). `[i64, string]` would read as an odd array type, and `[T; n]` is planned for fixed size arrays. The [Collection Methods Proposal] uses the same spelling.
+
+### **Q:** Should a tuple have a length native?
+
+<!-- [Q-len]: #q-should-a-tuple-have-a-length-native -->
+
 **Status:** Open
 
-The sketch writes `(number, number)`. The [Collection Methods Proposal] uses `Tuple[f64, string]` when it talks about a future tuple type. Square brackets are already how Kirby writes generic arguments (`Struct[T]`), and a tuple has a different number of type arguments each time, which generics do not support. The parenthesized form matches the value syntax. This proposal uses the parenthesized form, and the [Collection Methods Proposal] should follow whichever is chosen.
-
-### **Q:** Should `@len` work on a tuple?
-
-<!-- [Q-len]: #q-should-len-work-on-a-tuple -->
-
-**Status:** Open
-
-The sketch asks for it. But the length of a tuple is part of its type and is always known at compile time, so the answer is never a surprise. Options: (a) add it, as requested, with an extra case in `lenNative`. (b) Leave it out and keep `@len` for values whose length can change.
+The sketch asks for it. But the length of a tuple is part of its type and is always known at compile time, so the answer is never a surprise. Options: (a) add a native such as `@tupleLen`. `@arrLen` can't simply take a tuple, because its signature is `fun ([T]) => i64`. (b) Leave it out, and keep `@strLen` and `@arrLen` for values whose length can change.
 
 ## Glossary
 
@@ -429,4 +435,4 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-unit-empty]: #q-is-unit-the-empty-tuple
 [Q-mutability]: #q-can-an-item-of-a-tuple-be-assigned-to
 [Q-type-spelling]: #q-is-a-tuple-type-written-a-b-or-tuplea-b
-[Q-len]: #q-should-len-work-on-a-tuple
+[Q-len]: #q-should-a-tuple-have-a-length-native

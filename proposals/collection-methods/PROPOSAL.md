@@ -1,17 +1,17 @@
 ---
 status: Draft
 created: 2026-09-18
-from_commit: b56a2a9
+from_commit: 2f96a2e
 ---
 
 # Proposal: Methods on Built-in Collection Types
 
 This proposal is less settled than most in this repository, and it stays
 that way on purpose. The goal isn't `arr.filter(fn)` specifically — it's
-figuring out what category `Array` (and, eventually, `Tuple`, `Set`, and
+figuring out what category arrays (and, eventually, tuples, `Set`, and
 `Map`/`Dict`) actually belong to, and whether the mechanism already being
 built for primitive types fits them or not. Until that's answered, a
-concrete design for "Array methods" would be guessing. This document is
+concrete design for array methods would be guessing. This document is
 mostly [Questions] for that reason.
 
 ---
@@ -49,9 +49,9 @@ defined in the [Glossary] below.
 
 ## Problem Statement
 
-Method-call syntax, `receiver.method(args)`, is handled by one function,
-`invoke()` in `src/vm.c`. Checked against a clean `main` build, it recognizes
-exactly two kinds of receiver:
+Method-call syntax, `receiver.method(args)`, is handled at run time by one
+function, `invoke()` in `src/vm.c`. Checked against a clean `main` build, it
+recognizes exactly two kinds of receiver:
 
 ```c
 static bool invoke(ObjString *name, int argCount) {
@@ -69,8 +69,10 @@ static bool invoke(ObjString *name, int argCount) {
 ```
 
 Anything that isn't a struct or a struct instance — an array, a string, a
-number — hits `"Only instances have methods."` and fails. `arr.push(x)` and
-`"hi".trim()` both error out today for the same reason.
+number — would hit `"Only instances have methods."` and fail. The type checker
+stops such a call before it runs: `arr.push(2)` on an array of `i64` reports
+`Can't access '.push' on a [i64].`, and `"hi".trim()` reports
+`Can't access '.trim' on a string.` (`typchkInferGet` in `src/typecheck.c`).
 
 [Primitive Impls Proposal] is already closing this gap for `f64`, `string`,
 `bool`, and `unit` — but not through `invoke()`. An unmerged branch,
@@ -87,21 +89,25 @@ impl Display for f64 {
 }
 ```
 
+The branch was written when `f64` was Kirby's only number type and `Array`
+was a type name. On main today there are ten number kinds, and arrays are
+written `[T]`.
+
 This works because a value's primitive type is a single, fixed, compile-time
 fact — there's no subtyping or polymorphism among `f64` values, so the
 compiler always knows exactly which `toString` a given call site means, with
 no need for the runtime method-table lookup `invoke()` does for structs.
 
-`Array` is explicitly **not** part of that work. [Primitive Impls Proposal]
+Arrays are explicitly **not** part of that work. [Primitive Impls Proposal]
 says so directly:
 
-> Explicitly out of scope: `Array[T]` and other built-in container types.
-> `Array` is ephemeral today — it isn't backed by a Kirby struct, and its
-> future shape (once generics land) isn't settled.
+> Explicitly out of scope: arrays (`[T]`) and other built-in container
+> types. They aren't backed by a Kirby struct, and how methods on them
+> should work isn't settled.
 
 And the implementation on `initial-primitive-traits` shows exactly where it
-stops. The type-checker's gate function treats `Array` the same as the four
-real primitives:
+stopped. The branch's type-checker gate function treats `Array`, the array
+type name at the time, the same as the four real primitives:
 
 ```c
 static bool tokenIsPrimitiveTypeName(Token *token) {
@@ -125,10 +131,14 @@ static Type *typchkPrimitiveTypeNamed(Token *token) { ... }
 ```
 
 That comment references a `TYPE_SYSTEM_RFC.md` that doesn't exist in either
-repository as of this branch — see [Q-rfc].
+repository — see [Q-rfc].
 
-The gap is bigger than `Array` alone. `Tuple` is a single, undetailed bullet
-under "Future State" in `docs/CHANGELOG.md`. `Set` and `Map`/`Dict` don't
+On main, the same gate function lives in `src/token.c` and recognizes only
+`unit`, `bool`, `string` and `f64`. `Array` is not a type name, so
+`impl Display for Array` reports `Unknown type 'Array'.`
+
+The gap is bigger than arrays alone. Tuples are designed in the
+[Tuples Proposal] but not built. `Set` and `Map`/`Dict` don't
 appear anywhere — not in the changelog, not in any existing proposal, not in
 the codebase. All of them will eventually want methods (`arr.filter(fn)`,
 `set.has(x)`, `map.get(k)`, whatever their eventual syntax turns out to be),
@@ -144,15 +154,13 @@ can't `impl` them the way it can `impl` a struct.
   (quoted above) and stops at its edge deliberately — this proposal exists
   to pick up where it stopped, not to re-decide anything it already settled
   for `f64`/`string`/`bool`/`unit`.
-- [Generic Types Proposal] matters because `Array[T]` annotations are
-  rejected today (`"Generic types aren't supported yet"`, checked against a
-  clean build). A properly typed `Map[K, V]` or `Set[T]` — or even a
-  generically-typed `Array[T].filter`, whose predicate needs to know its
-  argument's type — depends on generics landing first. See [Q-generics-order].
-- [Tuples Proposal] designs the `Tuple` type this proposal mentions. It
-  writes the type `(f64, string)` rather than `Tuple[f64, string]`
-  ([Q-type-spelling]), and gives a tuple a fixed size and item types known
-  at compile time, which bears on [Q-category].
+- [Generic Types Proposal] matters for `Map[K, V]` and `Set[T]`, which need
+  generic type arguments. Those are rejected today (`Box[f64]` reports
+  `Generic types aren't supported yet.`). Arrays don't need them: `[i64]` is
+  an array of `i64` and the checker checks its items. See [Q-generics-order].
+- [Tuples Proposal] designs the tuple type this proposal mentions. It writes
+  the type `(f64, string)` ([Q-type-spelling]), and gives a tuple a fixed
+  size and item types known at compile time, which bears on [Q-category].
 
 ## The Changes
 
@@ -161,30 +169,27 @@ Everything below is a candidate direction, not a decision — see
 
 ### Part 1 — Name the category
 
-Introduce **collection type** as a term for this family — `Array` today;
-`Tuple`, `Set`, and `Map`/`Dict` prospectively — distinct from
+Introduce **collection type** as a term for this family — arrays today;
+tuples, `Set`, and `Map`/`Dict` prospectively — distinct from
 [Primitive Impls Proposal]'s "primitive type." Naming it is worth doing on
-its own: right now `Array` is described only negatively, as a primitive that
+its own: right now arrays are described only negatively, as something that
 doesn't qualify for the primitive mechanism. Whether "collection type" is
 even one coherent category, or actually two with different needs, is
 [Q-category].
 
 ### Part 2 — Candidate direction: extend the static mechanism
 
-`tokenIsPrimitiveTypeName` already accepts `"Array"`; only
-`typchkPrimitiveTypeNamed` stops short. Neither `Array`, nor (presumably)
-`Tuple`, `Set`, or `Map` involve subtype polymorphism — there is exactly one
-`Array` type, not an open hierarchy of them, the same way there's exactly
-one `f64`. That's the property that lets the primitive mechanism resolve
+On the branch, `tokenIsPrimitiveTypeName` already accepted `"Array"`; only
+`typchkPrimitiveTypeNamed` stopped short. Neither arrays, nor (presumably)
+tuples, `Set`, or `Map` involve subtype polymorphism — `[i64]` is exactly one
+type, not an open hierarchy of them, the same way there's exactly one
+`f64`. That's the property that lets the primitive mechanism resolve
 `x.toString()` at compile time with no runtime lookup. On that reasoning,
 collection types might fit the same static/mangled mechanism
 [Primitive Impls Proposal] already built, rather than needing a different
-one — but "ephemeral" and "ephemeral, isn't backed by a Kirby struct" (that
-proposal's own words) suggest the compiler may not currently track enough
-about an `Array` value — and won't, for `Map`/`Set`'s key/value types,
-without generics — to resolve a call the way it resolves one for `f64`. This
-needs to be checked against the actual type-checker code, not assumed;
-see [Q-static-fit].
+one. The checker knows each array's item type, so it has what a call needs
+to be resolved the way one for `f64` is. `Map`/`Set`'s key and value types
+would need generics first. See [Q-static-fit].
 
 ### Part 3 — Candidate direction: extend `invoke()`'s dynamic dispatch
 
@@ -200,10 +205,10 @@ separate mechanism from Part 2, or only if Part 2 turns out not to fit, is
 
 ### Part 4 — Explicitly out of scope
 
-This proposal does not design `Tuple`, `Set`, or `Map`/`Dict` themselves —
+This proposal does not design tuples, `Set`, or `Map`/`Dict` themselves —
 none of them exist yet. It only tries to scope the _mechanism_ question, so
-that whichever of them get built later — and `Array`, which already
-exists — have somewhere to attach methods to.
+that whichever of them get built later — and arrays, which already
+exist — have somewhere to attach methods to.
 
 ## Questions
 
@@ -213,34 +218,38 @@ exists — have somewhere to attach methods to.
 
 **Status:** Open
 
-`Array`, `Set`, and `Map`/`Dict` are all dynamically sized and mutable.
-`Tuple`, once it exists, is likely fixed-size and its element types likely
-fully known at compile time (`Tuple[f64, string]` and `Tuple[f64, f64]`
-would be different concrete types) — closer in shape to a primitive than to
-`Array`. Lumping all four together as "collection types" may be grouping two
+Arrays, `Set`, and `Map`/`Dict` are all dynamically sized and mutable.
+A tuple, once it exists, is likely fixed-size and its element types likely
+fully known at compile time (`(f64, string)` and `(f64, f64)` would be
+different concrete types) — closer in shape to a primitive than to an
+array. Lumping all four together as "collection types" may be grouping two
 different problems under one name.
 
 Options: (a) one category, one mechanism, accepting that it has to handle
 both the fixed-shape and dynamically-sized cases; (b) two categories —
-`Tuple` follows [Primitive Impls Proposal]'s path since it's closed and
-statically known, `Array`/`Set`/`Map` follow whatever this proposal lands
+tuples follow [Primitive Impls Proposal]'s path since they're closed and
+statically known, arrays/`Set`/`Map` follow whatever this proposal lands
 on. (b) is more honest about the actual differences but means committing to
 two mechanisms instead of one.
 
-### **Q:** Does `Array` actually fit the static/mangled mechanism?
+The plan for arrays has a third shape in it: `[T]` is a growable array now
+and becomes a list later, and `[T; n]` will be a fixed size array with one
+item type. A fixed size array sits between the two groups: its size is fixed
+like a tuple's, but every item has the same type, like a list's.
 
-<!-- [Q-static-fit]: #q-does-array-actually-fit-the-staticmangled-mechanism -->
+### **Q:** Do arrays actually fit the static/mangled mechanism?
+
+<!-- [Q-static-fit]: #q-do-arrays-actually-fit-the-staticmangled-mechanism -->
 
 **Status:** Open
 
-Part 2 is a hypothesis based on `Array` not having subtype polymorphism, not
-a checked fact. It needs to be checked directly against `typecheck.c`: does
-the checker currently know, at a given call site, that a value is
-specifically an `Array` (as opposed to just "some value"), the way it always
-knows a value's type is specifically `f64`? [Primitive Impls Proposal]'s own
-description of `Array` as "ephemeral" suggests maybe not, but that
-proposal's authors were describing why they left `Array` out, not
-necessarily making a precise claim about what the checker tracks.
+Part 2 rests on arrays not having subtype polymorphism. The checker does
+know, at a call site, that a value is an array and what its items are, the
+way it knows a value is an `f64`: `arr.push(2)` reports
+`Can't access '.push' on a [i64].` What's left is whether the mangled-name
+scheme on `initial-primitive-traits` can name a method on `[T]` for every
+`T`, which is a generics question, since `[i64]` and `[string]` are different
+types.
 
 ### **Q:** Are `TYPE_SYSTEM_RFC.md` and "Phase 4b" something to reconcile with first?
 
@@ -250,8 +259,8 @@ necessarily making a precise claim about what the checker tracks.
 
 A code comment on `initial-primitive-traits` references a `TYPE_SYSTEM_RFC.md`
 and a "Phase 4b" as the reason non-scalar `impl` targets aren't handled yet.
-Neither the file nor any other reference to a phased plan exists in this
-repository or the proposals repository as of this branch. If that RFC exists
+Neither the file nor any other reference to a phased plan exists in
+kirbylang or the proposals repository. If that RFC exists
 somewhere else (or existed and was removed), this proposal should be
 reconciled with it rather than duplicating or contradicting a plan that's
 already been thought through — worth checking with whoever wrote that
@@ -263,31 +272,33 @@ comment before this proposal goes further.
 
 **Status:** Open
 
-`Array` today is itself untyped/element-agnostic (`Array[T]` annotations are
-rejected — [Generic Types Proposal]). A `filter`/`map`-style method's
-predicate parameter has the same "what type is an element" problem `Array`
-itself already has, and already ships without an answer to today.
+Arrays are typed by their items: `[i64]` is an array of `i64`. The array
+natives are typed through generic parameters in their signatures, which only
+native signatures can use: `@arrPush` is `fun ([T], T) => unit`. A lambda
+passed to a generic native gets its parameter types from earlier arguments,
+which is what a typed `filter` or `map` needs. So a native such as `@arrMap`
+could be typed as `fun ([T], fun (T) => U) => [U]` today. User code still
+can't declare generic functions or methods ([Generic Types Proposal]).
 
 Options: (a) wait for [Generic Types Proposal] to land, so collection
-methods can be properly typed from the start; (b) ship collection methods
-untyped first (mirroring how `Array` itself already works, and how
-`arrPush`/`arrContains`/etc. already take and return untyped `Value`s
-today), and revisit typing once generics exist. (b) unblocks this sooner but
-means a second pass later to add proper typing; (a) avoids that second pass
-but is blocked on a proposal with its own open questions.
+methods can be written in Kirby and typed from the start; (b) ship them as
+typed natives first, the way `@arrPush` and `@arrContains` already work, and
+turn them into methods later. (b) unblocks this sooner but means a second
+pass later to move them; (a) avoids that second pass but is blocked on a
+proposal with its own open questions.
 
-### **Q:** Should this start from `Array` alone, or wait until `Tuple`/`Set`/`Map` are at least sketched?
+### **Q:** Should this start from arrays alone, or wait until tuples/`Set`/`Map` are at least sketched?
 
-<!-- [Q-scope-order]: #q-should-this-start-from-array-alone-or-wait-until-tuplesetmap-are-at-least-sketched -->
+<!-- [Q-scope-order]: #q-should-this-start-from-arrays-alone-or-wait-until-tuplessetmap-are-at-least-sketched -->
 
 **Status:** Open
 
-Designing the mechanism against `Array` alone risks shaping it around
-`Array`'s particular quirks (no keys, single element type, index-based
+Designing the mechanism against arrays alone risks shaping it around
+arrays' particular quirks (no keys, single element type, index-based
 access) in ways that don't generalize to `Map` (two type parameters, no
 inherent ordering) or `Set` (no duplicate/indexing semantics at all).
 
-Options: (a) design and ship for `Array` now, adjust the mechanism later if
+Options: (a) design and ship for arrays now, adjust the mechanism later if
 `Set`/`Map` don't fit it; (b) at least sketch `Set` and `Map`'s shape
 (without fully designing them) before committing to a mechanism, so the
 mechanism is checked against more than one case up front. (a) makes
@@ -302,11 +313,11 @@ proposal.
 
 - **Changes**: Changes refer the proposed changes in this document
 - **Collection type**: a term this proposal introduces for Kirby's
-  built-in, dynamically-sized aggregate types — `Array` today, `Set` and
+  built-in, dynamically-sized aggregate types — arrays (`[T]`) today, `Set` and
   `Map`/`Dict` prospectively. Distinct from a **primitive type**
-  ([Primitive Impls Proposal]'s term for `unit`/`bool`/`string`/`f64`: fixed
+  ([Primitive Impls Proposal]'s term for `unit`, `bool`, `string` and the number kinds: fixed
   shape, no fields, resolved statically) and from a user-defined **struct**.
-  Whether `Tuple` belongs in this category or with primitives is
+  Whether tuples belong in this category or with primitives is
   [Q-category].
 - **Static/mangled resolution**: resolving a method call to a specific
   function at compile time, by rewriting (mangling) the call into a direct
@@ -340,7 +351,7 @@ proposal.
 <!-- Questions -->
 
 [Q-category]: #q-is-collection-type-one-category-or-two
-[Q-static-fit]: #q-does-array-actually-fit-the-staticmangled-mechanism
+[Q-static-fit]: #q-do-arrays-actually-fit-the-staticmangled-mechanism
 [Q-rfc]: #q-are-type_system_rfcmd-and-phase-4b-something-to-reconcile-with-first
 [Q-generics-order]: #q-does-this-wait-on-generics-or-ship-an-untyped-version-first
-[Q-scope-order]: #q-should-this-start-from-array-alone-or-wait-until-tuplesetmap-are-at-least-sketched
+[Q-scope-order]: #q-should-this-start-from-arrays-alone-or-wait-until-tuplessetmap-are-at-least-sketched

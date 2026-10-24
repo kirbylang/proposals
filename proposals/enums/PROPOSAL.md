@@ -1,7 +1,7 @@
 ---
 status: Draft
 created: 2026-09-20
-from_commit: 662d98b
+from_commit: 2f96a2e
 ---
 
 # Proposal: Enums
@@ -41,7 +41,7 @@ Kirby has no way to define a type that is "one of these alternatives". The worka
 
 - **Numbers or strings as names.** `let red = 0;` says nothing about which other numbers are valid colors, and nothing stops a color being added to a count.
 - **A struct with a tag field.** It works, but the tag is again a number or a string, and every place that uses the struct must remember which fields go with which tag.
-- **`nil` for "no value".** Several natives may return nothing. The changelog lists `@argv`, `@prompt`, `@stdin`, and `@strIndexOf` as still unchecked, "pending `Option[T]`", because there is no type to describe a result that might be missing.
+- **`nil` for "no value".** Some natives may return nothing. `@argv`, `@prompt` and `@stdin` have no type signature, and `docs/TYPES.md` says why: they "return nothing on some paths and so need `Option[T]`".
 
 [Issue #39] sketches enums in three parts. Simple:
 
@@ -105,13 +105,13 @@ Several things that already exist shape the design. Each was verified:
 - **`enum` is a valid variable name.** `var enum = 1;` works. No `.krb` file in the repository uses it.
 - **Declarations are top level only.** A `struct`, `impl`, `trait`, or `type` inside a function or block is a compile error: `'struct', 'impl', 'trait', and 'type' are declarations and can only appear at the top level.` The check is in `declaration()` in `src/parser.c`.
 - **`impl` and traits work on structs only.** `impl Colors` for a name that is not a struct reports `Unknown type 'Colors'.`, and `docs/TYPES.md` lists "Traits can only be implemented for structs currently" as a limitation. The sketch needs `impl Display for Colors`.
-- **The type checker has no enum kind.** There are nine kinds of type in `src/types.h`. Struct types are compared by name, and this proposal expects enum types to work the same way.
+- **The type checker has no enum kind.** There are ten kinds of type in `src/types.h`. Struct types are compared by name, and this proposal expects enum types to work the same way.
 - **A value has no room for a tag.** A value is a bool, `nil`, a number, or a pointer to a heap object (`src/value.h`). Objects are the only kind that can carry extra data.
 - **`Type.name` is already the way to reach a static method.** `Point.origin()` and `Struct.new(123)` work today. `Colors.Red` in the sketch looks the same. There is no `::` token.
-- **`Array[T]` is rejected.** `struct Node { pub var args: Array[Node]; }` reports `Generic types aren't supported yet.` But a struct can refer to itself as a field type: `struct Node { pub var next: Node; }` compiles.
+- **Array types are written `[T]`.** `struct Node { pub var args: [Node]; }` compiles and checks its items: `Node { args: [1] }` reports `Expected Node, got i64.` A struct can also refer to itself directly as a field type: `struct Node { pub var next: Node; }` compiles. Generic arguments are rejected: `Box[Node]` reports `Generic types aren't supported yet.`
 - **`==` on objects compares identity.** For structs, `==` also requires `Eq` at compile time (see the [Generic Types Proposal] Part 1.4).
-- **`nil` has the type `unit`.** `let x: f64 = nil;` reports `Expected f64, got unit.` So `nil` cannot stand for a missing `f64` in the type system today. `??` exists, and is accepted on a typed value (`let x: f64 = 1; print x ?? 2;` prints `1.000000`).
-- **The standard library is empty.** `stdlib/stdlib.krb` has no content, and `src/main.c` runs it before user code in each of its three run modes.
+- **`nil` has the type `unit`.** `let x: f64 = nil;` reports `Expected f64, got unit.` So `nil` cannot stand for a missing `f64` in the type system today. `??` exists, and is accepted on a typed value (`let x: f64 = 1; @println(x ?? 2);` prints `1`).
+- **The standard library is small.** `stdlib/stdlib.krb` holds one struct, `Date`, and its `Display`, `Ord` and `Eq` impls. It is built into `krb` and runs before user code (`src/main.c`).
 
 ## Proposed Changes
 
@@ -158,7 +158,7 @@ enum Shape {
 - An enum can refer to itself, as `body: AstNode` does. Structs can already do this.
 - A value is built with the enum and variant names: `Shape.Circle(1)`, `Shape.Rect { width: 1, height: 2 }`. How this is written is [Q-variant-fields].
 - The values inside a variant can only be read with a pattern, because the value might be a different variant. This is why Part B depends on the [Pattern Matching Proposal]: without it a value can be built and can never be taken apart.
-- `Array[AstNode]` in the sketch needs generics. Until the [Generic Types Proposal] lands it has to be written as `Array`, which is accepted today, and the items are not checked.
+- `Array[AstNode]` in the sketch is written `[AstNode]`, which needs no generics and checks the items.
 
 ### Part C: Enums with type parameters
 
@@ -214,7 +214,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 #### Part 3: Compiler and virtual machine (A)
 
 - Declaring an enum, and creating its variants, according to [Q-representation].
-- If variants are heap objects, the garbage collector in `src/gc.c` visits them, and `print`, `@typeof`, and `@instanceOf` each get a case.
+- If variants are heap objects, the garbage collector in `src/gc.c` visits them, and `@print`, `@println`, `@typeof`, and `@instanceOf` each get a case.
 
 #### Part 4: Variants with values (B)
 
@@ -264,7 +264,7 @@ How do we know the implemented proposal works?
 
 The E2E syntax tests should cover all valid and invalid parser/compiler/runtime error cases. Tests for `match` on enums are here because that is where enums are used, and they need the [Pattern Matching Proposal].
 
-##### NEW: tests/enums/enum_variants_equal.krb
+##### NEW: tests/run/enums/enum_variants_equal.krb
 
 ```kirby
 enum Colors {
@@ -276,14 +276,14 @@ enum Colors {
 @assert(Colors.Red == Colors.Red, "Enum variants equal themselves");
 @assert(Colors.Red != Colors.Blue, "Different variants are not equal");
 
-print "ok";
+@println("ok");
 ```
 
 ###### Expected Outcome
 
 Prints `ok`. Exit code 0.
 
-##### NEW: tests/enums/enum_impl_method.krb
+##### NEW: tests/run/enums/enum_impl_method.krb
 
 ```kirby
 enum Colors {
@@ -295,15 +295,15 @@ impl Colors {
   pub fun isRed(self): bool = self == Colors.Red;
 }
 
-print Colors.Red.isRed();
-print Colors.Green.isRed();
+@println(Colors.Red.isRed());
+@println(Colors.Green.isRed());
 ```
 
 ###### Expected Outcome
 
 Prints `true` then `false`.
 
-##### NEW: tests/enums/enum_trait_impl.krb
+##### NEW: tests/run/enums/enum_trait_impl.krb
 
 ```kirby
 enum Colors {
@@ -315,28 +315,28 @@ impl Display for Colors {
   fun toString(self): string = if (self == Colors.Red) "Red" else "Green";
 }
 
-print Colors.Red.toString();
+@println(Colors.Red.toString());
 ```
 
 ###### Expected Outcome
 
 Prints `Red`.
 
-##### NEW: tests/enums/enum_unknown_variant.krb
+##### NEW: tests/run/enums/enum_unknown_variant.krb
 
 ```kirby
 enum Colors {
   Red,
 }
 
-print Colors.Purple;
+@println(Colors.Purple);
 ```
 
 ###### Expected Outcome
 
 Compile error that `Colors` has no variant `Purple`. Exit code 65.
 
-##### NEW: tests/enums/enum_different_types_not_comparable.krb
+##### NEW: tests/run/enums/enum_different_types_not_comparable.krb
 
 ```kirby
 enum A {
@@ -347,14 +347,14 @@ enum B {
   X,
 }
 
-print A.X == B.X;
+@println(A.X == B.X);
 ```
 
 ###### Expected Outcome
 
 Compile error because the two sides are different types. Exit code 65.
 
-##### NEW: tests/enums/enum_variant_and_method_share_name.krb
+##### NEW: tests/run/enums/enum_variant_and_method_share_name.krb
 
 ```kirby
 enum Colors {
@@ -370,7 +370,7 @@ impl Colors {
 
 Compile error that the name is already used. Exit code 65. See [Q-variant-access].
 
-##### NEW: tests/enums/enum_declared_in_block.krb
+##### NEW: tests/run/enums/enum_declared_in_block.krb
 
 ```kirby
 {
@@ -384,7 +384,7 @@ Compile error that the name is already used. Exit code 65. See [Q-variant-access
 
 Compile error that `enum` is a declaration and can only appear at the top level. Exit code 65.
 
-##### NEW: tests/enums/enum_keyword_reserved.krb
+##### NEW: tests/run/enums/enum_keyword_reserved.krb
 
 ```kirby
 var enum = 1;
@@ -394,7 +394,7 @@ var enum = 1;
 
 Compile error. Exit code 65. Today this program compiles, so the change is documented in `docs/CHANGELOG.md`.
 
-##### NEW: tests/enums/enum_variant_with_values.krb
+##### NEW: tests/run/enums/enum_variant_with_values.krb
 
 ```kirby
 enum Value {
@@ -405,14 +405,14 @@ enum Value {
 let a = Value.Bool(true);
 let b = Value.Number(1);
 
-print "built";
+@println("built");
 ```
 
 ###### Expected Outcome
 
 Prints `built`. Part B.
 
-##### NEW: tests/enums/enum_variant_wrong_value_type.krb
+##### NEW: tests/run/enums/enum_variant_wrong_value_type.krb
 
 ```kirby
 enum Value {
@@ -426,7 +426,7 @@ let a = Value.Number("a");
 
 Compile error that `f64` was expected and `string` was given. Exit code 65.
 
-##### NEW: tests/enums/enum_struct_like_variant.krb
+##### NEW: tests/run/enums/enum_struct_like_variant.krb
 
 ```kirby
 enum Shape {
@@ -435,14 +435,14 @@ enum Shape {
 
 let r = Shape.Rect { width: 1, height: 2 };
 
-print "built";
+@println("built");
 ```
 
 ###### Expected Outcome
 
 Prints `built`. The exact way to build a struct-like variant is [Q-variant-fields].
 
-##### NEW: tests/enums/enum_recursive.krb
+##### NEW: tests/run/enums/enum_recursive.krb
 
 ```kirby
 enum List {
@@ -452,14 +452,14 @@ enum List {
 
 let list = List.Item(1, List.Item(2, List.End));
 
-print "built";
+@println("built");
 ```
 
 ###### Expected Outcome
 
 Prints `built`.
 
-##### NEW: tests/enums/enum_match_payload.krb
+##### NEW: tests/run/enums/enum_match_payload.krb
 
 ```kirby
 enum Value {
@@ -474,15 +474,15 @@ fun describe(v: Value): string {
   }
 }
 
-print describe(Value.Bool(true));
-print describe(Value.Number(3));
+@println(describe(Value.Bool(true)));
+@println(describe(Value.Number(3)));
 ```
 
 ###### Expected Outcome
 
 Prints `yes` then `3`. Needs the [Pattern Matching Proposal].
 
-##### NEW: tests/enums/enum_match_non_exhaustive.krb
+##### NEW: tests/run/enums/enum_match_non_exhaustive.krb
 
 ```kirby
 enum Colors {
@@ -501,7 +501,7 @@ fun name(c: Colors): string {
 
 Compile error that `Colors.Green` is not handled. Exit code 65. Needs the [Pattern Matching Proposal].
 
-##### NEW: tests/enums/enum_generic_option.krb
+##### NEW: tests/run/enums/enum_generic_option.krb
 
 ```kirby
 enum Option[T] {
@@ -511,17 +511,17 @@ enum Option[T] {
 
 let a: Option[f64] = Option.Some(1);
 
-print match (a) {
+@println(match (a) {
   Option.Some(n) => n,
   Option.None => 0,
-};
+});
 ```
 
 ###### Expected Outcome
 
-Prints `1.000000`. Needs the [Pattern Matching Proposal] and the [Generic Types Proposal].
+Prints `1`. Needs the [Pattern Matching Proposal] and the [Generic Types Proposal].
 
-##### NEW: tests/enums/enum_generic_wrong_type.krb
+##### NEW: tests/run/enums/enum_generic_wrong_type.krb
 
 ```kirby
 enum Option[T] {
@@ -534,7 +534,7 @@ let a: Option[string] = Option.Some(1);
 
 ###### Expected Outcome
 
-Compile error that `string` was expected and `f64` was given. Exit code 65. Needs the [Generic Types Proposal].
+Compile error that `string` was expected and `i64` was given. Exit code 65. Needs the [Generic Types Proposal].
 
 ## Questions
 
@@ -604,7 +604,7 @@ The two proposals should agree on how a call builds a value.
 
 **Status:** Open
 
-Options: (a) In `stdlib/stdlib.krb`, as ordinary Kirby enums. That file is empty today and is run before user code in every run mode. It is simple and visible. But it puts `Option` and `Result` in every program's set of global names (the [String Interpolation Proposal] had the same worry about a `StringBuilder`, and chose a native instead), and native functions written in C would have to build a value of an enum declared in Kirby. (b) Built into the compiler, the way `Display`, `Eq`, `Ord`, and `Default` are already built in. C code can then create them, so natives could return `Option`. More C to write, and more to keep in step with Kirby's own rules. (c) Start with (a) for use in Kirby code, and give the natives an `Option` later once a way to build one from C is decided.
+Options: (a) In `stdlib/stdlib.krb`, as ordinary Kirby enums. That file holds only `Date` today and runs before user code. It is simple and visible. But it puts `Option` and `Result` in every program's set of global names (the [String Interpolation Proposal] had the same worry about a `StringBuilder`, and chose a native instead), and native functions written in C would have to build a value of an enum declared in Kirby. (b) Built into the compiler, the way `Display`, `Eq`, `Ord`, and `Default` are already built in. C code can then create them, so natives could return `Option`. More C to write, and more to keep in step with Kirby's own rules. (c) Start with (a) for use in Kirby code, and give the natives an `Option` later once a way to build one from C is decided.
 
 ### **Q:** How does `Option[T]` relate to `nil`?
 
@@ -612,7 +612,7 @@ Options: (a) In `stdlib/stdlib.krb`, as ordinary Kirby enums. That file is empty
 
 **Status:** Open
 
-`nil` has the type `unit` today, so it cannot stand for a missing `f64` (verified: `let x: f64 = nil;` reports `Expected f64, got unit.`). That is why natives that may return nothing have no type. `??` picks the right side when the left is `nil`, and is accepted on typed values such as an `f64`.
+`nil` has the type `unit`, so it cannot stand for a missing `f64` (verified: `let x: f64 = nil;` reports `Expected f64, got unit.`). That is why natives that may return nothing have no type. `??` picks the right side when the left is `nil`, and is accepted on typed values such as an `f64`.
 
 Options: (a) Keep `nil` and `??` as they are. `Option[T]` is an ordinary enum next to them, and code chooses which to use. (b) Have `??` also work on `Option[T]`, choosing the right side for `None`. (c) Later, move "maybe no value" wholly to `Option[T]` and change what `nil` is.
 
@@ -624,7 +624,7 @@ This proposal only needs the answer to be (a). (b) and (c) are here so they are 
 
 **Status:** Open
 
-A struct value prints as its name followed by `instance` (`S instance`, verified), and `print` does not use `Display` today. Options: (a) The same for enums, `Colors instance`. No work, and not much use. (b) The variant, `Colors.Red`, and for a variant with values, `Shape.Circle(1.000000)`. Friendlier and matches how a value is written.
+`@println` uses a struct's `Display` impl when it has one. Without one, a struct value prints as its name followed by `instance` (`S instance`, verified). Options: (a) The same for enums: `Display` if there is one, and `Colors instance` otherwise. No work, and not much use without a `Display`. (b) Without a `Display`, the variant, `Colors.Red`, and for a variant with values, `Shape.Circle(1)`. Friendlier and matches how a value is written.
 
 ### **Q:** Is `enum` a reserved word?
 

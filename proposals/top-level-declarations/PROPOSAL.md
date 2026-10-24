@@ -1,7 +1,7 @@
 ---
 status: Draft
 created: 2026-09-20
-from_commit: 662d98b
+from_commit: 2f96a2e
 ---
 
 # Proposal: Top-Level Declarations Only
@@ -41,13 +41,6 @@ defined in the [Glossary] below.
   `from_commit`, and [Appendix A] shows how to check it again.
 - When the proposal text says Kirby "should" or "will" do something, that is
   true after changes presented in this proposal.
-- The C diffs are against `src/main.c` at `from_commit`, which had one `getopt`
-  switch with `-f`, `-r` and `-c` cases. `main.c` now has a function for each
-  subcommand (`cmdRun`, `cmdExec`, `cmdRepl`, and others), and the stdlib is run
-  from the built-in text `KIRBY_STDLIB`, not read from a file. The changes apply
-  to those functions. Command lines in transcripts are the ones that worked at
-  `from_commit`, when `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today
-  those are `krb run FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
 
 ### Code & Changes
 
@@ -63,17 +56,17 @@ top level, and the compiler turns the whole file into one function (shown as
 `<script>` in bytecode listings) that runs from top to bottom. Checked at
 `from_commit` ([Appendix A]):
 
-- A file can hold `print`, `if`, `while`, `for`, blocks, assignments and calls
-  at its top level. Two top-level rules exist already: `return` is refused, and
+- A file can hold calls (including `@println`), `if`, `while`, `for`, blocks
+  and assignments at its top level. Two top-level rules exist already: `return` is refused, and
   `struct`, `impl`, `trait` and `type` are refused _inside_ blocks.
 - Every top-level `let` and `var` runs its initializer when the file loads.
   That includes calls to natives such as `@prompt`, `@argv` and `@clock`, and
   calls to functions the file defines.
 - `krb run` loads the stdlib by running it through `runCode` (`sessionBegin` in
   `src/main.c`), the function `krb exec` uses for its code. The stdlib is built
-  into the binary as the text `KIRBY_STDLIB` (kirbylang #96), and is not read
-  from `stdlib/stdlib.krb` at run time. That is the only "import" Kirby has
-  today. The file is empty. (Checked at `a097505`.)
+  into the binary as the text `KIRBY_STDLIB`, and is not read from
+  `stdlib/stdlib.krb` at run time. That is the only "import" Kirby has today.
+  It holds only declarations: the `Date` struct and its impls.
 - The REPL (`krb repl`) and `krb exec` compile their code through the same path.
 - There is no entry point. The file is the program.
 
@@ -83,9 +76,9 @@ the clock when it is loaded:
 
 ```kirby
 var start = @clock();
-print "counter loaded";
+@println("counter loaded");
 
-fun next(n: f64): f64 = n + 1;
+fun next(n: i64): i64 = n + 1;
 ```
 
 There is no way to load this file just to get `next`. Three other proposals run
@@ -106,22 +99,24 @@ After this proposal, the top level of a file is a list of declarations, and a
 program starts at `main`. This is `examples/fizzbuzz.krb` before and after:
 
 ```diff
- fun fizzbuzz(n: f64): string =
+ #!/usr/bin/env krb run
+
+ fun fizzbuzz(n: i64): string =
      if (n % 5 == 0 and n % 3 == 0) "FizzBuzz"
      else if (n % 3 == 0) "Fizz"
      else if (n % 5 == 0) "Buzz"
      else @numberToString(n);
 
--var limit = @parseNumber(@prompt("limit: "));
+-var limit = @parseInt(@prompt("limit: "));
 -
 -for (var i = 1; i <= limit; i = i + 1) {
--    print fizzbuzz(i);
+-    @println(fizzbuzz(i));
 -}
 +fun main(): unit {
-+    var limit = @parseNumber(@prompt("limit: "));
++    var limit = @parseInt(@prompt("limit: "));
 +
 +    for (var i = 1; i <= limit; i = i + 1) {
-+        print fizzbuzz(i);
++        @println(fizzbuzz(i));
 +    }
 +}
 ```
@@ -145,8 +140,8 @@ Kirby reads source in two ways, and only one of them changes:
 
 Files play one of two roles:
 
-- The **entry file** is the one named after `-f`. Kirby loads it and then calls
-  its `main`.
+- The **entry file** is the one named after `krb run` (or the project's `bin`
+  file when no path is given). Kirby loads it and then calls its `main`.
 - A **library file** is loaded for what it declares. The stdlib is one today,
   and imported modules will be others. A library file is loaded and never run,
   so it needs no `main`.
@@ -161,14 +156,14 @@ A file may hold these declarations, and nothing else:
 - `let` and `var`, with a comptime value (next section)
 
 Anything else at the top level is an error: a call or other expression
-statement, an assignment, `print`, `if`, `while`, `for`, a `{ }` block, `break`
-or `continue`. `return` at the top level is already an error and stays one.
+statement (including `@println(...)`), an assignment, `if`, `while`, `for`, a
+`{ }` block, `break` or `continue`. `return` at the top level is already an error and stays one.
 
 ```kirby
-fun greet(name: string): unit { print "Hello " + name; }
+fun greet(name: string): unit { @println("Hello " + name); }
 
-greet("Kirby");   // error: a call is a statement
-print "loaded";   // error: print is a statement
+greet("Kirby");         // error: a call is a statement
+@println("loaded");     // error: a call is a statement
 ```
 
 Nothing inside a function changes. Function, method and lambda bodies hold
@@ -217,7 +212,7 @@ let alias = names;
 var count = 0;
 
 var start = @clock();            // error: a call
-let limit = @parseNumber("5");   // error: a call, even to a pure native
+let limit = @parseInt("5");      // error: a call, even to a pure native
 var zoo = Zoo.init();            // error: a call
 var first = names[0];            // error: indexing
 var copy = count;                // error: count is a var
@@ -246,9 +241,9 @@ The first block (up to `var count = 0;`) runs today as it is written
   compute these values itself, making `1 / 0` a compile error, is
   [Q-comptime].
 
-Measured over the 410 top-level `let` / `var` declarations in `tests/`, this
-rule accepts 319, refuses 80 (calls and other forms), and 11 have no
-initializer. Accepting only literals and operators would accept 171. The test
+Measured over the 773 top-level `let` / `var` declarations in `tests/`, this
+rule accepts 606, refuses 156 (calls and other forms), and 11 have no
+initializer. Accepting only literals and operators would accept 405. The test
 files check language features, so they are not a sample of real programs. See
 [Q-comptime].
 
@@ -258,7 +253,7 @@ A file that is run needs this declaration at its top level:
 
 ```kirby
 fun main(): unit {
-  print "Hello, World!";
+  @println("Hello, World!");
 }
 ```
 
@@ -329,26 +324,55 @@ which Part 6 deals with. Parts 3 to 6 land together, on one branch.
 
 #### Part 1: Files made of declarations must run correctly
 
-This bug exists today, but it has to be fixed first, because after Part 3 a file
-with no statements is the normal case. At `from_commit` this file fails on
-both a plain build and a debug build:
+This bug exists today, but it has to be fixed first, because after Part 3 a
+file with no statements is the normal case, and the bug is most likely in such
+a file. This file fails on a plain build, a debug build and an
+AddressSanitizer build ([Appendix A], A.10):
 
 ```kirby
-struct Point { var x: f64; var y: f64; }
-impl Point {
-  pub fun sum(self): f64 = self.x + self.y;
-}
-fun add(a: f64, b: f64): f64 = a + b;
-var count = 0;
-let name = "kirby";
+let a = 1;
+let b = 2;
+let c = 3;
+let d = 4;
+let e = 5;
+let f = e;
+let g = 7;
 ```
 
-It should run and print nothing. It exits with 70 and "Operands must be
-numbers." on a plain build, and crashes on the debug build. Removing any one of
-the declarations, or adding a `print` at the end, hides the problem.
-AddressSanitizer reports the VM reading one byte past the end of the script's
-bytecode (`run`, `src/vm.c:461`), which suggests the script has no final
-`OP_RETURN` here. The cause is not yet found ([Appendix A], A.10).
+It should run and print nothing. A plain build stops with `Expected 0
+arguments but got 1.` and exit code 70, a debug build with `Operands must be
+two numbers or two strings.`, and AddressSanitizer reports the VM reading past
+the end of the script's bytecode (`run` in `src/vm.c`). The messages are
+whatever the bytes past the end happen to say.
+
+The cause is in `endCompiler` (`src/compiler.c`). It writes the script's final
+`OP_NIL` and `OP_RETURN` only when the code does not already end in a return:
+
+```c
+static uint8_t previousOpCode(void) {
+  CompiledFn *fn = currentFn();
+
+  if (fn->codeCount == 0) {
+    return 0;
+  }
+
+  return fn->code[fn->codeCount - 1];
+}
+```
+
+```c
+  if (previousOpCode() != OP_RETURN) {
+    emitImplicitReturn();
+  }
+```
+
+`previousOpCode` returns the last byte, which is an operand whenever the last
+instruction has one. Here the last instruction is `OP_DEFINE_GLOBAL 11 'g'`,
+and 11 is the number of `OP_RETURN`, so no return is written. Any function or
+script whose last instruction ends in the byte 11 has the same problem.
+`emitByte` writes opcodes and operands alike, so the fix has to know where the
+last instruction starts: by keeping the offset of the last opcode written, or
+by walking the code with the operand sizes in `opInfo` (`src/opcode.c`).
 
 Test first: add the file above as a new E2E test, in its current form without
 `main`. It fails now.
@@ -356,13 +380,8 @@ Test first: add the file above as a new E2E test, in its current form without
 #### Part 2: Tell files and snippets apart
 
 In `src/main.c`, `compileSource` learns which kind of source it has, and
-`runFile` is split in two: `loadFile` for library files and `runFile` for the
-entry file.
-
-The stdlib is source text, not a file, since kirbylang #96 (`KIRBY_STDLIB`, run
-by `runCode`). So the library-file call has to take text as well as a path.
-Where the diff below says `loadFile("stdlib/stdlib.krb")`, the call today is
-`runCode(KIRBY_STDLIB)`, and it becomes a load of that text as a library file.
+`runFile` gets a partner, `loadFile`, for library files. The stdlib is source
+text (`KIRBY_STDLIB`), not a file, so `loadFile` takes text.
 
 ```diff
 +typedef enum {
@@ -377,18 +396,21 @@ Where the diff below says `loadFile("stdlib/stdlib.krb")`, the call today is
 ```
 
 ```diff
-     case 'f':
-       initVM(saved_argc, saved_argv);
-       typchkSessionBegin();
--      runFile("stdlib/stdlib.krb");
-+      loadFile("stdlib/stdlib.krb");
-       runFile(argv[optind]);
+ static void sessionBegin(int argc, char *argv[]) {
+   initVM(argc, argv);
+   typchkSessionBegin();
+-  runCode(KIRBY_STDLIB, /*disassembleCode=*/false);
++  loadFile(KIRBY_STDLIB);
+ }
 ```
 
-The `-r` and `-c` cases (`cmdRepl` and `cmdExec` today) change the same line.
-`repl` and `runCode` pass
-`SOURCE_SNIPPET`. This part changes no behavior, so it has no new test of its
-own: the existing suite is the test.
+`sessionBegin` is shared by `krb run`, `krb example`, `krb repl` and
+`krb exec`, so that one line covers all four. `runFile` (used by `krb run` and
+`krb example`) passes `SOURCE_ENTRY_FILE`. `repl` and `runCode` (`krb exec`)
+pass `SOURCE_SNIPPET`. `krb compile` (`cmdCompile`) and `krb build`
+(`cmdBuild`) compile the stdlib and a file without `sessionBegin`, and pass
+`SOURCE_LIBRARY_FILE` and `SOURCE_ENTRY_FILE`. This part changes no behavior,
+so it has no new test of its own: the existing suite is the test.
 
 The [Tooling Data Proposal] also adds a parameter to `compileSource`, a source
 name (its Part 5). The two parameters are separate, and either proposal can
@@ -446,7 +468,7 @@ the type checker, so both kinds of error appear in one run ([Q-check-where]):
 
 Statement nodes carry a line number but no token, so the message has the form
 `[line N] Error: ...`, like "Can't return from top-level code." Test first:
-`tests/top_level/statements.krb`.
+`tests/run/top_level/statements.krb`.
 
 #### Part 4: Check that top-level initializers are comptime
 
@@ -470,7 +492,7 @@ declarations in order and adds each comptime `let` to a set of names
 `VarDeclNode` is an error. The error is reported at the declaration's `name`
 token.
 
-Test first: `tests/top_level/comptime_allowed.krb`, then one test per way to be
+Test first: `tests/run/top_level/comptime_allowed.krb`, then one test per way to be
 refused.
 
 #### Part 5: Require and call `main`
@@ -492,7 +514,7 @@ InterpretResult interpretMain(void);
 ```
 
 ```diff
-   InterpretResult result = interpret(unit);
+   InterpretResult result = interpret(unit, true);
 
 +  if (result == INTERPRET_OK)
 +    result = interpretMain();
@@ -501,13 +523,13 @@ InterpretResult interpretMain(void);
      exit(EXIT_CODE_RUNTIME_ERR);
 ```
 
-Test first: `tests/top_level/main_missing.krb`, then one test per case in the
+Test first: `tests/run/top_level/main_missing.krb`, then one test per case in the
 [Testing Plan].
 
 #### Part 6: Migrate the tests, examples and docs
 
-This is most of the work. In `tests/`, 587 of 703 files have a top-level
-statement ([Appendix A], A.8). The `.err` snapshot of each of the 423 tests that
+This is most of the work. In `tests/`, 933 of 1110 files have a top-level
+statement ([Appendix A], A.8). The `.err` snapshot of each of the 608 tests that
 get past compiling holds a bytecode listing of that test's own `<script>`, so
 all of those change. The migration follows these rules:
 
@@ -520,38 +542,37 @@ all of those change. The migration follows these rules:
   listing appears, and `in script` lines in traces become `in main()`. Anything
   else is reviewed by hand, as `tests/README.md` step 5 already asks.
 - A test whose point is a top-level rule is replaced, not migrated. For example,
-  `tests/closures/upvalue_global.krb` checks that Kirby refuses a top-level call
+  `tests/run/closures/upvalue_global.krb` checks that Kirby refuses a top-level call
   to a global that a function assigns later ("might not be assigned yet",
   exit 65). With no top-level statements and no top-level `var` without a
   value, that program cannot be written.
 - Files that only check that something compiles need an empty
   `fun main(): unit {}` if they succeed ([Q-check-only]).
 
-The 9 programs in `examples/` all have top-level statements and are migrated the
-same way. The docs to update are `docs/CLI.md` (`krb run` needs `main`, `krb exec`
-does not), step 2 of "Writing A Test" in `tests/README.md`, the samples in
-`README.md` and `docs/TYPES.md`, the `print 1 + 1;` example in
-`wiki/pages/docs/compiler/Opcodes.md`, and `docs/CHANGELOG.md` under the next
-version.
+The 13 programs in `examples/` all have top-level statements and are migrated
+the same way. The docs to update are `docs/CLI.md` and `book/src/cli.md`
+(`krb run` needs `main`, `krb exec` does not), the "Writing A Test" steps in
+`tests/README.md`, the samples in `README.md`, `docs/TYPES.md` and
+`book/src/`, and `docs/CHANGELOG.md` under the next version.
 
 ## Impacts
 
 ### Existing Syntax Or Behavior
 
-- **Programs with top-level statements stop compiling.** That is 587 of the 703
-  test files and 9 of 9 example programs. The fix is to move the statements into
+- **Programs with top-level statements stop compiling.** That is 933 of the 1110
+  test files and 13 of 13 example programs. The fix is to move the statements into
   `main`.
 - **Top-level initializers that are not comptime stop compiling.** In `tests/`
-  that is 80 of 410, plus 11 with no initializer.
+  that is 156 of 773, plus 11 with no initializer.
 - **`krb run FILE` needs a `main`.** A file made only of declarations used to run
   and do nothing. Now it is an error.
 - **`main` becomes a special name in the entry file.** It must be
-  `fun main(): unit`. `tests/closures/upvalue_global.krb` uses `main` as a
+  `fun main(): unit`. `tests/run/closures/upvalue_global.krb` uses `main` as a
   helper name today.
 - **Traces end at `main()`** instead of `script`, if [Q-call-main] goes as
-  proposed. 150 tests expect a runtime error.
-- **Bytecode snapshots change.** The `.err` snapshot of each of the 423 tests
-  that compile has a listing of the test's own `<script>`. The 280 compile-error
+  proposed. 180 tests expect a runtime error.
+- **Bytecode snapshots change.** The `.err` snapshot of each of the 608 tests
+  that compile has a listing of the test's own `<script>`. The 499 compile-error
   tests only change if their code has top-level statements.
 - **The "might not be assigned yet" error can no longer come from a top-level
   `var`**, because a top-level `var` always has a value.
@@ -630,15 +651,16 @@ error cases. The harness (`scripts/tests.sh`) runs the command in each test's
 `.argv` file. Language tests run `krb run`, `tests/exec/` runs `krb exec` and
 `tests/repl/` runs `krb repl`, so snippets have tests today ([Q-snippets]).
 
-##### NEW: tests/declarations_only_scripts.krb
+##### NEW: tests/run/top_level/declarations_only_scripts.krb
 
 The file from Part 1, exactly as shown there.
 
 ###### Expected Outcome
 
-No output, exit code 0. (In Part 6 it gets an empty `main`.)
+No output, exit code 0. (In Part 6 it gets an empty `main`.) Today it fails
+with exit code 70.
 
-##### NEW: tests/top_level/declarations_and_main.krb
+##### NEW: tests/run/top_level/declarations_and_main.krb
 
 ```kirby
 struct Point { pub var x: f64; pub var y: f64; }
@@ -650,20 +672,20 @@ impl Point {
 let origin = Point { x: 1, y: 2 };
 
 fun main(): unit {
-  print origin.sum();
+  @println(origin.sum());
 }
 ```
 
 ###### Expected Outcome
 
-`3.000000` on stdout, exit code 0.
+`3` on stdout, exit code 0.
 
-##### NEW: tests/top_level/statements.krb
+##### NEW: tests/run/top_level/statements.krb
 
 ```kirby
 fun greet(): unit {}
 
-print "hello";
+@println("hello");
 greet();
 if (true) { greet(); }
 while (false) {}
@@ -681,7 +703,7 @@ Seven errors on stderr, one each for lines 3, 4, 5, 6, 7, 8 and 10, each
 `Error: Only declarations can appear at the top level of a file.` Line 9 is a
 valid declaration. Exit code 65.
 
-##### NEW: tests/top_level/comptime_allowed.krb
+##### NEW: tests/run/top_level/comptime_allowed.krb
 
 ```kirby
 struct Point { pub var x: f64; pub var y: f64; }
@@ -699,28 +721,28 @@ var count = 0;
 
 fun main(): unit {
   count = count + 1;
-  print secondsPerDay;
-  print origin.x;
-  print names[1];
-  print square(4);
+  @println(secondsPerDay);
+  @println(origin.x);
+  @println(names[1]);
+  @println(square(4));
   callback();
-  print count;
+  @println(count);
 }
 ```
 
 ###### Expected Outcome
 
 ```
-86400.000000
-0.000000
+86400
+0
 b
-16.000000
-1.000000
+16
+1
 ```
 
 Exit code 0.
 
-##### NEW: tests/top_level/comptime_not_allowed.krb
+##### NEW: tests/run/top_level/comptime_not_allowed.krb
 
 ```kirby
 struct Zoo { pub var animals: f64; }
@@ -733,7 +755,7 @@ var count = 0;
 let names = ["a", "b"];
 
 var start = @clock();
-let limit = @parseNumber("5");
+let limit = @parseInt("5");
 var zoo = Zoo.init();
 var first = names[0];
 var copy = count;
@@ -749,7 +771,7 @@ Six errors on stderr, at `start` (line 10), `limit` (11), `zoo` (12), `first`
 (13), `copy` (14) and `later` (15), each saying the declaration "can only be
 assigned a comptime value". Exit code 65.
 
-##### NEW: tests/top_level/comptime_no_value.krb
+##### NEW: tests/run/top_level/comptime_no_value.krb
 
 ```kirby
 var pending: f64;
@@ -762,7 +784,7 @@ fun main(): unit {}
 `[line 1] Error at 'pending': A top-level 'var' must be assigned a comptime
 value.` Exit code 65.
 
-##### NEW: tests/top_level/comptime_division_by_zero.krb
+##### NEW: tests/run/top_level/comptime_division_by_zero.krb
 
 ```kirby
 let broken = 1 / 0;
@@ -782,10 +804,10 @@ function / expects argument 1 to be a non-zero number but got 0.
 
 Exit code 70.
 
-##### NEW: tests/top_level/main_missing.krb
+##### NEW: tests/run/top_level/main_missing.krb
 
 ```kirby
-fun helper(): unit { print "never runs"; }
+fun helper(): unit { @println("never runs"); }
 ```
 
 ###### Expected Outcome
@@ -793,7 +815,7 @@ fun helper(): unit { print "never runs"; }
 `Error: No 'main' function. Running a file needs 'fun main(): unit'.` Nothing on
 stdout. Exit code 65.
 
-##### NEW: tests/top_level/main_with_parameter.krb, main_returns_number.krb, main_not_a_function.krb
+##### NEW: tests/run/top_level/main_with_parameter.krb, main_returns_number.krb, main_not_a_function.krb
 
 ```kirby
 fun main(args: f64): unit {}
@@ -812,13 +834,13 @@ let main = fun (): unit {};
 Each file gives `Error at 'main': 'main' must be declared as 'fun main(): unit'.`
 with its own line number. Exit code 65.
 
-##### NEW: tests/top_level/main_exit_code.krb
+##### NEW: tests/run/top_level/main_exit_code.krb
 
 ```kirby
 fun main(): unit {
-  print "before";
+  @println("before");
   @exit(3);
-  print "after";
+  @println("after");
 }
 ```
 
@@ -826,13 +848,13 @@ fun main(): unit {
 
 `before` on stdout, exit code 3.
 
-##### NEW: tests/top_level/main_runtime_error.krb
+##### NEW: tests/run/top_level/main_runtime_error.krb
 
 ```kirby
 fun divide(a: f64, b: f64): f64 = a / b;
 
 fun main(): unit {
-  print divide(1, 0);
+  @println(divide(1, 0));
 }
 ```
 
@@ -847,7 +869,7 @@ function / expects argument 1 to be a non-zero number but got 0.
 [line 4] in main()
 ```
 
-##### CHANGED: tests/variable_reference.krb
+##### CHANGED: tests/run/variable_reference.krb
 
 A test about globals keeps its globals. Only the statement moves.
 
@@ -855,17 +877,17 @@ A test about globals keeps its globals. Only the statement moves.
  var greeting = "Hello";
  var name = "World";
 
--print greeting + " " + name;
+-@println(greeting + " " + name);
 +fun main(): unit {
-+  print greeting + " " + name;
++  @println(greeting + " " + name);
 +}
 ```
 
 ###### Expected Outcome
 
 `.out` (`Hello World`) and `.exit` (`0`) are unchanged. `.err` changes: the
-`<script>` listing no longer has the `print`, and a `main` listing appears. This
-is the shape of most of the 587 files that have a top-level statement. A change to any `.out` or
+`<script>` listing no longer has the `@println` call, and a `main` listing appears. This
+is the shape of most of the 933 files that have a top-level statement. A change to any `.out` or
 `.exit` of a migrated test means the migration changed what the test checks, and
 is reviewed by hand.
 
@@ -891,8 +913,8 @@ proposal has to say what "comptime" means. Options:
   mechanism the [Macros Proposal] describes in its Part 3. It could also make
   `1 / 0` a compile error.
 
-Over the 410 top-level `let` / `var` declarations in `tests/`, (a) accepts 171
-and (b) accepts 319. 80 use calls or other forms that neither accepts, and 11
+Over the 773 top-level `let` / `var` declarations in `tests/`, (a) accepts 405
+and (b) accepts 606. 156 use calls or other forms that neither accepts, and 11
 have no initializer. The test files are not a sample of real programs, but they
 show that (a) alone leaves most aggregates behind.
 
@@ -922,7 +944,7 @@ Proposed: `fun main(): unit`, with no parameters and no return value.
 - Every function needs a declared return type today, so `unit` is the natural
   spelling.
 
-Alternatives are `main(args: Array)` (which needs an array-of-strings type) and
+Alternatives are `main(args: [string])` and
 a `main` that returns the exit code (which gives two ways to exit). Accepting
 more signatures later does not break a file that uses `fun main(): unit`.
 
@@ -938,7 +960,7 @@ initializer today.)
 Nothing at the top level can assign to it, so it could only be set by a function
 later. That leaves a gap: today the checker accepts a read of such a variable
 inside a function, and only refuses one at the top level ([Appendix A], A.6).
-With modules, that gap would exist in every file. 11 of the 410 declarations in
+With modules, that gap would exist in every file. 11 of the 773 declarations in
 `tests/` have no initializer.
 
 To migrate one, give it a starting value, for example
@@ -969,13 +991,11 @@ Proposed: yes. The REPL and `krb exec` keep today's rules: statements, no `main`
 limit on initializers. The stdlib that is loaded before a snippet is a library
 file, so it follows the new rules.
 
-There was a testing gap: `scripts/tests.sh` always ran `krb -f`, so no file in
-`tests/` exercised `-c` or the REPL. It is closed. The harness runs the command
-in each test's `.argv` file, so a snippet test is an `.argv` of `exec` and
-`$(cat $file)`, which runs the contents of the test's program as a snippet.
-`tests/exec/` and `tests/repl/` exist today (checked at `a097505`). What is left
-is the tests that show snippets still allow statements once every other test is
-migrated.
+The harness runs the command in each test's `.argv` file, so a snippet test
+is an `.argv` of `exec` and `$(cat $file)`, which runs the contents of the
+test's program as a snippet. `tests/exec/` and `tests/repl/` hold such tests.
+What is left is the tests that show snippets still allow statements once
+every other test is migrated.
 
 ### **Q:** How does Kirby call `main`?
 
@@ -1022,15 +1042,16 @@ pass should run on the expanded program, right after expansion.
 
 **Status:** Open
 
-62 test files contain only declarations. Those that succeed today do nothing when
-run, and under this proposal they need a `main`.
+174 test files contain only declarations. Most are compile-error tests. The 12
+that succeed today do nothing when run, and under this proposal they need a
+`main`.
 
 - **(a) An empty `fun main(): unit {}`** (proposed for now). It adds nothing to
   the CLI, but it adds noise to every such test.
 - **(b) A check-only mode** that compiles and type checks without running and
   without needing `main`. `krb compile FILE` is that mode today: it type checks
-  and compiles the file and the stdlib, runs nothing, and prints `Compiled!`
-  (checked at `a097505`). A test uses it through its own `.argv` file
+  and compiles the file and the stdlib, runs nothing, and prints `Compiled!`.
+  A test uses it through its own `.argv` file
   (`compile`, then `$file`), so the harness needs no per-test option either.
   This is useful for tools too. Nothing new is needed in the CLI or the harness;
   what is left to decide is whether tests like these use it.
@@ -1041,12 +1062,15 @@ run, and under this proposal they need a `main`.
 
 **Status:** Open
 
-65 code blocks in ten other proposals use top-level statements: the [Tuple
-Structs Proposal] (12), the [Tuples Proposal] (12), the [Enums Proposal] (11),
-the [Pattern Matching Proposal] (10), the [Destructuring Proposal] (6), the
-[Generic Types Proposal] (4), the [Primitive Impls Proposal] (4), the [String
-Interpolation Proposal] (4), the [Unimplemented Proposal] (1) and the [Debugger
-Proposal] (1).
+79 `kirby` code blocks in thirteen other proposals use top-level statements:
+the [Tuple Structs Proposal] (12), the [Tuples Proposal] (12), the
+[Enums Proposal] (12), the [Pattern Matching Proposal] (12), the
+[Destructuring Proposal] (6), the [String Interpolation Proposal] (6), the
+[Lua Transpiler Proposal] (6), the [Generic Types Proposal] (4), the
+[Primitive Impls Proposal] (4), the [Embedded Library Proposal] (2), the
+[Unimplemented Proposal] (1), the [Debugger Proposal] (1) and the
+[Tooling Data Proposal] (1). A block counts when a line outside any braces is
+not a declaration, a comment or a closing brace ([Appendix A], A.11).
 
 Proposed: leave them. A sample that shows today's behavior is a checked fact
 about `from_commit` and stays true. A sample that shows proposed behavior is
@@ -1058,12 +1082,11 @@ accepted. Only the design points that this proposal changes are edited now (see
 
 Build with `just build`. The commands below use the `build/krb` it produces.
 `just test` uses `build/kirby-test`, which is the same program built with
-`DEBUG_PRINT_CODE` and `DEBUG_STRESS_GC`. The results in this proposal come from
-building the sources listed in `CMakeLists.txt` directly with `gcc`, at
-`from_commit`, on Ubuntu 24.
+`DEBUG_PRINT_CODE` and `DEBUG_STRESS_GC`. The results in this proposal come
+from a build at `from_commit`, on Ubuntu 24.
 
 **A.1 No compile-time evaluation exists.** This prints only a comment about
-`break` (`src/compiler.c:501`):
+`break` (`src/compiler.c:602`):
 
 ```shell
 grep -rniE "comptime|constant.?fold|fold(Constant|Const)|isConst|constExpr|compile.?time" src/*.c src/*.h
@@ -1072,71 +1095,73 @@ grep -rniE "comptime|constant.?fold|fold(Constant|Const)|isConst|constExpr|compi
 **A.2 What is refused at the top level today.**
 
 ```
-$ printf 'print 1;\nreturn;\nprint 2;\n' > a.krb && krb -f a.krb
+$ printf '@println(1);\nreturn;\n@println(2);\n' > a.krb && krb run a.krb
 [line 2] Error: Can't return from top-level code.          (exit 65)
 
-$ printf '{ struct S { var a: f64; } }\n' > b.krb && krb -f b.krb
+$ printf '{ struct S { var a: f64; } }\n' > b.krb && krb run b.krb
 [line 1] Error at 'struct': 'struct', 'impl', 'trait', and 'type' are declarations and can only appear at the top level.   (exit 65)
 ```
 
 The file from the Problem Statement (`var start = @clock();`,
-`print "counter loaded";`, and a `fun`) prints `counter loaded` and exits 0.
+`@println("counter loaded");`, and a `fun`) prints `counter loaded` and exits 0.
 
 **A.3 `main` is an ordinary name today.**
 
 ```
-$ printf 'fun main() { print "in main"; }\nprint "top";\n' > c.krb && krb -f c.krb
+$ printf 'fun main() { @println("in main"); }\n@println("top");\n' > c.krb && krb run c.krb
 [line 1] Error at 'main': 'main' needs a return type.       (exit 65)
 ```
 
-With `fun main(): unit { print "in main"; }` the file compiles, and `main` runs
-only if the file calls it.
+With `fun main(): unit { @println("in main"); }` the file compiles, prints
+`top`, and `main` runs only if the file calls it.
 
 **A.4 An operator can fail while a file loads.**
 
 ```
-$ printf 'let a = 1 / 0;\nprint a;\n' > d.krb && krb -f d.krb
+$ printf 'let a = 1 / 0;\n@println(a);\n' > d.krb && krb run d.krb
 function / expects argument 1 to be a non-zero number but got 0.
 [line 1] in script                                          (exit 70)
 ```
 
 **A.5 The stdlib is loaded by running it, and snippets share the path.**
-`stdlib/stdlib.krb` is empty. In `src/main.c`, `runFile("stdlib/stdlib.krb")`
-appears in the `-r` (line 60), `-f` (line 70) and `-c` (line 117) cases, and
-`compileSource` is called by `repl` (159), `runFile` (219) and `runCode` (233).
-`-p` calls `parse` directly. `compile` in `src/compiler.c` emits the top-level
-functions, then the structs, then the trait impls ahead of everything else,
-which is why a function can be used above its declaration.
+`stdlib/stdlib.krb` holds only declarations. In `src/main.c`, `sessionBegin`
+runs it with `runCode(KIRBY_STDLIB, ...)`, and `sessionBegin` is called by
+`krb run` and `krb example` (through `runProgram`), `krb repl` and `krb exec`.
+`krb compile` and `krb build` compile it with the file instead of running it.
+`compileSource` is called by `repl`, `runFile`, `runCode`, `compileCode` and
+`cmdBuild`. `krb parse` calls `parse` directly. `compile` in `src/compiler.c`
+emits the top-level functions, then the structs, then the trait impls ahead of
+everything else, which is why a function can be used above its declaration.
 
 **A.6 A variable with no value.** `let` already needs an initializer. A read of
 an unassigned `var` is refused at the top level but not inside a function:
 
 ```
-$ printf "let name: string;\nprint 1;\n" > e.krb && krb -f e.krb
+$ printf "let name: string;\n@println(1);\n" > e.krb && krb run e.krb
 [line 1] Error at 'string': 'let' binding requires an initializer.   (exit 65)
 
-$ printf 'var x: f64;\nprint x;\n' > f.krb && krb -f f.krb
+$ printf 'var x: f64;\n@println(x);\n' > f.krb && krb run f.krb
 [line 2] Error at 'x': 'x' might not be assigned yet.       (exit 65)
 
 $ cat g.krb
-var counter: f64;
+var counter: i64;
 fun bump(): unit { counter = counter + 1; }
-fun get(): f64 = counter;
-$ krb -f g.krb                                              (exit 0)
+fun get(): i64 = counter;
+$ krb run g.krb                                             (exit 0)
 ```
 
 **A.7 A struct literal does not run user code.** With
-`impl Default for P { fun default(): P = { print "default() ran"; P { x: 0 } }; }`
-and `let p = P { x: 1 };`, printing `p.x` prints `1.000000` and never
+`impl Default for P { fun default(): P = { @println("default() ran"); P { x: 0 } }; }`
+and `let p = P { x: 1 };`, printing `p.x` prints `1` and never
 `default() ran`.
 
-**A.8 How much existing code is affected.** `krb -p FILE` prints one
+**A.8 How much existing code is affected.** `krb parse FILE` prints one
 S-expression per top-level node. This script reads them:
 
 ```python
 #!/usr/bin/env python3
 # Usage: python3 survey.py $(find tests -name '*.krb' | sort)
-# Reads `build/krb -p FILE`, which prints one S-expression per top-level node.
+# Reads `build/krb parse FILE`, which prints one S-expression per top-level node.
 import collections, re, subprocess, sys
 
 DECLS = {'fun', 'struct', 'impl', 'trait', 'type', 'var', 'let'}
@@ -1180,7 +1205,7 @@ def comptime(n, tier, funs, lets):
 files = statement_files = 0
 result = collections.Counter()
 for path in sys.argv[1:]:
-    out = subprocess.run(['build/krb', '-p', path], capture_output=True, text=True).stdout
+    out = subprocess.run(['build/krb', 'parse', path], capture_output=True, text=True).stdout
     files += 1
     heads = re.findall(r'^\(([^ )]+)', out, re.M)
     statement_files += any(h not in DECLS for h in heads)
@@ -1219,20 +1244,22 @@ Run it from the repo root as `python3 survey.py $(find tests -name '*.krb' | sor
 It prints:
 
 ```
-587 of 703 files have a top-level statement
-410 top-level var/let declarations
-tier A (literals and operators): 171 comptime, 228 not, 11 no initializer
-tier B (A, plus arrays, structs, lambdas, references): 319 comptime, 80 not, 11 no initializer
+933 of 1110 files have a top-level statement
+773 top-level var/let declarations
+tier A (literals and operators): 405 comptime, 357 not, 11 no initializer
+tier B (A, plus arrays, structs, lambdas, references): 606 comptime, 156 not, 11 no initializer
 ```
 
-Run on `examples/*.krb` its first line says 9 of 9. The expected exit codes of
-the tests come from the `.exit` files: 280 are 65 (compile error), 272 are 0,
-150 are 70 (runtime error) and 1 is 7. The 423 tests that get past compiling
-are the 272 + 150 + 1. A `var` that names a later `let`
-compiles today and fails at load:
+Run on `examples/*.krb` its first line says 13 of 13. Of the 1110 files, 174
+have only declarations, and 12 of those are tests expected to succeed. The
+expected exit codes come from the `.exit` files next to each `.krb`: 499 are
+65 (compile error), 426 are 0, 180 are 70 (runtime error), one is 7 and one is
+71, and three files have no snapshot. The 608 tests that get past compiling
+are the 426 + 180 + 1 + 1. A `var` that names a later `let` compiles today and
+fails at load:
 
 ```
-$ printf 'var later = tail;\nlet tail = 1;\nprint later;\n' > h.krb && krb -f h.krb
+$ printf 'var later = tail;\nlet tail = 1;\n@println(later);\n' > h.krb && krb run h.krb
 Undefined variable 'tail'.
 [line 1] in script                                          (exit 70)
 ```
@@ -1245,17 +1272,42 @@ prints the five lines shown in the Testing Plan. The block under "Top-level
 `let` and `var` take comptime values" (up to `var count = 0;`) also runs on its
 own today, on a plain build and a debug build, and prints nothing.
 
-**A.10 The Part 1 crash.** Save the file from Part 1 as `full.krb`.
+**A.10 The Part 1 bug.** Save the file from Part 1 as `full.krb`.
 
-- A plain build: `krb -f full.krb` prints "Operands must be numbers." and
-  `[line 0] in script`, and exits with 70.
-- A debug build (`kirby-test`): a segmentation fault, after the bytecode listing
-  stops at the last declaration without `OP_NIL` and `OP_RETURN`.
-- With `-fsanitize=address`: `heap-buffer-overflow`, a read of size 1 at
-  `run src/vm.c:461`, in a 64-byte block allocated by `writeChunk`
-  (`src/chunk.c:21`) from `writeByteCodeOpToChunk` (`src/loader.c:101`).
-- Removing any one of the five declarations makes it pass. So does adding
-  `print name;` at the end.
+- A plain build: `krb run full.krb` prints `Expected 0 arguments but got 1.`
+  and `[line 332044] in script`, and exits with 70.
+- A debug build (`build/kirby-test`): `Operands must be two numbers or two
+strings.` and a nonsense line number, exit 70. The bytecode listing of
+  `<script>` ends with `OP_DEFINE_GLOBAL 11 'g'`, with no `OP_NIL` or
+  `OP_RETURN` after it.
+- An AddressSanitizer build (`just test-with-memcheck` builds one):
+  `heap-buffer-overflow` in `run`.
+- Adding any statement at the end, such as `@println(g);`, makes it pass. So
+  does removing `let a = 1;`, which moves `g` to another constant number.
+
+**A.11 Samples in other proposals.** This script counts the `kirby` blocks in
+each proposal that have a top-level statement:
+
+````python
+#!/usr/bin/env python3
+# Usage: python3 samples.py proposals/*/PROPOSAL.md
+import re, sys
+
+DECL = re.compile(r'^(fun |struct |impl |trait |type |let |var |pub |enum |}|//|#|$)')
+
+for path in sys.argv[1:]:
+    blocks = 0
+    for m in re.finditer(r'```kirby\n(.*?)```', open(path).read(), re.S):
+        depth, statement = 0, False
+        for line in m.group(1).splitlines():
+            s = line.strip()
+            if depth == 0 and s and not DECL.match(s) and not s.startswith('...'):
+                statement = True
+            depth = max(0, depth + line.count('{') - line.count('}'))
+        blocks += statement
+    if blocks:
+        print(path, blocks)
+````
 
 ## Glossary
 
@@ -1264,7 +1316,7 @@ These are both technical and non-technical terms used throughout the proposal.
 - **Changes**: Changes refer to the proposed changes in this document
 - **Declaration**: A top-level item that introduces a name or adds to one: `fun`,
   `struct`, `impl`, `trait`, `type`, `let` and `var`.
-- **Statement**: Anything else that can appear in a function body: `print`,
+- **Statement**: Anything else that can appear in a function body:
   `if`, `while`, `for`, a `{ }` block, a call or assignment used as a statement,
   `break`, `continue` and `return`.
 - **Load**: Compile a file and run its top level once, so that the names it
@@ -1317,6 +1369,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
 [Unimplemented Proposal]: ../unimplemented/PROPOSAL.md
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
+[Lua Transpiler Proposal]: ../lua-transpiler/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

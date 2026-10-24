@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Closed
 created: 2026-09-18
 from_commit: b56a2a9
 ---
@@ -11,8 +11,12 @@ This proposal adds `u8`, `u16`, `i32`, and `i64` alongside Kirby's existing
 the other direction, and a literal suffix (`10u8`) to pin a literal's kind
 at the token itself.
 
-This is a **living document**: it captures what's already decided and lays
-out, as [Questions], the parts that aren't. Following the project's
+It was implemented across kirbylang [PR #138] to [PR #166]. [Outcome] says
+what was built, and each of the [Questions] below is answered. The rest of the
+document is the design as written at `from_commit` and is kept as a record.
+
+This was a **living document**: it captured what was already decided and laid
+out, as [Questions], the parts that weren't. Following the project's
 convention, when this document says Kirby "does" or "has" something, that
 is a checked fact about `main` (commit `b56a2a9`). When it says Kirby
 "should" or "will" do something, that is what this proposal asks for.
@@ -44,7 +48,7 @@ defined in the [Glossary] below.
   is true after the changes presented here.
 - Command lines in transcripts are the ones that worked at `from_commit`, when
   `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
-  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
+FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
 
 ### Code & Changes
 
@@ -269,13 +273,45 @@ assumed away:
   signatures are one more thing [Q-scope-native-and-traits] has to decide
   whether to revisit.
 
+## Outcome
+
+**Status:** Accepted
+
+Implemented across kirbylang [PR #138] to [PR #166]. Checked at `2f96a2e`:
+
+- **Kinds:** `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and
+  `f64`, wider than the set this proposal asked for.
+- **Run time:** every number value carries its kind and a 64-bit payload, so
+  the VM knows a `u8` from an `f64` (`NUMBER_I64_VAL` and friends in
+  `src/value.h`).
+- **Literals:** a whole number such as `42` is an `i64`, and a number with a
+  decimal point such as `1.5` is an `f64`. A whole number literal takes the
+  expected type where it fits, including through brackets, `if`/`else`
+  branches, a block's last value and arithmetic made only of literals, so
+  `let x: f64 = 7 / 2;` is `3.5`. It also takes the type of the other side of
+  an operator, the other `if`/`else` branch, or the other elements of an array.
+- **Suffixes:** `42u8`, `1.5f32`, `2.5F64`. A float suffix works on a decimal
+  literal, and an integer suffix on one is an error.
+- **Conversions:** `value as u8`. There is no implicit widening, so a `u8` is
+  not accepted where a `u16` is expected. A conversion that doesn't fit is a
+  runtime error.
+- **Operators:** both sides must be the same kind. Dividing two integers drops
+  the remainder, rounding toward zero. Integer math that doesn't fit its kind
+  is a runtime error ([PR #166]): `255u8 + 1u8` stops with
+  `Integer overflow: 255 + 1 doesn't fit in u8, which holds 0 to 255.`
+- **Natives:** signatures are written as Kirby type text ([PR #165]) and can
+  name any kind, plus `number` (any kind) and `integer` (any integer kind).
+  `@numberToString` takes any kind, positions such as `@strSlice`'s take an
+  `integer`, and math natives such as `@sqrt` still take only `f64`. `Ord`'s
+  `cmp` returns an `i64`.
+
 ## Questions
 
 ### **Q:** What happens when an explicit narrowing conversion doesn't fit?
 
 [Q-narrowing]: #q-what-happens-when-an-explicit-narrowing-conversion-doesnt-fit
 
-**Status:** Open
+**Status:** Answered
 
 Kirby has no conversion syntax between any two primitive types today (see
 [Problem Statement]), so this question is really two: what spells "convert
@@ -307,11 +343,18 @@ check against 0–255, which is trivial if kinds are real at runtime and
 requires re-deriving the source value's kind some other way if they
 aren't.
 
+#### Answer
+
+Syntax (a), the `as` keyword: `value as u8` ([PR #138]). Failure (b), a
+runtime error. Converting an `f64` holding `300` with `as u8` stops with
+`can't convert f64 300 to u8, expected an integer from 0 to 255.`, and a float
+must also be a whole number.
+
 ### **Q:** Does the runtime represent numeric kinds, or is sizing purely a compile-time fiction?
 
 [Q-runtime-repr]: #q-does-the-runtime-represent-numeric-kinds-or-is-sizing-purely-a-compile-time-fiction
 
-**Status:** Open
+**Status:** Answered
 
 Every `Value` is `VAL_NUMBER` wrapping a `double`, with no room today for a
 width or signedness tag (see [Problem Statement]). [Issue #63]'s own note
@@ -340,11 +383,17 @@ downstream of: it decides how big the implementation is, and it decides
 which of [Q-narrowing]'s failure-mode options are even implementable
 faithfully. No recommendation is made here on purpose.
 
+#### Answer
+
+(b), a real runtime representation. A number value holds its kind next to a
+64-bit payload, so `@typeof(5u8)` is `"u8"` and a narrowing checks the actual
+value.
+
 ### **Q:** Which widths and signs ship first?
 
 [Q-widths-in-scope]: #q-which-widths-and-signs-ship-first
 
-**Status:** Open
+**Status:** Answered
 
 The user request behind this document names `u8`, `u16`, `i32`, `i64`.
 [Issue #63]'s own examples are `u8`, `u16`, `i64` (no `i32`). Neither list
@@ -367,11 +416,16 @@ user request is explicit about this set, and every other kind is strictly
 additive later provided [Q-runtime-repr] doesn't get answered in a way
 that special-cases today's four.
 
+#### Answer
+
+(b), the full conventional set, plus `f32`: `i8`, `i16`, `i32`, `i64`, `u8`,
+`u16`, `u32`, `u64`, `f32` and `f64`.
+
 ### **Q:** What is the complete implicit widening graph?
 
 [Q-widening-graph]: #q-what-is-the-complete-implicit-widening-graph
 
-**Status:** Open
+**Status:** Answered
 
 The user request names one edge explicitly (`u8` → `u16` widens
 implicitly) and one direction generally (narrowing is always explicit).
@@ -401,11 +455,17 @@ call in whichever direction this proposal picks.
 implementation actually needs before it can accept or reject a single
 mixed-kind expression.
 
+#### Answer
+
+Neither option. There is no implicit widening at all: every conversion between
+kinds is written with `as`, even a lossless one such as `u8` to `u16`. Only a
+literal changes kind by itself (see [Q-unsuffixed-literal-inference]).
+
 ### **Q:** What is the exact grammar of a literal suffix?
 
 [Q-literal-suffix-grammar]: #q-what-is-the-exact-grammar-of-a-literal-suffix
 
-**Status:** Open
+**Status:** Answered
 
 `scanner.c`'s `number()` currently stops scanning the moment it sees a
 non-digit, non-`.` character, so a suffix has to be scanned as part of the
@@ -433,11 +493,19 @@ becomes a confusing "Expect ';' after value" error like the one in
 in the scanner to defer to; either answer is implementable, and the choice
 mostly affects how good the error message is for a typo'd suffix.
 
+#### Answer
+
+A mix of the two. Every kind has a suffix, and its first letter may be a
+capital (`255U8`). A float suffix works on a decimal literal (`1.5f32`), and an
+integer suffix on one is an error (`invalid u8 literal`). Letters that aren't a
+suffix keep the old behavior: `10x` is read as `10` and then `x`, which is a
+parse error.
+
 ### **Q:** How does an unsuffixed numeric literal get a concrete kind?
 
 [Q-unsuffixed-literal-inference]: #q-how-does-an-unsuffixed-numeric-literal-get-a-concrete-kind
 
-**Status:** Open
+**Status:** Answered
 
 `typchkInferLiteral` always returns `typeF64()` for `LITERAL_NUMBER` today,
 which is why `let age: f64 = 100;` works — the literal's inferred type
@@ -472,11 +540,22 @@ annotated contexts. No recommendation made here since it trades
 implementation cost against ergonomics in a way this document can't settle
 unilaterally.
 
+#### Answer
+
+(a), and for (c) the default is `i64`, not `f64` ([PR #162]). A whole number
+literal takes the expected kind where its value fits exactly, and is an `i64`
+otherwise. A literal with a decimal point is an `f64`. [PR #163] extended the
+expected type through brackets, `if`/`else` branches, a block's last value and
+arithmetic made only of literals, so `let x: f64 = 7 / 2;` is `3.5` while
+`let x = 7 / 2;` is `3`. A whole number literal also takes the type of the
+other operand, the other branch or the other array elements, so `[1, 2.5]` is
+an array of `f64`.
+
 ### **Q:** What does a mixed-kind arithmetic or comparison expression mean?
 
 [Q-operator-result-kind]: #q-what-does-a-mixed-kind-arithmetic-or-comparison-expression-mean
 
-**Status:** Open
+**Status:** Answered
 
 Today, `typchkInferBinary`'s arithmetic and comparison cases each check
 "both sides `f64`" as one condition and return one fixed result type. Once
@@ -502,11 +581,18 @@ hardcoded to `f64` specifically) but pushes more explicit conversions into
 ordinary arithmetic than a user coming from most other typed languages
 would expect.
 
+#### Answer
+
+(b). Both operands must be the same kind, and a mismatch is a type error, such
+as `'+' needs two numbers of the same type or two strings, got i64 and f64.`
+A plain whole
+number literal on one side takes the other side's kind, so `byte + 1` works.
+
 ### **Q:** Do native function signatures and builtin trait impls extend to the new kinds in this proposal, or later?
 
 [Q-scope-native-and-traits]: #q-do-native-function-signatures-and-builtin-trait-impls-extend-to-the-new-kinds-in-this-proposal-or-later
 
-**Status:** Open
+**Status:** Answered
 
 `native_signatures.h`'s `NativePrimitive` enum, every native function
 typed against `NATIVE_F64` (`ceil` today; `floor`/`round`/`sqrt`/etc. per
@@ -536,12 +622,22 @@ independently. Recommendation: (b), on the same reasoning
 question — shipping the smaller piece first doesn't foreclose the larger
 one.
 
+#### Answer
+
+Partly in scope. Native signatures can name every kind, and also `number` (any
+kind) and `integer` (any integer kind) ([PR #160], [PR #165]).
+`@numberToString` takes any kind, positions such as `@arrInsert`'s index take an
+`integer`, and natives that only produce whole numbers return `i64` (`@strLen`,
+`@arrLen`, `@argc`, `@now`, `@parseInt`). The math natives such as `@sqrt` and
+`@floor` still take only `f64`, as (b) expected. Of the builtin traits, `Ord`'s `cmp` returns an `i64`.
+Trait impls for primitives are still the [Primitive Impls Proposal]'s work.
+
 ## Glossary
 
 - **Changes**: Changes refer to the proposed changes in this document.
-- **Numeric kind**: one of Kirby's numeric primitive types — `f64` today,
-  plus `u8`, `u16`, `i32`, and `i64` per this proposal (see
-  [Q-widths-in-scope] for whether more join later). Deliberately narrower
+- **Numeric kind**: one of Kirby's numeric primitive types: `i8`, `i16`,
+  `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64` (see
+  [Q-widths-in-scope]). Deliberately narrower
   than [Primitive Impls Proposal]'s "primitive kind," which also covers
   `bool` and `string`.
 - **Widening**: an implicit conversion from a numeric kind to another kind
@@ -565,6 +661,7 @@ one.
 [Questions]: #questions
 [Problem Statement]: #problem-statement
 [Related Proposals]: #related-proposals
+[Outcome]: #outcome
 
 <!-- Related proposals -->
 
@@ -578,6 +675,12 @@ one.
 
 [Issue #63]: https://github.com/kirbylang/kirbylang/issues/63
 [Issue #17]: https://github.com/kirbylang/kirbylang/issues/17
+[PR #138]: https://github.com/kirbylang/kirbylang/pull/138
+[PR #160]: https://github.com/kirbylang/kirbylang/pull/160
+[PR #162]: https://github.com/kirbylang/kirbylang/pull/162
+[PR #163]: https://github.com/kirbylang/kirbylang/pull/163
+[PR #165]: https://github.com/kirbylang/kirbylang/pull/165
+[PR #166]: https://github.com/kirbylang/kirbylang/pull/166
 
 <!-- Questions -->
 

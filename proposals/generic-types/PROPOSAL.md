@@ -1,7 +1,7 @@
 ---
 status: Draft
 created: 2026-09-18
-from_commit: bc3ae67
+from_commit: 2f96a2e
 ---
 
 # Proposal: Generic Types, Macros, Tooling Needs
@@ -88,29 +88,46 @@ clean build of `main`.
 ### 1.1 The kinds of types
 
 Kirby represents every type as a `Type` struct (`src/types.h`). A `Type` has a
-`kind` field that is one of nine values:
+`kind` field that is one of ten values:
 
 ```c
 typedef enum {
   TYPE_UNIT,
   TYPE_BOOL,
   TYPE_STRING,
-  TYPE_F64,
+  TYPE_NUMBER,
   TYPE_STRUCT,
   TYPE_FN,
   TYPE_ARRAY,
   TYPE_TRAIT,
-  TYPE_SELF, // `Self`
+  TYPE_SELF,          // `Self`
+  TYPE_GENERIC_PARAM, // A placeholder such as the `T` in `fun ([T]) => T`
 } TypeKind;
 ```
 
-There is one numeric type, `f64`. There is no integer type. `TYPE_SELF` is a
+Numbers are one kind, `TYPE_NUMBER`, with ten number kinds (`i8` to `i64`,
+`u8` to `u64`, `f32`, `f64`) held in `as.number.kind`. `TYPE_SELF` is a
 placeholder used inside a trait or `impl` block that gets replaced with the
-concrete type once it is known.
+concrete type once it is known. Arrays are written `[T]`: `[i64]` is an array
+of `i64`.
 
-There is **no** kind for a generic type parameter. This is the single most
-important fact about the current state: at the type level, Kirby has no way to
-represent "some type `T` to be chosen later."
+`TYPE_GENERIC_PARAM` exists, but only native function signatures can use it.
+Signatures are Kirby type text (`src/native_signatures.c`), such as `@arrPop`'s
+`fun ([T]) => T`, and inside them the names `T`, `U`, `V` and `W` are generic
+parameters. A parameter is numbered (0 is `T`, 1 is `U`, and so on) rather than
+named, and has no bound:
+
+```c
+struct {
+  // 0 is T, 1 is U, 2 is V, and so on
+  int index;
+} genericParam;
+```
+
+User code cannot declare one. `T` in user code is `Unknown type.` This is the
+most important fact about the current state: Kirby has a way to represent
+"some type `T` to be chosen later," but only for natives, and nothing a
+program writes can introduce one.
 
 ### 1.2 How types are compared
 
@@ -123,7 +140,16 @@ on the kind:
 - **Functions and arrays are structural.** Two function types are equal if
   their parameter types and return type are equal, regardless of where they
   were declared. Two array types are equal if their element types are equal.
-- Primitives and `Self` are equal to their own kind.
+- Numbers are equal when they are the same number kind. `unit`, `bool`,
+  `string` and `Self` are equal to their own kind.
+- **Generic parameters are equal when their numbers are equal.** Two `T`s are
+  the same type, wherever they came from. Part 3.1 changes this.
+
+A second function, `typeAccepts` (also `src/types.c`), decides whether a value
+can be given where a type is expected. It is `typesEqual` with three
+additions: an unknown type accepts and is accepted by anything, the native-only
+names `number` and `integer` accept any number or any integer kind, and arrays
+and function types are compared part by part with the same rules.
 
 ### 1.3 Traits work; bounds do not
 
@@ -138,7 +164,7 @@ impl Greet for Dog {
     fun hello(self): string = "woof";
 }
 let d = Dog { name: "Rex" };
-print d.hello();
+@println(d.hello());
 ```
 
 Facts about the trait system, each checked:
@@ -152,10 +178,10 @@ Type` block, the parser sets every method's visibility to public regardless
   of whether `pub` is written (`src/parser.c`, `isPublic = true` when
   `hasTraitName`). A method in a plain `impl Type` block without `pub` is
   private, as usual. Checked: a non-`pub` trait-impl method is callable from
-  outside; a non-`pub` plain-impl method reports "is private to".
+  outside; a non-`pub` plain-impl method reports `Method 'secret' is private to 'D'.`
 - **There are four built-in traits**, always in scope: `Display`, `Eq`, `Ord`,
   and `Default` (`typchkTypeEnvDefineBuiltinTraits`, `src/typecheck.c`).
-  `Ord` has `Eq` as a supertrait.
+  `Ord` has `Eq` as a supertrait, and its `cmp` returns an `i64`.
 - **Supertraits are enforced regardless of declaration order.** Implementing
   `Ord` for a type that does not also implement `Eq` is an error. On `main`:
 
@@ -191,8 +217,8 @@ struct P { pub var x: f64; }
 impl Eq for P { fun equals(self, other: Self): bool = self.x == other.x; }
 let a = P { x: 1 };
 let b = P { x: 1 };
-print a == b;        // prints false -- OP_EQUAL, not equals()
-print a.equals(b);   // prints true  -- the method really was called
+@println(a == b);        // prints false -- OP_EQUAL, not equals()
+@println(a.equals(b));   // prints true  -- the method really was called
 ```
 
 So on `main` the built-in traits act as **compile-time gates** — the checker
@@ -220,11 +246,17 @@ The **type checker rejects** almost all of it:
   ```
   (`src/typecheck.c`, in the struct-registration pass, guarded by
   `sn->genericParamCount > 0`.)
-- A generic type annotation is rejected. `let xs: Array[f64] = ...` gives:
+- A generic type annotation is rejected. `let b: Box[f64] = ...` gives:
   ```
   Generic types aren't supported yet.
   ```
   (the `genericArgCount > 0` branch of `typchkResolveType`, `src/typecheck.c`.)
+  Arrays need no generic arguments. They are written `[f64]`, and
+  `let xs: [f64] = [1, 2.5];` is checked item by item. Square brackets after a
+  name (`Box[f64]`) are generic arguments, and square brackets with nothing in
+  front are an array type. The plan is that `[T]` is a growable array now and
+  becomes a list later, `[T; n]` is a fixed size array, and a tuple type is
+  `(A, B)` (see the [Tuples Proposal]).
 - A generic function does not work either. `fun id[T](x: T): T = x;` fails
   because `T` is not a known type — `typchkResolveType` reaches its final case
   and reports:
@@ -247,16 +279,40 @@ The **type checker rejects** almost all of it:
   and impls, so the same struct does not produce a cascade of follow-on errors.
   It does not represent a working generic type.
 
+### 1.6 Generic natives
+
+The one place generics work is calls to native functions. When a native's
+signature has generic parameters, `typchkCheckGenericCall` (`src/typecheck.c`)
+checks the call. It goes through the arguments once, left to right. A
+parameter whose generic parameters are already filled is checked like any
+other parameter, so `@arrPush(numbers, 2.5)` with `numbers: [i64]` reports
+`Expected i64, got f64.` Otherwise the argument's type fills them, as `[i64]`
+fills `T` in `[T]`. A lambda argument is checked against the partly filled
+type, so its parameters get their types from earlier arguments. A generic
+parameter that is never filled is unknown, not an error, so `@arrPop([])`
+gives an unknown type. A generic native used as a value (`let pop = @arrPop;`)
+is also unknown.
+
+The helpers are in `src/types.c`: `typeBindGenericParams` fills the slots,
+`typeSubstituteGenericParams` puts them in, `typeEraseGenericParams` turns any
+left over into unknown, and `typeGenericParamCount` says whether a type still
+has any.
+
+Native signatures can also name `number` and `integer`, which accept a number
+of any kind or an integer of any kind. They stand in for bounds, but the type
+they give back is fixed: `@abs` is `fun (f64) => f64`, because
+`fun (number) => number` would lose the argument's kind.
+
 **Summary of the baseline:** Kirby has primitives, structs (nominal), functions
 and arrays (structural), a real and enforced trait system with four built-in
-traits, and _no working generics of any kind_. Generic syntax parses but is
-turned away at the type-checking stage.
+traits, and generics only inside native signatures. Generic syntax in user
+code parses but is turned away at the type-checking stage.
 
-### 1.6 How method calls are dispatched today
+### 1.7 How method calls are dispatched today
 
 When Kirby runs `value.method(args)`, the VM looks the method up **by name at
 run time** in the receiver's method table. The relevant code is `invoke` and
-`invokeFromStruct` in `src/vm.c` (around lines 217–309). `invokeFromStruct`
+`invokeFromStruct` in `src/vm.c` (around lines 219–300). `invokeFromStruct`
 does a `tableGet` on the struct's `methods` hash table, keyed by the method
 name, every time the call runs.
 
@@ -265,7 +321,7 @@ method or not. Nothing about the checker's static type decisions is used at
 run time to speed this up; there is no per-call-site cache and no vtable. This
 is a checked fact and it shapes the proposal's performance discussion.
 
-### 1.7 The compiler pipeline and passes
+### 1.8 The compiler pipeline and passes
 
 The type checker runs as an ordered series of whole-program passes over the
 full array of top-level nodes (`typchkCheckProgram`, `src/typecheck.c`).
@@ -287,10 +343,10 @@ The order, checked from the source, is:
     (macro expansion) or threading extra information between passes fits this
     shape.
 
-### 1.8 The compiled-unit format and the runtime
+### 1.9 The compiled-unit format and the runtime
 
-Compiled programs can be serialized to a `CompiledUnit` (`src/compiled_unit.h`).
-Checked contents: it stores compiled functions, their bytecode chunks,
+Compiled programs are a `CompiledUnit` (`src/compiled_unit.h`), which
+`krb build` writes out as bytes (`src/unit_bytes.c`). Checked contents: it stores compiled functions, their bytecode chunks,
 constants (numbers, booleans, nil, strings, function indices), upvalue
 records, and a string table. It stores **no type information at all** — no
 struct shapes, no trait signatures, nothing a separate compiler or tool could
@@ -363,20 +419,20 @@ impl Box[T] {
 }
 
 let box_a = Box.new(5);
-print box_a.get(); // 5
+@println(box_a.get()); // 5
 
 let box_b = box_a.map(double);
-print box_b.get(); // 10
+@println(box_b.get()); // 10
 
 let box_c = box_b.map(square);
-print box_c.get(); // 100
+@println(box_c.get()); // 100
 
 let box_d = box_c.map(gt(1000));
-print box_d.get(); // false
+@println(box_d.get()); // false
 
-fun square(value: f64): f64 = value * value;
-fun double(value: f64): f64 = value * 2;
-fun gt(threshold: f64): fun (f64) => bool = fun (value) { value > threshold };
+fun square(value: i64): i64 = value * value;
+fun double(value: i64): i64 = value * 2;
+fun gt(threshold: i64): fun (i64) => bool = fun (value) { value > threshold };
 ```
 
 #### Point
@@ -400,7 +456,7 @@ impl Point {
 
 impl Display for Point {
     fun toString(self): string {
-        "(" + numberToString(self.x) + "," + numberToString(self.y) + ")"
+        "(" + @numberToString(self.x) + "," + @numberToString(self.y) + ")"
     }
 }
 
@@ -447,81 +503,61 @@ let point_d = point_c - Point.new(5, 5);
 let point_e = point_d / Point.new(5, 5);
 let point_f = point_e * Point.new(3, 3);
 
-print point_a.toString();
-print point_b.toString();
-print point_c.toString();
-print point_d.toString();
-print point_e.toString();
-print point_f.toString();
+@println(point_a.toString());
+@println(point_b.toString());
+@println(point_c.toString());
+@println(point_d.toString());
+@println(point_e.toString());
+@println(point_f.toString());
 
-print (point_a * point_b - point_c / point_d + point_e).toString();
+@println((point_a * point_b - point_c / point_d + point_e).toString());
 ```
 
 ---
 
 ## Part 3 — Generic type parameters
 
-Before bounds (Part 4) or monomorphization (Part 5) can exist, the type system
-needs to represent "a type to be chosen later." Today it cannot (Part 1.1).
+Before bounds (Part 4) or monomorphization (Part 5) can exist, user code needs
+to be able to declare "a type to be chosen later." Today only native
+signatures can (Part 1.1).
 
-### 3.1 A new type kind
+### 3.1 Named, distinct type parameters
 
-Add a kind for a generic type parameter:
-
-```diff
- typedef enum {
-   TYPE_UNIT,
-   TYPE_BOOL,
-   TYPE_STRING,
-   TYPE_F64,
-   TYPE_STRUCT,
-   TYPE_FN,
-   TYPE_ARRAY,
-   TYPE_TRAIT,
-   TYPE_SELF, // `Self`
-+  TYPE_GENERIC_PARAM,
- } TypeKind;
-```
-
-A `TYPE_GENERIC_PARAM` carries the parameter's name and, once Part 4 is in, the
+`TYPE_GENERIC_PARAM` exists, holding only a number. A parameter a program
+declares also needs its name, for error messages, and, once Part 4 is in, the
 trait it is bound to (or none):
 
 ```diff
-   union {
-     // ... existing struct_, function, array, trait_ ...
-+    struct {
+     struct {
+       // 0 is T, 1 is U, 2 is V, and so on
+       int index;
 +      InternedName name;
 +      // The trait this parameter is bound to, or a null-name sentinel for
 +      // an unbounded parameter. See Part 4.
 +      InternedName boundTrait;
 +      bool hasBound;
-+    } genericParam;
-   } as;
+     } genericParam;
 ```
 
 Each declared parameter becomes **one** `Type` value, and two generic
 parameters are the same type only if they are the very same value. In
-`typesEqual`, this is a pointer comparison:
+`typesEqual`, this is a pointer comparison, in place of today's comparison by
+number:
 
 ```diff
- bool typesEqual(Type *a, Type *b) {
-   if (a == b)
-     return true;
-   if (a == NULL || b == NULL)
-     return false;
-   if (a->kind != b->kind)
-     return false;
-
-   switch (a->kind) {
-     // ... existing cases ...
-+    case TYPE_GENERIC_PARAM:
-+      // Two generic parameters are equal only when they are the same
-+      // declaration. The a == b check above already caught that, so any
-+      // two distinct parameters compare unequal.
-+      return false;
-   }
- }
+   case TYPE_GENERIC_PARAM:
+-    return a->as.genericParam.index == b->as.genericParam.index;
++    // Two generic parameters are equal only when they are the same
++    // declaration. The a == b check at the top already caught that, so
++    // any two distinct parameters compare unequal.
++    return false;
 ```
+
+Native signatures rely on today's rule. `typchkResolveSignatureName` makes a
+new `typeGenericParam(index)` value for every `T` a signature mentions, so the
+two `T`s in `fun ([T], T) => unit` are only equal because their numbers are.
+Before this change, a signature has to make one value per parameter and use it
+everywhere that parameter appears.
 
 The comment matters: the `a == b` fast path at the top already returns `true`
 for the same parameter, so reaching the `TYPE_GENERIC_PARAM` case means the two
@@ -531,8 +567,8 @@ interchangeable.)
 
 ### 3.2 Making a parameter name resolve to its type
 
-Today, resolving the annotation `T` fails with "Unknown type" because nothing
-registers `T` (Part 1.5). The fix is a scope for generic parameters that
+Today, resolving the annotation `T` in user code fails with "Unknown type"
+because nothing registers `T` (Part 1.5). The fix is a scope for generic parameters that
 `typchkResolveType` consults.
 
 When the checker begins resolving a generic declaration (a function, struct,
@@ -591,9 +627,14 @@ The procedure ("unification," kept deliberately simple):
    inferred from arguments is a separate open question — see Part 10.)
 4. Substitute the bindings into the return type and yield that as the call's
    type.
-   For `id(5)`: argument `5` has type `f64`, lines up with parameter `T`, so
-   `T = f64`; the return type `T` becomes `f64`. `let a: string = id(5);` then
-   fails because `f64` is not `string` — matching the intended behavior.
+   For `id(5)`: argument `5` has type `i64`, lines up with parameter `T`, so
+   `T = i64`; the return type `T` becomes `i64`. `let a: string = id(5);` then
+   fails because `i64` is not `string` — matching the intended behavior.
+
+`typchkCheckGenericCall` (Part 1.6) already does steps 1, 2 and 4 for natives,
+and is the place to start. It differs from step 3: a parameter that is never
+bound is unknown, not an error. For user functions that has to become an
+error, or unknown would leak into programs that never asked for it.
 
 ### 3.5 Generic structs
 
@@ -629,16 +670,17 @@ yet"). The steps:
 Replacing type parameters with type arguments happens in several places
 (function return types, struct fields, struct methods, nested generics like
 `Box[Pair[T]]`). Write it **once**, as a recursive function over `Type`, and
-call it from every site. A sketch:
+call it from every site. It exists for natives, in `src/types.c`:
 
 ```c
-// Returns a copy of `type` with every generic parameter that appears in
-// `params` replaced by the matching entry in `args`. Recurses into function
-// parameter/return types, array element types, and the type arguments of
-// nested struct instantiations.
-Type *typeSubstituteGenericParams(Type *type,
-                                  Type **params, Type **args, int count);
+// Replaces each generic parameter inside `type` with its slot in `bindings`.
+// Parameters with an empty slot are kept.
+Type *typeSubstituteGenericParams(Type *type, Type **bindings, int count);
 ```
+
+`bindings` is indexed by parameter number. It recurses into function
+parameter and return types and array element types. It needs to recurse into
+the type arguments of nested struct instantiations too, once those exist.
 
 Writing this once, rather than inlining the same walk at each site, is a
 deliberate correctness measure: the alternative (separate hand-written
@@ -661,7 +703,8 @@ function type is only "still generic" if a generic parameter genuinely remains
 somewhere inside it. Whatever representation Part 5's monomorphization uses,
 the check "is there anything left to infer here?" must be answered by looking
 at the actual contents of the type after substitution, not by a flag that
-substitution forgot to update. This is called out explicitly because it is a
+substitution forgot to update. `typeGenericParamCount` (Part 1.6) already
+works this way: it walks the type and counts what is there. This is called out explicitly because it is a
 real, easy-to-introduce soundness gap.
 
 ---
@@ -689,6 +732,13 @@ open question, Part 10.) The grammar change is local: where the parser reads a
 generic parameter list (`parseGenericParamList`, `src/parser.c`), allow an
 optional `: TraitName` after each parameter name and store it on the AST node
 alongside the parameter name.
+
+Native signatures are a good first user of bounds, since they need no syntax
+for declaring the parameter. The math natives would gain the most: with a
+bounded parameter, `@abs` could be `fun abs[N: number](n: N): N` and keep the
+argument's kind, where today it takes and returns `f64` (Part 1.6). `number`,
+`integer` and `float` are not traits, so this needs either a new kind of bound
+or built-in traits for the number families.
 
 ### 4.2 What a bound means to the checker
 
@@ -743,13 +793,13 @@ trait method. If operators are to work for user types through their trait
 impls, the operator must actually dispatch to the trait method for those types.
 Two coherent options:
 
-- **Keep the fast path for primitives, dispatch for the rest.** For `f64`
+- **Keep the fast path for primitives, dispatch for the rest.** For number
   operands, `+` stays the built-in numeric instruction. For struct operands,
   `+` compiles to a call to the type's `add` method. The operator opcode
   checks operand kind and either does the built-in thing or performs a method
   call. This matches how `OP_EQUAL` already special-cases built-in equality;
   it extends the same shape to route struct operands through the trait method.
-- **Make every operator a trait method uniformly**, including for `f64`, by
+- **Make every operator a trait method uniformly**, including for numbers, by
   giving primitives real trait implementations (which requires lifting the
   current "primitive trait implementations aren't supported yet" restriction;
   the primitive-impls proposal (`/proposals/primitive-impls/PROPOSAL.md`)
@@ -872,7 +922,7 @@ fast machine code.
 
 ### 5.7 Dispatch cost and a possible future cache
 
-Ordinary method calls still dispatch by name at run time (Part 1.6), even after
+Ordinary method calls still dispatch by name at run time (Part 1.7), even after
 monomorphization, because monomorphization removes type _parameters_, not
 dynamic dispatch. For a call like `x.foo()` where the checker already knows
 `x`'s exact type, the run-time lookup repeats work the compiler could have
@@ -904,7 +954,7 @@ carry and the rules that make cross-module generics and impls well-defined.
 ### 6.1 The problem modules introduce
 
 Today the checker always has the whole program's source at once
-(`typchkCheckProgram`, Part 1.7). A module breaks that assumption: code that
+(`typchkCheckProgram`, Part 1.8). A module breaks that assumption: code that
 uses a module may be compiled long after the module, on a different machine,
 with only the module's compiled form on hand. Two capabilities then need
 information the current compiled form does not carry:
@@ -916,7 +966,7 @@ information the current compiled form does not carry:
   `Box[T]` with the consumer's own type, the consumer's compiler needs the
   _body_ of `Box`'s generic code (Part 5.5).
   The current `CompiledUnit` carries neither — it stores only bytecode,
-  constants, and strings, with no type information at all (Part 1.8).
+  constants, and strings, with no type information at all (Part 1.9).
 
 ### 6.2 The module interface
 
@@ -1067,7 +1117,7 @@ Macro expansion is its own pass, and it runs **before** type checking:
 parse  ->  expand macros  ->  type check  ->  monomorphize  ->  compile
 ```
 
-The type checker (Part 1.7) then only ever sees fully expanded code and needs
+The type checker (Part 1.8) then only ever sees fully expanded code and needs
 no awareness of macros. This ordering — expand, then check — is the
 straightforward one and fits Kirby's existing multi-pass checker, which already
 runs as an ordered sequence of whole-program passes.
@@ -1225,14 +1275,18 @@ inferred from the arguments because it appears only in the return type (e.g. a
 (b) allow the call site to supply type arguments explicitly, e.g.
 `parse[f64](s)`; (c) infer from the surrounding expected type where one exists.
 **Why open:** Part 3.4 requires every parameter be bound by argument
-unification, which rules such functions out. Explicit type arguments already
-parse (the AST has `genericArgs` on calls' type nodes), so (b) is within reach,
-but the checker and monomorphizer must then accept and thread explicit
-arguments. Deciding this affects how much of the generic surface is usable.
+unification, which rules such functions out. Explicit type arguments at a call
+do not parse today: `parse[f64](s)` is read as indexing `parse` with a
+variable named `f64`, and the checker reports
+`Can't index into a fun (string) => i64.` So (b) needs the parser to tell type
+arguments from an index, and the checker and monomorphizer must then accept
+and thread explicit arguments. (c) has a start in the checker, which already
+passes expected types down for number literals. Deciding this affects how much
+of the generic surface is usable.
 
 ### 10.3 Operators for primitives: built-in fast path or uniform trait dispatch
 
-**Question:** should arithmetic and comparison operators on `f64` remain
+**Question:** should arithmetic and comparison operators on numbers remain
 built-in instructions, or go through trait methods uniformly like struct
 operands?
 **Options:** (a) keep the built-in fast path for primitives, dispatch only
@@ -1310,12 +1364,12 @@ helper (3.6) and the specializer (Part 5)?
 helper recurses into a tuple's item types and into the type arguments of an
 enum, and an enum declared with type parameters is specialized the way a
 generic struct is; (b) leave them out of the first version, so
-`Array[(f64, f64)]` and `Option[T]` are rejected until a later change.
+`[(f64, f64)]` and `Option[T]` are rejected until a later change.
 **Why open:** the [Tuples Proposal] adds a type compared by its parts (like
 function and array types) whose parts can contain type parameters, and the
 [Enums Proposal] adds a named type (like a struct) that can have type
-parameters itself: `Option[T]` and `Result[T, E]`, which the changelog lists
-several natives as waiting for. Both need the same "write it once, call it
+parameters itself: `Option[T]` and `Result[T, E]`. `@argv`, `@prompt` and
+`@stdin` have no signature until `Option[T]` exists (`docs/TYPES.md`). Both need the same "write it once, call it
 everywhere" treatment that 3.6 gives the existing kinds, or one path will
 miss a case. (a) costs more up front. (b) is smaller, but leaves `Option[T]`
 unavailable, and that is what the natives pending it need.
@@ -1328,12 +1382,12 @@ A checklist of the concrete code touched, by area. This is a map, not a
 substitute for the parts above.
 
 - **`src/types.h` / `src/types.c`**
-  - add `TYPE_GENERIC_PARAM` to `TypeKind` and its `as.genericParam` payload
-    (name, optional bound) — Part 3.1;
-  - handle the new kind in `typesEqual` (distinct parameters compare unequal)
-    — Part 3.1;
-  - add `typeSubstituteGenericParams`, the single substitution helper
-    — Part 3.6;
+  - add a name and an optional bound to `TYPE_GENERIC_PARAM`'s
+    `as.genericParam` payload — Part 3.1;
+  - compare generic parameters by identity in `typesEqual`, after native
+    signatures share one value per parameter — Part 3.1;
+  - extend `typeSubstituteGenericParams`, the single substitution helper, to
+    nested struct instantiations — Part 3.6;
   - extend struct instantiation equality to compare type arguments — Part 3.5;
   - ensure substitution clears a fully-substituted function type's
     generic-parameter record — Part 3.7.
@@ -1344,7 +1398,7 @@ substitute for the parts above.
     body; remove the "Generic structs aren't supported yet" and "Generic types
     aren't supported yet" rejections — Parts 3.3, 3.5;
   - call-site unification producing per-parameter bindings and a substituted
-    return type — Part 3.4;
+    return type, starting from `typchkCheckGenericCall` — Part 3.4;
   - record and enforce bounds; at call sites, check the bound trait is
     implemented via `typeStructImplementsTrait` — Part 4.2;
   - the single operator/trait/method table and operator handling read from it
@@ -1381,34 +1435,43 @@ substitute for the parts above.
 ## Appendix B — Reproducing the baseline claims
 
 Every "today" claim in Part 1 can be checked on a clean `main` build at
-`from_commit` (`krb -f FILE` is `krb run FILE` on a newer `main`):
+`from_commit`:
 
 ```shell
 # build
-bash scripts/build.sh      # produces build/krb
+just build                 # produces build/krb
 
 # generics are rejected
-echo 'struct Box[T] { pub var value: T; } print 1;' > /tmp/a.krb
-./build/krb -f /tmp/a.krb  # "Generic structs aren't supported yet."
+./build/krb exec 'struct Box[T] { pub var value: T; }'
+# "Generic structs aren't supported yet."
 
-echo 'fun id[T](x: T): T = x; print id(5);' > /tmp/b.krb
-./build/krb -f /tmp/b.krb  # "Unknown type." for T
+./build/krb exec 'fun id[T](x: T): T = x;'
+# "Unknown type." for T
+
+./build/krb exec 'let b: Box[f64] = 1;'
+# "Generic types aren't supported yet."
+
+# array types and generic natives work
+./build/krb exec 'let xs: [f64] = [1, 2.5]; @println(xs);'
+# [1, 2.5]
+./build/krb exec 'let numbers: [i64] = [1]; @arrPush(numbers, 2.5);'
+# "Expected i64, got f64."
 
 # traits work
-printf 'trait G { fun hello(self): string; }\nstruct D { pub var n: string; }\nimpl G for D { fun hello(self): string = "woof"; }\nlet d = D { n: "x" };\nprint d.hello();\n' > /tmp/c.krb
-./build/krb -f /tmp/c.krb  # woof
+./build/krb exec 'trait G { fun hello(self): string; } struct D { pub var n: string; } impl G for D { fun hello(self): string = "woof"; } let d = D { n: "x" }; @println(d.hello());'
+# woof
 
 # == checks Eq but runs as identity equality
-printf 'struct P { pub var x: f64; }\nimpl Eq for P { fun equals(self, other: Self): bool = self.x == other.x; }\nlet a = P { x: 1 };\nlet b = P { x: 1 };\nprint a == b;\nprint a.equals(b);\n' > /tmp/d.krb
-./build/krb -f /tmp/d.krb  # false, then true
+./build/krb exec 'struct P { pub var x: f64; } impl Eq for P { fun equals(self, other: Self): bool = self.x == other.x; } let a = P { x: 1 }; let b = P { x: 1 }; @println(a == b); @println(a.equals(b));'
+# false, then true
 
 # supertraits enforced regardless of order
-printf 'struct P { pub var x: f64; }\nimpl Ord for P { fun cmp(self, other: Self): f64 = 0; }\nprint 1;\n' > /tmp/e.krb
-./build/krb -f /tmp/e.krb  # "'P' also needs 'impl Eq for P' -- 'Ord' requires it."
+./build/krb exec 'struct P { pub var x: f64; } impl Ord for P { fun cmp(self, other: Self): i64 = 0; }'
+# "'P' also needs 'impl Eq for P' -- 'Ord' requires it."
 
 # primitive impls rejected
-echo 'impl Eq for f64 { fun equals(self, other: Self): bool = true; }' > /tmp/f.krb
-./build/krb -f /tmp/f.krb  # "Primitive trait implementations aren't supported yet."
+./build/krb exec 'impl Eq for f64 { fun equals(self, other: Self): bool = true; }'
+# "Primitive trait implementations aren't supported yet."
 ```
 
 ## Link References

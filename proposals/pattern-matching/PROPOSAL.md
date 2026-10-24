@@ -1,7 +1,7 @@
 ---
 status: Draft
 created: 2026-09-20
-from_commit: 662d98b
+from_commit: 2f96a2e
 ---
 
 # Proposal: Pattern Matching
@@ -63,16 +63,16 @@ impl Display for Colors {
 
 It also says "Destructuring needed for pattern matching also doesn't exist yet." That is the [Destructuring Proposal].
 
-The sketch does not work today. Verified against a clean build of `from_commit`, `match x { 1 => print "one", }` reports `Error at 'match': Expect ';' after expression.` because `match` is an ordinary word.
+The sketch does not work today. Verified against a clean build of `from_commit`, `match x { 1 => @println("one"), }` reports `Error at 'match': Expect ';' after expression.` because `match` is an ordinary word.
 
 Several things that already exist shape the design. Each was verified:
 
 - **`if` is an expression, and its condition is in parentheses.** `if (cond) a else b` has a value, and its branches are expressions. `while (...)` and `for (...)` also use parentheses.
-- **A `{` after an expression starts a struct literal.** The parser treats `{` as an infix operator of call strength (`[TOKEN_LEFT_BRACE] = {blockExpr, struct_, PREC_CALL}` in `src/parser.c`). So `var x = 1; x { y: 2 };` reports `Unknown struct 'x'`, and `self { x: 1 }` inside a method reports `Only a struct name can be initialized with '{'.` The sketch's `match self {` would read `self {` the same way if the value after `match` is parsed as an ordinary expression. See [Q-scrutinee].
+- **A `{` after an expression starts a struct literal.** The parser treats `{` as an infix operator of call strength (`[TOKEN_LEFT_BRACE] = {blockExpr, struct_, PREC_CALL}` in `src/parser.c`). So `var x = 1; x { y: 2 };` reports `Unknown struct 'x'.`, and `self { x: 1 }` inside a method reports `Only a struct name can be initialized with '{'.` The sketch's `match self {` would read `self {` the same way if the value after `match` is parsed as an ordinary expression. See [Q-scrutinee].
 - **`=>` is already a token,** `TOKEN_FAT_ARROW`, used in function types like `fun (f64) => f64`.
 - **Some pattern symbols are not tokens.** A single `|` is a scanner error (`||` is the `or` operator) and `..` does not exist (a single `.` does). `@` at the start of a word means a native function, so `name @ pattern` from Rust would clash.
 - **`match`, `enum`, and `_` are valid variable names today.** `var match = 2;` and `var _ = 3;` both work. No `.krb` file in the repository uses `match` or `_` as a name.
-- **The type checker compares types by exact equality.** There is no subtype rule that would let two arms of different types meet at a common type.
+- **The type checker compares types by exact equality.** There is no subtype rule that would let two arms of different types meet at a common type. The one exception is a whole number literal, which takes the kind of the other `if`/`else` branch, so `if (c) 1 else 2.5` is an `f64`.
 - **`==` on numbers and strings compares by value.** `"a" + "b" == "ab"` is `true`. Objects such as arrays and structs compare by identity.
 
 ## Proposed Changes
@@ -180,7 +180,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Tuples Proposal] and [Tuple Structs Proposal] — their patterns depend on them.
 - [Unimplemented Proposal] — `???` type-checks only where an expected type exists, and `if` branches are not such a place. Whether arms are one is [Q-arms-expected].
 - [Generic Types Proposal] — matching an `Option[T]` needs generic enums. A literal pattern compares with `==`, so it depends on how `==` behaves (10.4 there).
-- [Sized Number Types Proposal] — a literal pattern like `1` must take the kind of number being matched, following that proposal's literal rules.
+- [Sized Number Types Proposal] — Closed. A whole number literal takes the expected kind where its value fits, and is an `i64` otherwise. A literal pattern like `1` should follow the same rule and take the kind of the value being matched, so `1` matches a `u8` or an `f64`.
 - [Macros Proposal] — macros are described as ordinary Kirby code working on syntax as data. `match` and enums would be the natural way to write that code.
 - [Tooling Data Proposal] and [Debugger Proposal] — each arm introduces local variables.
 
@@ -192,7 +192,7 @@ How do we know the implemented proposal works?
 
 The E2E syntax tests should cover all valid and invalid parser/compiler/runtime error cases. Tests for enum patterns are in the [Enums Proposal].
 
-##### NEW: tests/match/match_literal_number.krb
+##### NEW: tests/run/match/match_literal_number.krb
 
 ```kirby
 fun describe(n: f64): string {
@@ -203,16 +203,16 @@ fun describe(n: f64): string {
   }
 }
 
-print describe(0);
-print describe(1);
-print describe(7);
+@println(describe(0));
+@println(describe(1));
+@println(describe(7));
 ```
 
 ###### Expected Outcome
 
 Prints `zero`, `one`, `many`. Exit code 0.
 
-##### NEW: tests/match/match_literal_string.krb
+##### NEW: tests/run/match/match_literal_string.krb
 
 ```kirby
 let s = "a" + "b";
@@ -222,93 +222,93 @@ let result = match (s) {
   _ => 0,
 };
 
-print result;
+@println(result);
 ```
 
 ###### Expected Outcome
 
-Prints `1.000000`. The string was built at run time, so this checks that strings are compared by value.
+Prints `1`. The string was built at run time, so this checks that strings are compared by value.
 
-##### NEW: tests/match/match_bool.krb
+##### NEW: tests/run/match/match_bool.krb
 
 ```kirby
 let flag = true;
 
-print match (flag) {
+@println(match (flag) {
   true => "yes",
   false => "no",
-};
+});
 ```
 
 ###### Expected Outcome
 
 Prints `yes`. Compiles without `_`, because `true` and `false` are every value a `bool` can have ([Q-exhaustive]).
 
-##### NEW: tests/match/match_name_binding.krb
+##### NEW: tests/run/match/match_name_binding.krb
 
 ```kirby
-print match (5) {
+@println(match (5) {
   0 => 0,
   n => n + 1,
-};
+});
 ```
 
 ###### Expected Outcome
 
-Prints `6.000000`. The name `n` takes the value.
+Prints `6`. The name `n` takes the value.
 
-##### NEW: tests/match/match_first_arm_wins.krb
+##### NEW: tests/run/match/match_first_arm_wins.krb
 
 ```kirby
-print match (1) {
+@println(match (1) {
   1 => "first",
   _ => "second",
-};
+});
 ```
 
 ###### Expected Outcome
 
 Prints `first`.
 
-##### NEW: tests/match/match_non_exhaustive.krb
+##### NEW: tests/run/match/match_non_exhaustive.krb
 
 ```kirby
-print match (1) {
+@println(match (1) {
   0 => "zero",
-};
+});
 ```
 
 ###### Expected Outcome
 
 Compile error that not every case is handled. Exit code 65. See [Q-exhaustive].
 
-##### NEW: tests/match/match_arm_type_mismatch.krb
+##### NEW: tests/run/match/match_arm_type_mismatch.krb
 
 ```kirby
-print match (1) {
+@println(match (1) {
   0 => "zero",
   _ => 1,
-};
+});
 ```
 
 ###### Expected Outcome
 
 Compile error that the arms have different types. Exit code 65.
 
-##### NEW: tests/match/match_pattern_type_mismatch.krb
+##### NEW: tests/run/match/match_pattern_type_mismatch.krb
 
 ```kirby
-print match (1) {
+@println(match (1) {
   "a" => 1,
   _ => 2,
-};
+});
 ```
 
 ###### Expected Outcome
 
-Compile error that a `string` pattern can not match an `f64`. Exit code 65.
+Compile error that a `string` pattern can not match an `i64`. Exit code 65.
 
-##### NEW: tests/match/match_keyword_reserved.krb
+##### NEW: tests/run/match/match_keyword_reserved.krb
 
 ```kirby
 var match = 1;
@@ -318,22 +318,22 @@ var match = 1;
 
 Compile error. Exit code 65. Today this program compiles, so the change is documented in `docs/CHANGELOG.md`.
 
-##### NEW: tests/match/match_destructure_array.krb
+##### NEW: tests/run/match/match_destructure_array.krb
 
 ```kirby
 let values = [1, 2];
 
-print match (values) {
+@println(match (values) {
   [a, b] => a + b,
   _ => 0,
-};
+});
 ```
 
 ###### Expected Outcome
 
-Prints `3.000000`. Needs the [Destructuring Proposal]. An array with a different length takes the `_` arm.
+Prints `3`. Needs the [Destructuring Proposal]. An array with a different length takes the `_` arm.
 
-##### NEW: tests/match/match_destructure_struct.krb
+##### NEW: tests/run/match/match_destructure_struct.krb
 
 ```kirby
 struct Box {
@@ -342,14 +342,14 @@ struct Box {
 
 let box = Box { value: 4 };
 
-print match (box) {
+@println(match (box) {
   Box { value } => value,
-};
+});
 ```
 
 ###### Expected Outcome
 
-Prints `4.000000`. Needs the [Destructuring Proposal]. Compiles without `_`, because a struct pattern that lists every field always fits.
+Prints `4`. Needs the [Destructuring Proposal]. Compiles without `_`, because a struct pattern that lists every field always fits.
 
 ## Questions
 
@@ -385,7 +385,7 @@ The [Enums Proposal] has a related question about how variants are written when 
 
 Options for a `match` that does not handle everything: (a) It is a compile error, listing what is missing. (b) It compiles and stops with a run time error if the value does not fit any arm. (c) A compile error for some types and a run time error for others.
 
-How each type counts: `bool` has two values, so `true` and `false` together handle everything. An enum has its variants. An `f64` and a `string` have too many values to list, so they always need a name or `_` at the end. An array pattern has a fixed length and arrays vary, so a list of array patterns needs a catch-all. A struct or tuple pattern that lists every field always fits.
+How each type counts: `bool` has two values, so `true` and `false` together handle everything. An enum has its variants. A number and a `string` have too many values to list, so they always need a name or `_` at the end. An array pattern has a fixed length and arrays vary, so a list of array patterns needs a catch-all. A struct or tuple pattern that lists every field always fits.
 
 (a) is the reason to have `match` rather than a chain of `if`. It needs an analysis in the type checker that (b) does not. It is also the part of this proposal that grows most as more kinds of pattern are added.
 
@@ -413,7 +413,7 @@ Options: (a) Only what the sections above list, and add the rest later as their 
 The sketch has commas between arms, no braces around arm expressions, and a trailing comma. Still to decide:
 
 - Can an arm's expression be a block, `pattern => { ... }`? A block is already an expression in Kirby. Does an arm with a block still need a comma after it?
-- Can a `match` be used as a statement? Kirby has separate parsing for an `if` used as an expression (`ifExpr`) and as a statement (`ifStatement`), so a `match` written on its own line may need the same, including whether a `;` follows it.
+- Can a `match` be used as a statement? An `if` at the start of a statement is read by `statementExpression` in `src/parser.c`, which ends the statement after the `if` so that no `;` is needed. A `match` written on its own line would need the same rule.
 - Does a name inside a pattern shadow a variable of the same name outside it? For example `n => n + 1` when `n` is already declared. Most likely yes, for the length of the arm.
 
 ### **Q:** Are arms checked against the type the `match` is expected to have?

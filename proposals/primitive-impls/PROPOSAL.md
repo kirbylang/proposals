@@ -1,14 +1,14 @@
 ---
 status: Draft
 created: 2026-09-18
-from_commit: b56a2a9
+from_commit: 2f96a2e
 ---
 
 # Proposal: `impl` and Trait Implementations for Primitive Types
 
 This proposal lets Kirby code write `impl` and `impl Trait for` blocks
-targeting primitive types — `f64` (and, later, whatever numeric types join
-it), `string`, and `bool` — the same way it already can for structs. Today
+targeting primitive types — the number kinds (`i64`, `f64`, `u8` and the
+rest), `string`, and `bool` — the same way it already can for structs. Today
 neither form is allowed on a primitive; both are rejected by the type
 checker, and the restriction turns out to run deeper than the checker alone.
 
@@ -44,9 +44,6 @@ still undecided is tracked as [Questions] rather than settled in the prose.
   for the current implementation.
 - When the proposal text says Kirby "should" or "will" do something, that is
   true after the changes presented here.
-- Command lines in transcripts are the ones that worked at `from_commit`, when
-  `krb` took `-f FILE`, `-c CODE`, `-r` and `-l`. Today those are `krb run
-  FILE`, `krb exec CODE`, `krb repl` and `krb lex FILE`.
 
 ### Code & Changes
 
@@ -58,15 +55,17 @@ still undecided is tracked as [Questions] rather than settled in the prose.
 
 ## Glossary
 
-- **Primitive type:** one of Kirby's built-in, non-struct value types. Today
-  that's `unit`, `bool`, `string`, and `f64`. This proposal is about `bool`,
-  `string`, and `f64`; see [Q-unit] for why `unit` is treated separately, and the
-  [Problem Statement] for why `Array` (also a "primitive" by the checker's own
-  reckoning today) is out of scope entirely.
-- **Primitive kind:** shorthand used throughout this document for "one of the
-  `TypeKind` values a primitive uses" (`TYPE_BOOL`, `TYPE_STRING`, `TYPE_F64`).
-  Used instead of naming `f64` specifically, since the design should not be
-  tied to today's one numeric type — see [Q-numeric-family].
+- **Primitive type:** one of Kirby's built-in, non-struct value types:
+  `unit`, `bool`, `string`, and the ten number kinds (`i8`, `i16`, `i32`,
+  `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64`). This proposal is about
+  `bool`, `string`, and the number kinds; see [Q-unit] for why `unit` is
+  treated separately, and the [Problem Statement] for why arrays are out of
+  scope entirely.
+- **Primitive kind:** shorthand used throughout this document for one of the
+  primitive types above. In the checker that is `TYPE_BOOL`, `TYPE_STRING`, or
+  `TYPE_NUMBER` with one number kind. Used instead of naming `f64`
+  specifically, since the design covers every number kind — see
+  [Q-numeric-family].
 - **Inherent impl:** a plain `impl SomeType { ... }` block: methods attached
   directly to a type, not through a trait.
 - **Trait impl:** an `impl SomeTrait for SomeType { ... }` block.
@@ -87,7 +86,7 @@ still undecided is tracked as [Questions] rather than settled in the prose.
 ## Problem Statement
 
 Kirby has a working trait system — you can declare a trait, `impl` it for a
-struct, and call the method (Appendix A.1). None of that extends to
+struct, and call the method (Appendix A). None of that extends to
 primitives. Two different things are currently rejected, with two different
 error messages, and the messages themselves suggest two different reasons:
 
@@ -107,24 +106,22 @@ impl Display for f64 {
 
 The first message reads as a deliberate rule ("only trait implementations are
 allowed" — not "aren't supported yet"). The second reads as a TODO. That
-difference is a real fact about the current source (Appendix A.2) and this
+difference is a real fact about the current source (Appendix A) and this
 proposal does not paper over it — see [Q-inherent].
 
-The practical gap this leaves: there is no way to give `f64`, `string`, or
+The practical gap this leaves: there is no way to give a number, `string`, or
 `bool` a `Display`, `Eq`, `Ord`, or `Default` implementation, or any
 domain-specific trait implementation, even though structs can have all four
 today. Code that wants `x.equals(y)` or `x.toString()` to be callable on a
 plain number or string the same way it's callable on a struct has no path to
 get there.
 
-**Explicitly out of scope:** `Array[T]` and other built-in container types.
-`Array` is ephemeral today — it isn't backed by a Kirby struct, and its
-future shape (once generics land) isn't settled. It happens to be caught by
-the same `tokenIsPrimitiveTypeName` check as `bool`/`string`/`f64`
-(Appendix A.2), but this proposal does not attempt to design impls for it.
+**Explicitly out of scope:** arrays (`[T]`) and other built-in container
+types. They aren't backed by a Kirby struct, and how methods on them should
+work isn't settled. The [Collection Methods Proposal] covers them.
 
 **Also out of scope:** making Kirby's built-in operators (`+`, `==`, `<`,
-etc.) *dispatch through* these implementations. That is a different, larger
+etc.) _dispatch through_ these implementations. That is a different, larger
 question — already raised as an open option in the
 [generic-types, macros, tooling proposal][generic-types], Part 4.4 and
 10.3 — about whether operators stay a built-in fast path for primitives or
@@ -139,7 +136,7 @@ or `+` ever calls them. See [Q-sequencing] for how the two proposals relate.
 
 ### 1.1 Traits work for structs
 
-This builds and runs on `main`, printing `woof` (Appendix A.1):
+This builds and runs on `main`, printing `woof` (Appendix A):
 
 ```kirby
 trait Greet { fun hello(self): string; }
@@ -148,7 +145,7 @@ impl Greet for Dog {
     fun hello(self): string = "woof";
 }
 let d = Dog { name: "Rex" };
-print d.hello();
+@println(d.hello());
 ```
 
 ### 1.2 Primitives are rejected at the type checker, for two different reasons
@@ -176,19 +173,22 @@ Both are reachable only because `typchkResolveImplTarget` (which resolves an
 impl's target name to a struct, directly or through a type alias) returns
 `NULL` for a primitive name — a primitive is simply not a struct, so it falls
 into the "unknown/unsupported target" branch either way.
-`tokenIsPrimitiveTypeName` recognizes exactly five names:
+`tokenIsPrimitiveTypeName` (`src/token.c`) recognizes exactly four names:
 
 ```c
-static bool tokenIsPrimitiveTypeName(Token *token) {
+bool tokenIsPrimitiveTypeName(const Token *token) {
   return tokenTextEquals(token, "unit") || tokenTextEquals(token, "bool") ||
-         tokenTextEquals(token, "string") || tokenTextEquals(token, "f64") ||
-         tokenTextEquals(token, "Array");
+         tokenTextEquals(token, "string") || tokenTextEquals(token, "f64");
 }
 ```
 
+`f64` is the only number kind on that list. The other nine fall through to
+the generic message: `impl Display for i64 { ... }` reports
+`Unknown type 'i64'.`, and so does `impl u8 { ... }`.
+
 Checked test fixtures already exist for exactly this pair of rejections:
-`tests/types/plain_impl_primitive_errors.krb` and
-`tests/types/trait_impl_primitive_errors.krb` (Appendix A.2).
+`tests/run/types/plain_impl_primitive_errors.krb` and
+`tests/run/types/trait_impl_primitive_errors.krb` (Appendix A).
 
 ### 1.3 Primitives have nowhere to keep a method
 
@@ -217,13 +217,14 @@ struct Type {
 };
 ```
 
-`bool`, `string`, and `f64` are singletons of kind `TYPE_BOOL`/`TYPE_STRING`/
-`TYPE_F64` (`typeBool()`, `typeString()`, `typeF64()` in `src/types.c`), each
-just `allocType(kind)` — a bare tagged union with nothing in `as` at all.
-There is exactly one `Type *` per primitive kind, ever, so — unlike a struct,
-where every declaration gets its own `Type` — whatever storage primitive
-methods end up in only ever needs to hold *one* primitive kind's worth of
-methods per kind, not "per declaration."
+`bool` and `string` are singletons of kind `TYPE_BOOL`/`TYPE_STRING`
+(`typeBool()`, `typeString()` in `src/types.c`), each just `allocType(kind)`
+— a bare tagged union with nothing in `as` at all. Each number kind is a
+singleton of kind `TYPE_NUMBER` (`typeNumber(kind)`), whose `as.number` holds
+only which kind it is. There is exactly one `Type *` per primitive kind,
+ever, so — unlike a struct, where every declaration gets its own `Type` —
+whatever storage primitive methods end up in only ever needs to hold _one_
+primitive kind's worth of methods per kind, not "per declaration."
 
 `typeStructImplementsTrait`, the function coherence and the `Eq`-for-`==`
 check both call, is explicit about only working on structs:
@@ -245,6 +246,7 @@ methods can be attached to it:
 ```c
 static void compileImplDecl(AstNode *node) {
   ImplNode *impl = &node->as.impl;
+  ...
   const Token *resolved = resolvedImplTargetsLookup(node);
   Token structName = resolved != NULL ? *resolved : impl->targetName;
 
@@ -260,16 +262,21 @@ static void compileImplDecl(AstNode *node) {
 
 This works for a struct because declaring `struct Dog { ... }` compiles to
 `OP_STRUCT` followed by `defineVariable`, which binds the name `Dog` to a
-runtime class object (Part 1.5). `f64`, `string`, and `bool` are never bound
+runtime class object (Part 1.5). The number kinds, `string`, and `bool` are never bound
 that way — they aren't declarations, they're names the checker recognizes by
 text only inside type-annotation positions (`typchkResolveType`,
 `src/typecheck.c`):
 
 ```c
-if (tokenTextEquals(&t->name, "unit"))   return typeUnit();
-if (tokenTextEquals(&t->name, "bool"))   return typeBool();
-if (tokenTextEquals(&t->name, "string")) return typeString();
-if (tokenTextEquals(&t->name, "f64"))    return typeF64();
+if (tokenTextEquals(&t->name, "unit"))
+  return typeUnit();
+if (tokenTextEquals(&t->name, "bool"))
+  return typeBool();
+if (tokenTextEquals(&t->name, "string"))
+  return typeString();
+NumberKind numberKind;
+if (numberKindFromName(t->name.start, t->name.length, &numberKind))
+  return typeNumber(numberKind);
 ```
 
 Nothing registers `f64` (etc.) as a variable, so `resolveVariable(&structName)`
@@ -277,16 +284,16 @@ in `compileImplDecl` would have nothing to resolve to even if the checker let
 it get that far. This is checked directly — the scanner doesn't even reserve
 these as keywords, they're plain `TOKEN_IDENTIFIER`s the checker special-cases
 by spelling, so trying to use one as an ordinary expression compiles but fails
-at *run time*, not compile time:
+at _run time_, not compile time:
 
 ```
-$ echo 'print f64;' | ./build/krb -f /dev/stdin
+$ ./build/krb exec '@println(f64);'
 Undefined variable 'f64'.
 [line 1] in script
 ```
 
 (exit code 70 — a runtime error, per the project's own convention — not 65,
-a compiler error. Reproduced in Appendix A.3.)
+a compiler error. Reproduced in Appendix A.)
 
 ### 1.5 The VM's method storage and dispatch assume a struct instance
 
@@ -300,6 +307,7 @@ typedef struct ObjStruct {
   Table fields;
   int fieldCount;
   bool fieldPublic[256];
+  bool fieldMutable[256];
 } ObjStruct;
 
 typedef struct {
@@ -314,7 +322,9 @@ requires it to be a struct's class object:
 
 ```c
 static bool defineMethod(ObjString *name) {
+  Value method = peekStack(0);
   Value target = peekStack(1);
+
   if (!IS_STRUCT(target)) {
     runtimeError(&vm, "Only structs can have implementations");
     return false;
@@ -337,8 +347,8 @@ static bool invoke(ObjString *name, int argCount) {
 ```
 
 Numbers and bools are plain tagged values (`Value` in `src/value.h` — a
-`ValueType` tag plus a `double`/`bool`/`Obj*` union) with **no** heap object
-at all, so there is no existing place to hang a method table off of them.
+`ValueType` tag plus a union of a `bool`, a number (its kind and a 64-bit
+payload), or an `Obj*`) with **no** heap object at all, so there is no existing place to hang a method table off of them.
 Strings are heap objects (`ObjString`), but `ObjString` has no method-table
 field either — it's `{ Obj obj; int length; char *chars; uint32_t hash; }`,
 nothing more.
@@ -364,7 +374,7 @@ if (tokenTextEquals(&t->name, "Self")) {
 ```
 
 Nothing here assumes `TYPE_STRUCT`. If the impl-target-resolution step
-(1.2/1.4) is taught to accept `typeF64()` as a legitimate target, `Self`
+(1.2/1.4) is taught to accept `typeNumber(NUMBER_KIND_F64)` as a legitimate target, `Self`
 inside `impl Eq for f64 { fun equals(self, other: Self): bool = ... }` should
 resolve to `f64` without any change to this particular mechanism.
 
@@ -384,18 +394,28 @@ if (objectType->kind != TYPE_STRUCT) {
 This is the check that would need to widen (or grow a parallel branch) for
 `x.equals(y)` to type-check when `x: f64`.
 
-### 1.8 `print` and `Display` are already independent — for structs, today
+### 1.8 Printing uses `Display` for structs, decided at compile time
 
-It's tempting to assume `impl Display for f64` would change how `print`
-formats numbers. It wouldn't need to, and — importantly — that would not be a
-*new* inconsistency. `print` compiles to `OP_PRINT`, which calls
-`printValue` (`src/value.c`), which does built-in formatting
-(`snprintf(buffer, size, "%f", ...)` for numbers, `objectToString` for heap
-values) and never looks up or calls a `Display` implementation, for structs
-or anything else. A struct that implements `Display` today has a callable
-`.toString()` method; `print`ing that struct does not use it. This proposal
-would extend the same, already-established split to primitives, not create
-a new one. (The analogous, already-documented split for `Eq`/`==` is in the
+`@print`, `@println`, `@eprint` and `@eprintln` are natives that call
+`printValue` (`src/value.c`), which does built-in formatting for numbers,
+bools and `nil`, and `printObject` for heap values. `printValue` never looks
+up a `Display` implementation itself. Instead, the checker marks a call to a
+print native whose argument's type implements `Display`:
+
+```c
+if (i == 0 && isPrintNative(name) && typeImplementsDisplay(argType))
+  c->argUsesDisplay = true;
+```
+
+and the compiler then calls `toString()` on the value before the native
+gets it (`emitDisplayToString` in `src/compiler.c`). String interpolation
+does the same. So a struct with `impl Display` prints through it, and one
+without prints as `Dog instance`.
+
+`typeImplementsDisplay` calls `typeStructImplementsTrait` (1.3), so it is
+false for every primitive. Whether `impl Display for f64` should change how
+`@println(1.5)` prints is [Q-print-display]. (The split for `Eq`/`==`, where
+`==` checks for `Eq` but never calls it, is in the
 [generic-types proposal][generic-types], Part 1.4.)
 
 ### 1.9 The built-in traits, for reference
@@ -403,42 +423,43 @@ a new one. (The analogous, already-documented split for `Eq`/`==` is in the
 Four traits are always in scope (`typchkTypeEnvDefineBuiltinTraits`,
 `src/typecheck.c`), with these exact signatures:
 
-| Trait | Method | Signature |
-|---|---|---|
-| `Display` | `toString` | `fun toString(self): string` |
-| `Eq` | `equals` | `fun equals(self, other: Self): bool` |
-| `Ord` (supertrait `Eq`) | `cmp` | `fun cmp(self, other: Self): f64` |
-| `Default` | `default` (static) | `fun default(): Self` |
+| Trait                   | Method             | Signature                             |
+| ----------------------- | ------------------ | ------------------------------------- |
+| `Display`               | `toString`         | `fun toString(self): string`          |
+| `Eq`                    | `equals`           | `fun equals(self, other: Self): bool` |
+| `Ord` (supertrait `Eq`) | `cmp`              | `fun cmp(self, other: Self): i64`     |
+| `Default`               | `default` (static) | `fun default(): Self`                 |
 
 `Ord` requires `Eq` regardless of declaration order, and that check
 (`typchkCheckTraitSupertraitSatisfied`) already resolves its target through
 the same `typchkResolveImplTarget` this proposal would extend — it already
 has a `NULL`-target early-out with the comment `// already reported, or a
 (currently unsupported) primitive`, i.e. the supertrait check is already
-written to be indifferent to *why* a target didn't resolve.
+written to be indifferent to _why_ a target didn't resolve.
 
 ### 1.10 Operators do not check or call any trait, for primitives, at all
 
-Unlike structs — where `==` at least *checks* for `Eq` even though it doesn't
+Unlike structs — where `==` at least _checks_ for `Eq` even though it doesn't
 call it (generic-types proposal, Part 1.4) — primitive operators don't
-involve traits in either direction. `typchkInferBinary` hardcodes `f64` (and,
-for `+`, `string`) directly:
+involve traits in either direction. `typchkInferBinary` checks numbers (two
+of the same kind) and, for `+`, strings directly:
 
 ```c
 case TOKEN_EQUAL_EQUAL:
 case TOKEN_BANG_EQUAL:
   if (!typesEqual(leftType, rightType)) { ... }
   if (leftType->kind == TYPE_STRUCT &&
-      !typeStructImplementsTrait(leftType, internTokenName(makeTokenFromCString("Eq")))) {
+      !typeStructImplementsTrait(leftType,
+                                 internTokenName(tokenFromCString("Eq")))) {
     // requires Eq -- but only for TYPE_STRUCT
   }
   return typeBool();
 ```
 
 So today, `impl Eq for f64` — even if it type-checked — would add a callable
-`.equals()` method and nothing else; `1 == 1` neither requires it nor calls
-it, exactly as `+`, `-`, `<`, etc. neither require nor call any trait for
-`f64` operands. This is consistent with, and a slightly stronger version of,
+`.equals()` method and nothing else; `1.5 == 1.5` neither requires it nor
+calls it, exactly as `+`, `-`, `<`, etc. neither require nor call any trait
+for number operands. This is consistent with, and a slightly stronger version of,
 the point in the [Problem Statement] about operator dispatch being a
 separate, later question.
 
@@ -458,8 +479,8 @@ impl Eq for f64 {
 }
 
 impl Ord for f64 {
-    fun cmp(self, other: Self): f64 =
-        if self < other { -1 } else if self > other { 1 } else { 0 };
+    fun cmp(self, other: Self): i64 =
+        if (self < other) -1 else if (self > other) 1 else 0;
 }
 
 impl Display for string {
@@ -470,11 +491,11 @@ impl Default for bool {
     fun default(): bool = false;
 }
 
-let a = 1;
-let b = 2;
-print a.cmp(b);        // -1
-print a.equals(b);     // false -- and, per 1.10 and the Problem Statement,
-                        // `a == b` is unaffected either way
+let a: f64 = 1;
+let b: f64 = 2;
+@println(a.cmp(b));    // -1
+@println(a.equals(b)); // false -- and, per 1.10 and the Problem Statement,
+                       // `a == b` is unaffected either way
 ```
 
 Domain-specific traits work the same way — nothing about this is restricted
@@ -485,7 +506,8 @@ trait Squarable { fun squared(self): f64; }
 impl Squarable for f64 {
     fun squared(self): f64 = self * self;
 }
-print 3.squared(); // 9 -- see 2.3 on call-site syntax for numeric literals
+let three: f64 = 3;
+@println(three.squared()); // 9
 ```
 
 ### 2.2 Coherence, exactly as it works for structs
@@ -511,15 +533,15 @@ type:
 
 ```kirby
 let s = "hello";
-print s.toString();      // via `impl Display for string`
+@println(s.toString());  // via `impl Display for string`
 
 let x: f64 = 5;
-print x.squared();       // via a user trait impl, as in 2.1
+@println(x.squared());   // via a user trait impl, as in 2.1
 ```
 
 Static trait methods (only `Default.default()` among the built-ins, but any
 user trait could declare one) are where primitives don't have an obvious
-answer yet, because — per 1.4 — `f64`, `string`, and `bool` aren't
+answer yet, because — per 1.4 — number kinds, `string`, and `bool` aren't
 expressions today; `Dog.static_method()` works because `Dog` is a variable
 holding a runtime value, and no such variable exists for a primitive kind.
 This proposal takes no position on the receiver syntax for that case; see
@@ -527,19 +549,17 @@ This proposal takes no position on the receiver syntax for that case; see
 
 ### 2.4 Which primitives, and room to grow
 
-This should be specified in terms of **primitive kind**, not "`f64`
-specifically," precisely because the user request driving this proposal is
-explicit that `f64` today stands in for "the family of numeric types that
-don't exist yet." A design that hardcodes `f64` would need redoing the day a
-second numeric type (`i32`, `u8`, whatever) is added; a design that says "any
-primitive kind may carry impls" does not. This proposal does not attempt to
-design that numeric-type family — only to make sure this feature's design
-doesn't foreclose it. See [Q-numeric-family].
+This is specified in terms of **primitive kind**, not "`f64`
+specifically." Kirby has ten number kinds, and each is its own type: an
+`impl Display for f64` says nothing about `i64`. A design that hardcodes
+`f64` would leave the other nine out; a design that says "any primitive kind
+may carry impls" does not. This needs `tokenIsPrimitiveTypeName` (1.2) to
+recognize every number kind, not only `f64`. See [Q-numeric-family].
 
-`bool` and `string` are unambiguously in scope (they're primitive kinds
-today, with no fields, exactly like `f64`). `unit` and `Array` are addressed
-separately: see [Q-unit] for `unit`, and the [Problem Statement] for why `Array`
-is excluded outright.
+`bool` and `string` are unambiguously in scope (they're primitive kinds,
+with no fields, exactly like the number kinds). `unit` and arrays are
+addressed separately: see [Q-unit] for `unit`, and the [Problem Statement]
+for why arrays are excluded outright.
 
 ### 2.5 `Self` and supertraits
 
@@ -549,12 +569,12 @@ impl target at all:
 
 ```kirby
 impl Eq for f64 { fun equals(self, other: Self): bool = self == other; }
-impl Ord for f64 { fun cmp(self, other: Self): f64 = 0; }
+impl Ord for f64 { fun cmp(self, other: Self): i64 = 0; }
 // Error, same wording as for structs today:
 // 'f64' also needs 'impl Eq for f64' -- 'Ord' requires it.
 ```
 
-(That specific example already type-checks its *supertrait* logic correctly
+(That specific example already type-checks its _supertrait_ logic correctly
 against a `NULL`-resolved primitive target today, per 1.9 — it just can't get
 past the initial primitive rejection to reach it.)
 
@@ -569,7 +589,7 @@ enforces for struct trait impls.
 
 The request this proposal is written against says primitive code should be
 able to "`impl` or implement traits" — i.e., both forms. But 1.2 showed the
-*existing* rejection for the bare form uses different wording ("only trait
+_existing_ rejection for the bare form uses different wording ("only trait
 implementations are allowed") than the trait form ("aren't supported yet"),
 and that difference reads as intentional, not accidental — plausibly
 mirroring the common design choice (Rust included) that only trait methods
@@ -587,16 +607,16 @@ commit to an implementation. What Part 1 establishes is that the restriction
 is enforced independently at four layers, and each would need a
 corresponding change if this feature is built:
 
-1. **Type-level storage** (1.3): primitive kinds need *somewhere* to record
+1. **Type-level storage** (1.3): primitive kinds need _somewhere_ to record
    their methods and implemented-trait list. Unlike a struct, there's exactly
    one `Type *` per primitive kind ever, which simplifies this — it's closer
-   to "give three singletons some extra state" than "redesign how types
+   to "give twelve singletons some extra state" than "redesign how types
    carry methods." See [Q-storage].
 2. **Impl-target resolution and compilation** (1.4): `typchkResolveImplTarget`
    needs to accept a primitive name as a target (straightforward — it's a
    `tokenIsPrimitiveTypeName` check already sitting right there, currently
    used only to pick an error message), and `compileImplDecl` needs a way to
-   attach compiled methods to *something* representing "the `f64` kind" that
+   attach compiled methods to _something_ representing "the `f64` kind" that
    doesn't depend on `resolveVariable` finding a global.
 3. **Run-time storage and dispatch** (1.5): numbers and bools have no heap
    object to hang a method table on; strings have one but it has no
@@ -607,7 +627,7 @@ corresponding change if this feature is built:
    this proposal covers.
 
 None of these interact with monomorphization, bounds, or modules — this is
-additive to the *existing* trait system, not dependent on the generic-types
+additive to the _existing_ trait system, not dependent on the generic-types
 proposal landing first. See [Q-sequencing].
 
 ---
@@ -640,7 +660,7 @@ to the literal request and closer to how struct impls work (structs get both
 forms today), but opens a namespacing question this document hasn't explored
 — an inherent `impl f64 { fun double(self) ... }` from unrelated code could
 silently collide with another inherent `impl f64` block's method name in a
-way a *trait* impl's coherence check would have caught. Recommendation: (a),
+way a _trait_ impl's coherence check would have caught. Recommendation: (a),
 unless a concrete use case surfaces that specifically needs an inherent
 (non-trait) method on a primitive.
 
@@ -650,13 +670,14 @@ unless a concrete use case surfaces that specifically needs an inherent
 
 **Status:** Open
 
-**Options:** (a) give the three primitive `TypeKind`s their own union arm in
-`Type`, shaped like a trimmed-down `struct_` (no `fields`, since primitives
-have none) — since each is a singleton, this is a fixed, small amount of new
-state, not "one struct_ per declaration"; (b) keep a small side table outside
+**Options:** (a) give the primitive types (`TYPE_BOOL`, `TYPE_STRING`, and
+each `TYPE_NUMBER` kind) their own union arm in `Type`, shaped like a
+trimmed-down `struct_` (no `fields`, since primitives have none) — since
+each is a singleton, this is a fixed, small amount of new
+state, not "one struct* per declaration"; (b) keep a small side table outside
 `Type` entirely, keyed by `TypeKind`, that `typeStructImplementsTrait`-style
 lookups consult when `type->kind != TYPE_STRUCT`; (c) something else — e.g.
-generalizing `struct_`'s method-bearing fields into a shape shared by both
+generalizing `struct*`'s method-bearing fields into a shape shared by both
 struct and primitive kinds, so existing lookup functions don't need a second
 code path at all.
 
@@ -674,12 +695,12 @@ behavior one.
 
 **Status:** Open
 
-Per 1.5, `f64` and `bool` values carry no `Obj*` at all, and `ObjString` has
+Per 1.5, number and `bool` values carry no `Obj*` at all, and `ObjString` has
 no method-table slot. `defineMethod` and `invoke` both hard-require
 `IS_STRUCT`/`IS_INSTANCE`.
 
-**Options:** (a) three (or, per [Q-numeric-family], eventually more) fixed global method
-tables — one per primitive kind — that `OP_METHOD`/`invoke` consult directly
+**Options:** (a) fixed global method tables — one per primitive kind, so
+twelve with the ten number kinds — that `OP_METHOD`/`invoke` consult directly
 when the compile-time-known target or run-time value's `ValueType`/`ObjType`
 says "primitive kind X," bypassing `IS_STRUCT` entirely; (b) give `ObjString`
 a method-table pointer (solves strings) and find a separate answer for
@@ -700,7 +721,7 @@ variants are plain numbers ([Q-representation-enums]).
 
 **Status:** Open
 
-Per 1.4 and 2.3, `f64`/`string`/`bool` are not expressions today — referencing
+Per 1.4 and 2.3, number kinds, `string` and `bool` are not expressions today — referencing
 one as a bare identifier fails at run time with "Undefined variable," not at
 parse or type-check time, because nothing ever binds them as variables the
 way a struct declaration binds its name.
@@ -751,8 +772,8 @@ impls), it should consume this proposal's design rather than re-deriving it.
 **Status:** Open
 
 `unit` is swept into the same `tokenIsPrimitiveTypeName` check as `bool`,
-`string`, `f64`, and `Array` (1.2), but the request behind this proposal
-names only `f64`, `string`, and `bool`.
+`string` and `f64` (1.2), but the request behind this proposal names only
+numbers, `string`, and `bool`.
 
 **Options:** (a) explicitly exclude `unit` — it has exactly one value, so a
 trait method on it can only ever return a constant, and `Default for unit`
@@ -766,14 +787,34 @@ rather than an accident of whichever code path happens to touch
 motivating example for it. The [Tuples Proposal] asks whether `unit` is the
 empty tuple ([Q-unit-empty]); the two answers should agree.
 
+### **Q:** Should printing use a primitive's `Display` impl?
+
+[Q-print-display]: #q-should-printing-use-a-primitives-display-impl
+
+**Status:** Open
+
+Per 1.8, `@println` and string interpolation call a struct's `toString()`
+when it implements `Display`, and use built-in formatting otherwise. The
+check is `typeImplementsDisplay`, which only looks at structs.
+
+**Options:** (a) extend the check to primitives, so `impl Display for f64`
+changes how every `f64` prints. This matches structs, but one impl anywhere
+in a program changes the output of all number printing, including in the
+stdlib. (b) keep built-in formatting for primitives, so their `Display` impl
+is only used when `.toString()` is called by name.
+
+**Why open:** (a) is the consistent rule; (b) keeps the output of
+`@println(1.5)` the same in every program. Either way, the coherence rule
+(2.2) means there is at most one such impl per kind.
+
 ### **Q:** Should the design anticipate more numeric primitive kinds now, or wait for that proposal?
 
 [Q-numeric-family]: #q-should-the-design-anticipate-more-numeric-primitive-kinds-now-or-wait-for-that-proposal
 
-**Status:** Open
+**Status:** Answered
 
 The request driving this document explicitly frames `f64` as standing in for
-"the family of numeric types that don't exist yet."
+"the family of numeric types"
 
 **Options:** (a) design and word this proposal (as attempted throughout) in
 terms of "primitive kind" generally, so that adding `i32`/`u8`/etc. later is
@@ -781,18 +822,13 @@ terms of "primitive kind" generally, so that adding `i32`/`u8`/etc. later is
 scope this proposal to exactly `bool`, `string`, `f64` as they exist today
 and revisit when a numeric-type-family proposal exists.
 
-**Why open:** this document has tried to do (a) — every example and every
-Question above is phrased in terms of "primitive kind" rather than hardcoding
-`f64` — and a numeric-type-family proposal now exists,
-[Sized Number Types][sized-number-types], to check that framing against.
-That proposal doesn't yet settle its own central questions (its own
-Q-runtime-repr and Q-narrowing — whether a numeric kind is a real runtime
-property or a compile-time-only fiction, and what an explicit narrowing
-conversion does when a value doesn't fit), so this question stays open
-until it does. The recommendation stays (a) regardless of how those
-resolve: nothing in that proposal's current draft narrows the set of kinds
-this feature would need to reach, only how many of them there end up
-being.
+#### Answer
+
+(a). [Sized Number Types][sized-number-types] is Closed. Every number carries
+its kind at run time, a narrowing `as` that doesn't fit is a runtime error,
+and there are ten number kinds (`i8` to `i64`, `u8` to `u64`, `f32`, `f64`).
+A whole number literal is an `i64`. So "primitive kind" here covers `bool`,
+`string` and all ten number kinds.
 
 ---
 
@@ -806,6 +842,7 @@ being.
 [sized-number-types]: ../sized-number-types/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
+[Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
 [Q-unit-empty]: ../tuples/PROPOSAL.md#q-is-unit-the-empty-tuple
 [Q-representation-enums]: ../enums/PROPOSAL.md#q-what-is-an-enum-value-at-run-time
 
@@ -814,31 +851,34 @@ being.
 ## Appendix A — Reproducing the baseline claims
 
 Every "today" claim in Part 1 can be checked on a clean `main` build
-(commit `b56a2a9`, `cmake -S . -B build && cmake --build build`, needs
-`libreadline-dev`):
+(commit `2f96a2e`, `just build`):
 
 ```shell
 # traits work for structs
-printf 'trait G { fun hello(self): string; }\nstruct D { pub var n: string; }\nimpl G for D { fun hello(self): string = "woof"; }\nlet d = D { n: "x" };\nprint d.hello();\n' > /tmp/a.krb
-./build/krb -f /tmp/a.krb  # woof
+./build/krb exec 'trait G { fun hello(self): string; } struct D { pub var n: string; } impl G for D { fun hello(self): string = "woof"; } let d = D { n: "x" }; @println(d.hello());'
+# woof
 
 # bare impl on a primitive: "only trait implementations are allowed"
-printf 'impl f64 {\n    pub fun double(self): f64 = self * 2;\n}\n' > /tmp/b.krb
-./build/krb -f /tmp/b.krb  # Error at 'f64': Only trait implementations are allowed on primitive types.
+./build/krb exec 'impl f64 { pub fun double(self): f64 = self * 2; }'
+# [line 1] Error at 'f64': Only trait implementations are allowed on primitive types.
 
 # trait impl on a primitive: "aren't supported yet"
-printf 'impl Display for f64 {\n    pub fun toString(self): string = "a number";\n}\n' > /tmp/c.krb
-./build/krb -f /tmp/c.krb  # Error at 'f64': Primitive trait implementations aren't supported yet.
+./build/krb exec 'impl Display for f64 { pub fun toString(self): string = "a number"; }'
+# [line 1] Error at 'f64': Primitive trait implementations aren't supported yet.
+
+# other number kinds aren't on the primitive list
+./build/krb exec 'impl Display for i64 { pub fun toString(self): string = "n"; }'
+# [line 1] Error at 'i64': Unknown type 'i64'.
 
 # primitive type names aren't expressions -- fails at RUN time, not compile time
-echo 'print f64;' > /tmp/d.krb
-./build/krb -f /tmp/d.krb; echo "exit: $?"
+./build/krb exec '@println(f64);'; echo "exit: $?"
 # Undefined variable 'f64'.
+# [line 1] in script
 # exit: 70   (a runtime error, per the project's own exit-code convention --
 #             not 65, a compiler error)
 ```
 
 The existing test suite already carries fixtures for the two primitive-impl
-rejections: `tests/types/plain_impl_primitive_errors.krb` and
-`tests/types/trait_impl_primitive_errors.krb`, plus their `.err`/`.exit`
+rejections: `tests/run/types/plain_impl_primitive_errors.krb` and
+`tests/run/types/trait_impl_primitive_errors.krb`, plus their `.err`/`.exit`
 snapshots.

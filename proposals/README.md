@@ -5,6 +5,7 @@
 - ✅ [prefixed-native-functions](/proposals/prefixed-native-functions/PROPOSAL.md)
 - ✅ [additional-native-functions](/proposals//additional-native-functions/PROPOSAL.md)
 - ✅ [string-interpolation](/proposals/string-interpolation/PROPOSAL.md)
+- ✅ [sized-number-types](/proposals/sized-number-types/PROPOSAL.md)
 
 ## Draft
 
@@ -20,7 +21,6 @@
 - [pattern-matching](/proposals/pattern-matching/PROPOSAL.md)
 - [primitive-impls](/proposals/primitive-impls/PROPOSAL.md)
 - [projects](/proposals/projects/PROPOSAL.md)
-- [sized-number-types](/proposals/sized-number-types/PROPOSAL.md)
 - [testing](/proposals/testing/PROPOSAL.md)
 - [tooling-support-data](/proposals/tooling-support-data/PROPOSAL.md)
 - [top-level-declarations](/proposals/top-level-declarations/PROPOSAL.md)
