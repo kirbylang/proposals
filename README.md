@@ -6,7 +6,7 @@ Design proposals for the [Kirby language](https://github.com/kirbylang/kirbylang
 
 See [proposals](/proposals/README.md).
 
-[Roadmap](/ROADMAP.md): proposal categories and the order they have to be built in.
+[Roadmap](/ROADMAP.md): proposal categories, the order they have to be built in, and progress.
 
 ### Creating A New Proposal
 
