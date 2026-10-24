@@ -196,6 +196,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 ### Related Proposals
 
+- [Lists Proposal] — the array natives this proposal copies the style of (`@arrPush`, `@arrLen`) are renamed `@listPush` and `@listLen`. The `@map*` names do not change.
 - [Generic Types Proposal] — `Map[K, V]` needs generic arguments on a built-in type. The key rule needs a way to ask for `Eq` and `Hash` (trait bounds, Part 4 there).
 - [Enums Proposal] — `@mapGet` returns an `Option[V]`.
 - [Collection Methods Proposal] — whether the operations are methods ([Q-api-shape]), and its question about whether to wait for `Set` and `Map` ([Q-scope-order]). This proposal is the sketch of `Map`'s shape that its option (b) asks for.
@@ -372,6 +373,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
+[Lists Proposal]: ../lists/PROPOSAL.md
 [For-Each Proposal]: ../for-each/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [Destructuring Proposal]: ../destructuring/PROPOSAL.md

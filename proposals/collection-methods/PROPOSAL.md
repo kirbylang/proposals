@@ -285,7 +285,7 @@ can't declare generic functions or methods ([Generic Types Proposal]).
 
 Options: (a) wait for [Generic Types Proposal] to land, so collection
 methods can be written in Kirby and typed from the start; (b) ship them as
-typed natives first, the way `@arrPush` and `@arrContains` already work, and
+typed natives first, the way `@arrPush` and `@arrContains` already work (`@listPush` and `@listContains` after the [Lists Proposal]), and
 turn them into methods later. (b) unblocks this sooner but means a second
 pass later to move them; (a) avoids that second pass but is blocked on a
 proposal with its own open questions.

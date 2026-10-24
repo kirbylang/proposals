@@ -178,6 +178,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 ### Related Proposals
 
+- [Lists Proposal] — `@strSplit` and `@strToBytes` return a list `[T]`, and `@arrJoin` is renamed `@listJoin`.
 - [String Encoding Proposal] — decides what a string and a position are. Parts A to C here assume UTF-8 and byte positions ([Q-model] there).
 - [Result Proposal] — `@strFromBytes`, `@strFromCode` and `@parseInt` are inputs from outside the program's control, and are natural to return a `Result`.
 - [For-Each Proposal] — a `for` loop over a string would use these natives.
@@ -321,6 +322,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [String Interpolation Proposal]: ../string-interpolation/PROPOSAL.md
 [Additional Native Functions Proposal]: ../additional-native-functions/PROPOSAL.md
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
+[Lists Proposal]: ../lists/PROPOSAL.md
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
 
 <!-- Other proposals' questions -->

@@ -888,6 +888,7 @@ in `tests/`.
 
 ### Related Proposals
 
+- [Lists Proposal] — splits the `@arr*` natives into `@list*` (growable lists) and a smaller `@arr*` set (fixed size arrays). The `ARRAY` group in its table of native groups would become a `LIST` group and a new `ARRAY` group, and `KRB_LIB_ARRAY` would follow.
 - [Top-Level Declarations Proposal] — `interpretMain` becomes a call to the
   general `krbCallGlobal` ([Part 5]). A script an embedded host loads is what
   that proposal calls a library file: it declares things and is never run, so it
@@ -2317,6 +2318,7 @@ These are both technical and non technical terms used throughout the proposal.
 [Prefixed Native Functions Proposal]: ../prefixed-native-functions/PROPOSAL.md
 [Additional Native Functions Proposal]: ../additional-native-functions/PROPOSAL.md
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
+[Lists Proposal]: ../lists/PROPOSAL.md
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
 [Sized Number Types Proposal]: ../sized-number-types/PROPOSAL.md
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
