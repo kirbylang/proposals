@@ -112,10 +112,13 @@ concrete type once it is known. Arrays are written `[T]`: `[i64]` is an array
 of `i64`.
 
 `TYPE_GENERIC_PARAM` exists, but only native function signatures can use it.
-Signatures are Kirby type text (`src/native_signatures.c`), such as `@arrPop`'s
+Signatures are Kirby type text (`src/native_signatures.c`), such as `@listPop`'s
 `fun ([T]) => T`, and inside them the names `T`, `U`, `V` and `W` are generic
 parameters. A parameter is numbered (0 is `T`, 1 is `U`, and so on) rather than
-named, and has no bound:
+named, and has no bound. Native signatures can also
+write `N` and `M` for the length of an array, as in `fun ([T; N]) => [T; N]`.
+They are filled in from the arguments the same way, in the slots after `W`.
+They are for native signatures only, and user code still can't write them:
 
 ```c
 struct {
@@ -254,9 +257,9 @@ The **type checker rejects** almost all of it:
   Arrays need no generic arguments. They are written `[f64]`, and
   `let xs: [f64] = [1, 2.5];` is checked item by item. Square brackets after a
   name (`Box[f64]`) are generic arguments, and square brackets with nothing in
-  front are an array type. The plan is that `[T]` is a growable array now and
-  becomes a list later, `[T; n]` is a fixed size array, and a tuple type is
-  `(A, B)` (see the [Tuples Proposal] and the [Lists Proposal]).
+  front are a list type, or an array type when a length follows (`[f64; 3]`).
+  A tuple type is `(A, B)` (see the [Tuples Proposal] and the [Lists
+  Proposal]).
 - A generic function does not work either. `fun id[T](x: T): T = x;` fails
   because `T` is not a known type — `typchkResolveType` reaches its final case
   and reports:
@@ -285,12 +288,12 @@ The one place generics work is calls to native functions. When a native's
 signature has generic parameters, `typchkCheckGenericCall` (`src/typecheck.c`)
 checks the call. It goes through the arguments once, left to right. A
 parameter whose generic parameters are already filled is checked like any
-other parameter, so `@arrPush(numbers, 2.5)` with `numbers: [i64]` reports
+other parameter, so `@listPush(numbers, 2.5)` with `numbers: [i64]` reports
 `Expected i64, got f64.` Otherwise the argument's type fills them, as `[i64]`
 fills `T` in `[T]`. A lambda argument is checked against the partly filled
 type, so its parameters get their types from earlier arguments. A generic
-parameter that is never filled is unknown, not an error, so `@arrPop([])`
-gives an unknown type. A generic native used as a value (`let pop = @arrPop;`)
+parameter that is never filled is unknown, not an error, so `@listPop([])`
+gives an unknown type. A generic native used as a value (`let pop = @listPop;`)
 is also unknown.
 
 The helpers are in `src/types.c`: `typeBindGenericParams` fills the slots,
@@ -1468,7 +1471,7 @@ just build                 # produces build/krb
 # array types and generic natives work
 ./build/krb exec 'let xs: [f64] = [1, 2.5]; @println(xs);'
 # [1, 2.5]
-./build/krb exec 'let numbers: [i64] = [1]; @arrPush(numbers, 2.5);'
+./build/krb exec 'let numbers: [i64] = [1]; @listPush(numbers, 2.5);'
 # "Expected i64, got f64."
 
 # traits work

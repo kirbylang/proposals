@@ -47,12 +47,12 @@ consume(p, TOKEN_SEMICOLON, "Expect ';' after loop condition.");
 consume(p, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 ```
 
-Visiting every item of an array takes a counter, the length, and an index on every read:
+Visiting every item of a list takes a counter, the length, and an index on every read:
 
 ```kirby
 let names: [string] = ["a", "b", "c"];
 
-for (var i = 0; i < @arrLen(names); i = i + 1) {
+for (var i = 0; i < @listLen(names); i = i + 1) {
   @println(names[i]);
 }
 ```
@@ -70,7 +70,7 @@ Other facts that shape the design:
 - **There is no range.** `0..3` is not valid: `@println(1..2);` reports `Expect property name after '.'.` A counted loop needs the C-style form.
 - **The parser can look two tokens ahead.** `tsPeek` and `tsPeekNext` are in `src/token_stream.h`. `for (name in` can be told from `for (var name` or `for (i = 0` by looking at the token after the name.
 - **The loop node has four parts.** `NODE_FOR` holds `init`, `condition`, `increment` and `body` (`src/ast.h`, `src/parser.c`), and `break` and `continue` already work in it (`tests/run/flow_control/for_continue.krb`).
-- **Arrays can change while read.** `@arrPush`, `@arrPop`, `@arrInsert`, `@arrRemove` and `@arrClear` all change an array in place, so a loop over an array has to say what happens if the body does.
+- **Lists can change while read.** `@listPush`, `@listPop`, `@listInsert`, `@listRemove` and `@listClear` all change a list in place, so a loop over a list has to say what happens if the body does. An array `[T; n]` cannot change length.
 
 Collections that are coming make the gap bigger. The [Map Proposal] has no way to look at all entries without `@mapKeys`, the [String Encoding Proposal] needs a character by character walk that is easy to get wrong, and the [Tuples Proposal] and [Destructuring Proposal] design patterns that a loop should be able to use.
 
@@ -194,7 +194,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Enums Proposal] — `Option[T]` is the result of `next()`, and `enum` has the same keyword question ([Q-keyword-enum]).
 - [Generic Types Proposal] — `Iterator[T]` and `Iterable[T]` are generic traits.
 - [Collection Methods Proposal] — methods like `map` and `filter` on arrays would be built from the same iteration rule.
-- [Lists Proposal] — the loop works on a list `[T]` and a fixed size array `[T; n]` alike. The natives that change an array while it is read (`@arrPush` and the others) are `@list*` natives after that proposal.
+- [Lists Proposal] — the loop works on a list `[T]` and a fixed size array `[T; n]` alike. The natives that change an array while it is read (`@listPush` and the others) are `@list*` natives.
 - [Trait Types Proposal] — a function that takes any `Iterable` is a use of a trait type, though generic traits would need to be allowed ([Q-iterator-trait]).
 - [Tooling Data Proposal] and [Debugger Proposal] — the binding is a local variable with a short life, and the hidden locals have no name.
 
@@ -267,7 +267,7 @@ Prints the four pairs in order, and the inner binding does not clash with the ou
 let items = [1, 2];
 
 for (n in items) {
-  if (n < 3) { @arrPush(items, n + 2); }
+  if (n < 3) { @listPush(items, n + 2); }
   @println(n);
 }
 ```

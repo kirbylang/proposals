@@ -235,9 +235,8 @@ statically known, arrays/`Set`/`Map` follow whatever this proposal lands
 on. (b) is more honest about the actual differences but means committing to
 two mechanisms instead of one.
 
-The plan for arrays has a third shape in it: `[T]` is a growable array now
-and becomes a list later, and `[T; n]` will be a fixed size array with one
-item type (see the [Lists Proposal]). A fixed size array sits between the two groups: its size is fixed
+Arrays have a third shape in them: `[T]` is a growable list, and `[T; n]` is a
+fixed size array with one item type (see the [Lists Proposal]). A fixed size array sits between the two groups: its size is fixed
 like a tuple's, but every item has the same type, like a list's.
 
 ### **Q:** Do arrays actually fit the static/mangled mechanism?
@@ -277,7 +276,7 @@ comment before this proposal goes further.
 
 Arrays are typed by their items: `[i64]` is an array of `i64`. The array
 natives are typed through generic parameters in their signatures, which only
-native signatures can use: `@arrPush` is `fun ([T], T) => unit`. A lambda
+native signatures can use: `@listPush` is `fun ([T], T) => unit`. A lambda
 passed to a generic native gets its parameter types from earlier arguments,
 which is what a typed `filter` or `map` needs. So a native such as `@arrMap`
 could be typed as `fun ([T], fun (T) => U) => [U]` today. User code still
@@ -285,7 +284,7 @@ can't declare generic functions or methods ([Generic Types Proposal]).
 
 Options: (a) wait for [Generic Types Proposal] to land, so collection
 methods can be written in Kirby and typed from the start; (b) ship them as
-typed natives first, the way `@arrPush` and `@arrContains` already work (`@listPush` and `@listContains` after the [Lists Proposal]), and
+typed natives first, the way `@listPush` and `@listContains` already work, and
 turn them into methods later. (b) unblocks this sooner but means a second
 pass later to move them; (a) avoids that second pass but is blocked on a
 proposal with its own open questions.

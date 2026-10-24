@@ -110,7 +110,7 @@ How each item is compared is [Q-equality].
 
 ### Length
 
-The sketch asks for the number of items. Kirby has `@strLen`, typed `fun (string) => i64`, and `@arrLen`, typed `fun ([T]) => i64` (`src/native_signatures.c`). Neither accepts a tuple. Whether a tuple gets a length native of its own is [Q-len].
+The sketch asks for the number of items. Kirby has `@strLen`, typed `fun (string) => i64`, and `@listLen`, typed `fun ([T]) => i64` (`src/native_signatures.c`). There is also `@arrLen`, typed `fun ([T; N]) => i64`, for the fixed size array. None of them accepts a tuple. Whether a tuple gets a length native of its own is [Q-len].
 
 ### Goals and Non Goals
 
@@ -327,7 +327,7 @@ Options: (a) after a `.` token, the scanner reads only whole number digits, so `
 
 **Status:** Open
 
-Options: (a) A new kind of heap object that holds a fixed list of items, like `ObjArray` but the count never changes. Every place that looks at objects (`@typeof`, printing, `==`, the garbage collector) gets an explicit tuple case. (b) Reuse `ObjArray` and rely on the type checker to stop a tuple being used as an array. This is the least new code, but at run time a tuple and an array look the same, so `@typeof` and `@println` cannot tell them apart. The `@arr*` natives take `[T]`, so the type checker stops `@arrPush(tuple, x)`, but nothing at run time would. (c) A struct that the compiler generates with fields named `0`, `1`, and so on, which shares work with [Tuple Structs Proposal]. But tuple types are compared by their parts and struct types by name, so each tuple type would need its own generated struct.
+Options: (a) A new kind of heap object that holds a fixed list of items. `ObjArray` (from the [Lists Proposal]) is already a heap object whose count never changes, with no `capacity`, so this would be a second object of the same shape. Every place that looks at objects (`@typeof`, printing, `==`, the garbage collector) gets an explicit tuple case. (b) Reuse `ObjArray` and rely on the type checker to stop a tuple being used as an array. This is the least new code, but at run time a tuple and an array look the same, so `@typeof` and `@println` cannot tell them apart. The `@arr*` natives take `[T; N]`, so the type checker stops `@arrLen(tuple)`, but nothing at run time would. (c) A struct that the compiler generates with fields named `0`, `1`, and so on, which shares work with [Tuple Structs Proposal]. But tuple types are compared by their parts and struct types by name, so each tuple type would need its own generated struct.
 
 ### **Q:** How does tuple equality compare items?
 
@@ -379,7 +379,7 @@ The sketch writes `(number, number)`. A spelling like `Tuple[f64, string]` was a
 
 **Status:** Open
 
-The sketch asks for it. But the length of a tuple is part of its type and is always known at compile time, so the answer is never a surprise. Options: (a) add a native such as `@tupleLen`. `@arrLen` can't simply take a tuple, because its signature is `fun ([T]) => i64`. (b) Leave it out, and keep `@strLen` and `@arrLen` for values whose length can change.
+The sketch asks for it. But the length of a tuple is part of its type and is always known at compile time, so the answer is never a surprise. Options: (a) add a native such as `@tupleLen`. `@arrLen` can't simply take a tuple,, because its signature is `fun ([T; N]) => i64`. (b) Leave it out, and keep `@strLen` and `@listLen` for values whose length can change.
 
 ## Glossary
 

@@ -44,7 +44,7 @@ let keys: [string] = ["a", "b", "c"];
 let values: [f64] = [1, 2, 3];
 
 fun lookup(key: string): f64 {
-  for (var i = 0; i < @arrLen(keys); i = i + 1) {
+  for (var i = 0; i < @listLen(keys); i = i + 1) {
     if (keys[i] == key) {
       return values[i];
     }
@@ -107,7 +107,7 @@ ages["bob"] = 25;
 - `Map[K, V]` is a type with two type parameters. It is compared by its parameters, like an array is compared by its item type. The name `Map` is [Q-name].
 - A map is a heap object, like an array. Assigning it to another variable shares it, and changes show through both.
 - `Map.new()` creates an empty map. The element types come from the annotation or the first use.
-- The operations, in the style of the array natives (`@arrPush`, `@arrLen`, ...), are in the table below. Whether they are natives or methods is [Q-api-shape].
+- The operations, in the style of the list natives (`@listPush`, `@listLen`, ...), are in the table below. Whether they are natives or methods is [Q-api-shape].
 
 | Operation                | Native                          | Signature                              |
 | ------------------------ | ------------------------------- | -------------------------------------- |
@@ -196,7 +196,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 ### Related Proposals
 
-- [Lists Proposal] — the array natives this proposal copies the style of (`@arrPush`, `@arrLen`) are renamed `@listPush` and `@listLen`. The `@map*` names do not change.
+- [Lists Proposal] — the list natives this proposal copies the style of are `@listPush` and `@listLen`, renamed from `@arrPush` and `@arrLen`. The `@map*` names do not change.
 - [Generic Types Proposal] — `Map[K, V]` needs generic arguments on a built-in type. The key rule needs a way to ask for `Eq` and `Hash` (trait bounds, Part 4 there).
 - [Enums Proposal] — `@mapGet` returns an `Option[V]`.
 - [Collection Methods Proposal] — whether the operations are methods ([Q-api-shape]), and its question about whether to wait for `Set` and `Map` ([Q-scope-order]). This proposal is the sketch of `Map`'s shape that its option (b) asks for.
@@ -288,7 +288,7 @@ Both are used in other languages. Rust, Java and Go call it a map; Python calls 
 
 **Status:** Open
 
-Options: (a) Natives, as in the issue and as arrays do (`@mapGet(m, k)`). Needs no new mechanism, and matches `@arrPush`. (b) Methods (`m.get(k)`). Reads better and chains. It needs the answer to the [Collection Methods Proposal], which is not settled. (c) Natives first, then methods when collection methods land, the way arrays are expected to move.
+Options: (a) Natives, as in the issue and as arrays do (`@mapGet(m, k)`). Needs no new mechanism, and matches `@listPush`. (b) Methods (`m.get(k)`). Reads better and chains. It needs the answer to the [Collection Methods Proposal], which is not settled. (c) Natives first, then methods when collection methods land, the way arrays are expected to move.
 
 (c) is the recommendation. It does not wait on another proposal and keeps the migration path the arrays already have.
 

@@ -888,7 +888,7 @@ in `tests/`.
 
 ### Related Proposals
 
-- [Lists Proposal] — splits the `@arr*` natives into `@list*` (growable lists) and a smaller `@arr*` set (fixed size arrays). The `ARRAY` group in its table of native groups would become a `LIST` group and a new `ARRAY` group, and `KRB_LIB_ARRAY` would follow.
+- [Lists Proposal] — split the `@arr*` natives into `@list*` (growable lists) and a smaller `@arr*` set (fixed size arrays). The `ARRAY` group in its table of native groups needs to become a `LIST` group and a new `ARRAY` group, and `KRB_LIB_ARRAY` follows.
 - [Top-Level Declarations Proposal] — `interpretMain` becomes a call to the
   general `krbCallGlobal` ([Part 5]). A script an embedded host loads is what
   that proposal calls a library file: it declares things and is never run, so it

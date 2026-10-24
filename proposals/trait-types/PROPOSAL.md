@@ -101,7 +101,7 @@ fun describe(shape: Shape): string =
 
 let shapes: [Shape] = [Circle { radius: 1 }, Square { side: 2 }];
 
-for (var i = 0; i < @arrLen(shapes); i = i + 1) {
+for (var i = 0; i < @listLen(shapes); i = i + 1) {
   @println(describe(shapes[i]));
 }
 ```
@@ -276,7 +276,7 @@ Both are accepted today. Options: (a) A compile error at the second declaration.
 
 **Status:** Open
 
-Arrays can be changed (`@arrPush`). If `[Circle]` were accepted as `[Shape]`, a function could push a `Square` into it, and the original array would hold a `Square` under a `[Circle]` type.
+Lists can be changed (`@listPush`). If `[Circle]` were accepted as `[Shape]`, a function could push a `Square` into it, and the original array would hold a `Square` under a `[Circle]` type.
 
 Options: (a) No. `[Circle]` and `[Shape]` are different types, and the conversion happens per item. Safe, and means a caller builds a `[Shape]` explicitly. (b) Yes, for reading only. It needs a notion of a read-only view that Kirby does not have. (c) Yes, and accept that a push can break the array's type. Not recommended.
 
