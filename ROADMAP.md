@@ -1,53 +1,6 @@
 # Roadmap
 
-`Proposal categories, the order they have to be built in, and how far along
-each one is. A row can start once everything it needs is Done. Rows in the
-same stage can go in any order.
-
-Each dependency is explained in the proposal's Related Proposals section.
-Proposals built in parts are split into rows where the parts need different
-things. A part is always named, and linked to its section in the proposal.
-
-## Categories
-
-Each proposal has a `category` in its frontmatter.
-
-| Category       | Meaning                                              | May need                  | Needed by                       |
-| -------------- | ---------------------------------------------------- | ------------------------- | ------------------------------- |
-| `epic`         | Must do. Large changes to the language or toolchain. | epics                     | anything                        |
-| `feature`      | Nice to have. Syntax and built-in types.             | epics, features           | features, tooling, experimental |
-| `tooling`      | Standalone tools around the language.                | anything but experimental | nothing                         |
-| `experimental` | Exploring an idea. Its effects stay inside it.       | anything but experimental | nothing                         |
-
-A proposal that something else needs can't be `experimental`. If one becomes
-needed, it moves to another category first.
-
-## Status
-
-Rows in the stage tables:
-
-| Status      | Meaning                          |
-| ----------- | -------------------------------- |
-| Not started | Something it needs isn't Done    |
-| Ready       | Everything it needs is Done      |
-| In progress | Being built                      |
-| Done        | Built. Links to the PR or commit |
-
-Proposals, in [Progress]:
-
-| Status      | Meaning                                                                                                                |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Not started | No row is In progress or Done                                                                                          |
-| In progress | A row is In progress, none is Done                                                                                     |
-| Partial     | Some rows are Done, not all                                                                                            |
-| Done        | The proposal is `Closed`. This can come long after its last row, since proposals keep changing as other proposals need |
-
-Rows are never removed. A Done row stays where it is.
-
-Work that a later proposal causes in a Done row belongs to the later
-proposal. For example, if generic types is Done before tuples, teaching the
-[substitution helper][gt-3.6] about tuple types is part of the tuples
-proposal, and generic types doesn't reopen.
+This is a high level view of the proposals and how they relate to each other.
 
 ## Epics
 
@@ -234,6 +187,47 @@ Answering these can move a row between stages.
 Closed before this roadmap existed: [Additional Native Functions],
 [Prefixed Native Functions], [String Interpolation], [Sized Number Types],
 [Lists].
+
+## Categories
+
+Each proposal has a `category` in its frontmatter.
+
+| Category       | Meaning                                              | May need                  | Needed by                       |
+| -------------- | ---------------------------------------------------- | ------------------------- | ------------------------------- |
+| `epic`         | Must do. Large changes to the language or toolchain. | epics                     | anything                        |
+| `feature`      | Nice to have. Syntax and built-in types.             | epics, features           | features, tooling, experimental |
+| `tooling`      | Standalone tools around the language.                | anything but experimental | nothing                         |
+| `experimental` | Exploring an idea. Its effects stay inside it.       | anything but experimental | nothing                         |
+
+A proposal that something else needs can't be `experimental`. If one becomes
+needed, it moves to another category first.
+
+## Status
+
+Rows in the stage tables:
+
+| Status      | Meaning                          |
+| ----------- | -------------------------------- |
+| Not started | Something it needs isn't Done    |
+| Ready       | Everything it needs is Done      |
+| In progress | Being built                      |
+| Done        | Built. Links to the PR or commit |
+
+Proposals, in [Progress]:
+
+| Status      | Meaning                                                                                                                |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Not started | No row is In progress or Done                                                                                          |
+| In progress | A row is In progress, none is Done                                                                                     |
+| Partial     | Some rows are Done, not all                                                                                            |
+| Done        | The proposal is `Closed`. This can come long after its last row, since proposals keep changing as other proposals need |
+
+Rows are never removed. A Done row stays where it is.
+
+Work that a later proposal causes in a Done row belongs to the later
+proposal. For example, if generic types is Done before tuples, teaching the
+[substitution helper][gt-3.6] about tuple types is part of the tuples
+proposal, and generic types doesn't reopen.
 
 ## Link References
 
