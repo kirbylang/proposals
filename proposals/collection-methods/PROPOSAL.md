@@ -138,9 +138,10 @@ On main, the same gate function lives in `src/token.c` and recognizes only
 `impl Display for Array` reports `Unknown type 'Array'.`
 
 The gap is bigger than arrays alone. Tuples are designed in the
-[Tuples Proposal] but not built. `Set` and `Map`/`Dict` don't
-appear anywhere — not in the changelog, not in any existing proposal, not in
-the codebase. All of them will eventually want methods (`arr.filter(fn)`,
+[Tuples Proposal] but not built. `Map` is designed in the [Map Proposal]
+(from [Issue #70]) but not built. `Set` is not in the changelog or the
+codebase, and no proposal designs it (the [Map Proposal] lists it as out of
+scope). All of them will eventually want methods (`arr.filter(fn)`,
 `set.has(x)`, `map.get(k)`, whatever their eventual syntax turns out to be),
 and none of them are "primitive" in the sense [Primitive Impls Proposal]
 uses that word — they're heap-backed and dynamically sized, closer in shape
@@ -158,6 +159,8 @@ can't `impl` them the way it can `impl` a struct.
   generic type arguments. Those are rejected today (`Box[f64]` reports
   `Generic types aren't supported yet.`). Arrays don't need them: `[i64]` is
   an array of `i64` and the checker checks its items. See [Q-generics-order].
+- [Map Proposal] designs `Map[K, V]`, with its operations written as natives (`@mapGet`, `@mapSet`) and a question about whether they become methods ([Q-api-shape]). It is the sketch of `Map`'s shape that option (b) of [Q-scope-order] asks for.
+- [For-Each Proposal] adds `for (item in collection)`. Methods like `filter` and `map` on arrays would be built on the same iteration rule.
 - [Tuples Proposal] designs the tuple type this proposal mentions. It writes
   the type `(f64, string)` ([Q-type-spelling]), and gives a tuple a fixed
   size and item types known at compile time, which bears on [Q-category].
@@ -206,7 +209,7 @@ separate mechanism from Part 2, or only if Part 2 turns out not to fit, is
 ### Part 4 — Explicitly out of scope
 
 This proposal does not design tuples, `Set`, or `Map`/`Dict` themselves —
-none of them exist yet. It only tries to scope the _mechanism_ question, so
+none of them exist yet. `Map` is designed in the [Map Proposal]. It only tries to scope the _mechanism_ question, so
 that whichever of them get built later — and arrays, which already
 exist — have somewhere to attach methods to.
 
@@ -343,10 +346,17 @@ proposal.
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
+[Map Proposal]: ../map/PROPOSAL.md
+[For-Each Proposal]: ../for-each/PROPOSAL.md
+
+<!-- External -->
+
+[Issue #70]: https://github.com/kirbylang/kirbylang/issues/70
 
 <!-- Other proposals' questions -->
 
 [Q-type-spelling]: ../tuples/PROPOSAL.md#q-is-a-tuple-type-written-a-b-or-tuplea-b
+[Q-api-shape]: ../map/PROPOSAL.md#q-are-the-operations-natives-or-methods
 
 <!-- Questions -->
 

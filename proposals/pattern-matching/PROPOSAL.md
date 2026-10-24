@@ -183,6 +183,9 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Sized Number Types Proposal] — Closed. A whole number literal takes the expected kind where its value fits, and is an `i64` otherwise. A literal pattern like `1` should follow the same rule and take the kind of the value being matched, so `1` matches a `u8` or an `f64`.
 - [Macros Proposal] — macros are described as ordinary Kirby code working on syntax as data. `match` and enums would be the natural way to write that code.
 - [Tooling Data Proposal] and [Debugger Proposal] — each arm introduces local variables.
+- [Result Proposal] — the main way to take a `Result` apart. Its `?` operator compiles to a test of the variant and an early return, the same shape as a `match` arm, and should reuse this proposal's compiler work.
+- [For-Each Proposal] — a pattern in a loop head (`for ((key, value) in map)`) uses the patterns from the [Destructuring Proposal]. `in` has the same reserved word question as `match` ([Q-keyword-in]).
+- [Trait Types Proposal] — getting a struct back out of a trait typed value would need a type pattern ([Q-downcast]).
 
 ### Testing Plan
 
@@ -436,7 +439,7 @@ Options: (a) Infer every arm and require them to be equal, the same as `if`. It 
 
 Options: (a) A reserved word, like every other keyword in Kirby's scanner. It is simple, and a program that uses `match` as a name stops compiling. (b) Only a keyword where a statement or expression is expected to start, so `match` can still be a variable name elsewhere. Nothing breaks, but the parser has more to decide, and `match (x)` could be a call of a function named `match`.
 
-The changelog can record whichever is chosen. The same choice for `_` is [Q-wildcard].
+The changelog can record whichever is chosen. The same choice for `_` is [Q-wildcard]. `in`, from the [For-Each Proposal], has the same question ([Q-keyword-in]), and all three should make the same choice.
 
 ## Glossary
 
@@ -479,12 +482,17 @@ These are both technical and non-technical terms used throughout the proposal.
 [Modules Proposal]: ../modules/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Debugger Proposal]: ../debugger/PROPOSAL.md
+[Result Proposal]: ../result/PROPOSAL.md
+[For-Each Proposal]: ../for-each/PROPOSAL.md
+[Trait Types Proposal]: ../trait-types/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
 [Q-wildcard]: ../destructuring/PROPOSAL.md#q-is-the-underscore-a-placeholder-in-patterns
 [Q-array-mismatch]: ../destructuring/PROPOSAL.md#q-what-happens-when-an-array-pattern-does-not-fit
 [Q-variant-access]: ../enums/PROPOSAL.md#q-how-is-a-variant-written-and-what-else-shares-its-name
+[Q-keyword-in]: ../for-each/PROPOSAL.md#q-is-in-a-reserved-word
+[Q-downcast]: ../trait-types/PROPOSAL.md#q-can-the-original-type-be-recovered-from-a-trait-typed-value
 
 <!-- External -->
 

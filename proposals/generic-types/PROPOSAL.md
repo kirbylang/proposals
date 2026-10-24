@@ -837,6 +837,17 @@ each operator separately in each place is exactly how such drift happens.
 
 ---
 
+### 4.6 Bounds and trait types
+
+A bound is the static way to use a trait: the concrete type is known at each
+call, and the compiler can specialize (Part 5). The [Trait Types Proposal] adds
+the dynamic way: a trait name where a type is expected, so one array can hold
+values of different structs that implement the trait. Both use the same
+"does this type implement the trait" lookup (`typeStructImplementsTrait`). A
+trait that mentions `Self` outside its receiver, like `Eq`, can be a bound but
+can not be a trait type, which is one reason a bound is not a replacement for
+it.
+
 ## Part 5 — Monomorphization
 
 Parts 3 and 4 let generics be _written_ and _checked_. This part says how they
@@ -1372,7 +1383,10 @@ parameters itself: `Option[T]` and `Result[T, E]`. `@argv`, `@prompt` and
 `@stdin` have no signature until `Option[T]` exists (`docs/TYPES.md`). Both need the same "write it once, call it
 everywhere" treatment that 3.6 gives the existing kinds, or one path will
 miss a case. (a) costs more up front. (b) is smaller, but leaves `Option[T]`
-unavailable, and that is what the natives pending it need.
+unavailable, and that is what the natives pending it need. The [Map Proposal]
+(`Map[K, V]`) and the [Result Proposal] (natives that return `Result[T, E]`)
+need the same treatment, and the second also needs native signatures to be able
+to write a generic enum type.
 
 ---
 
@@ -1482,5 +1496,8 @@ just build                 # produces build/krb
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
+[Trait Types Proposal]: ../trait-types/PROPOSAL.md
+[Map Proposal]: ../map/PROPOSAL.md
+[Result Proposal]: ../result/PROPOSAL.md
 [Q-equality-tuples]: ../tuples/PROPOSAL.md#q-how-does-tuple-equality-compare-items
 [Q-equality-enums]: ../enums/PROPOSAL.md#q-how-does-equality-work-on-enums

@@ -186,6 +186,8 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Tuple Structs Proposal] — tuple struct patterns depend on it.
 - [Pattern Matching Proposal] — depends on this proposal. It reuses the pattern nodes and adds patterns that can fail, such as literals and enum variants.
 - [Enums Proposal] — an enum variant can not be taken apart by `let`, because the value might be a different variant. That is done with `match`.
+- [For-Each Proposal] — a pattern that cannot fail could replace the name in a loop head, as in `for ((key, value) in map)` ([Q-pattern]). The loop would use this proposal's pattern nodes and hidden temporary.
+- [Map Proposal] — a map's entries are pairs of key and value, which a tuple pattern takes apart.
 - [Tooling Data Proposal] — records the names of local variables and the range of code each is alive for. A pattern declares several names from one statement, plus a hidden temporary that has no name.
 - [Debugger Proposal] — its variables view lists locals, so the hidden temporary should not appear there.
 - [Top-Level Declarations Proposal] — a `let` or `var` with a pattern at the top level is still a declaration, and its initializer must be a comptime value. The names a `let` pattern binds count as `let` names for that proposal's "earlier `let`" rule, and the names a `var` pattern binds do not. Whichever node holds a pattern declaration, the top-level check has to recognise it, and it has no single name token to point its error at. An array pattern that does not fit fails while the file loads ([Q-array-mismatch]), the same kind of failure as `1 / 0` there. The samples here that use top-level statements are converted when [Q-samples] there is settled.
@@ -448,10 +450,13 @@ These are both technical and non-technical terms used throughout the proposal.
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
+[For-Each Proposal]: ../for-each/PROPOSAL.md
+[Map Proposal]: ../map/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
 [Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
+[Q-pattern]: ../for-each/PROPOSAL.md#q-can-a-pattern-replace-the-name
 
 <!-- External -->
 

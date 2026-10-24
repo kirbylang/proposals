@@ -170,7 +170,8 @@ enum Option[T] {
 ```
 
 - Type parameters are written in square brackets, as for generic structs (`Struct[T]`), which parse today but are rejected by the checker.
-- `Option[T]` and `Result[T, E]` are the two the sketch names. Where they are defined is [Q-option-home], and how `Option[T]` relates to `nil` is [Q-option-nil].
+- `Option[T]` and `Result[T, E]` are the two the sketch names. Where they are defined is [Q-option-home], and how `Option[T]` relates to `nil` is [Q-option-nil]. How `Result` is used, which natives return it, and the `?` operator are in the [Result Proposal].
+- `??` accepts an `Option[T]` on the left and a `T` on the right, and gives a `T`: `None` takes the right side. This is the answer to [Q-option-nil].
 - Part C depends entirely on the [Generic Types Proposal]. It is listed here so Parts A and B are designed so it can follow.
 - Once `Option[T]` exists, the natives that the changelog lists as pending it (`@argv`, `@prompt`, `@stdin`, `@strIndexOf`) could be given types.
 - The sketch lists `Err` before `Ok` in `Result`, where Rust lists `Ok` first. That only matters if the order of variants can be seen ([Q-discriminants]).
@@ -183,6 +184,7 @@ What this proposal covers:
 - `==` and `!=` on enums
 - Variants with values, in both shapes, and enums that refer to themselves
 - Enums with type parameters, once generics exist
+- `??` on an `Option[T]`
 - Building the parts in an order where each can ship without the next
 
 The following is intentionally left out of scope for this proposal:
@@ -192,7 +194,8 @@ The following is intentionally left out of scope for this proposal:
 - Turning an enum into a number and back
 - Using a variant without writing the enum's name in front of it. See [Q-bare-variants] and the [Modules Proposal].
 - Declaring an enum inside a function or block. The top level rule for declarations stays.
-- Replacing `nil` and `??` with `Option[T]` ([Q-option-nil])
+- Removing `nil`. The intent is that `nil` goes away once `Option[T]` exists, but the removal is a separate change ([Q-option-nil]).
+- The `Result` type's uses: natives that return it and the `?` operator. See the [Result Proposal].
 
 ### Implementation Plan
 
@@ -227,6 +230,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 - Type parameters on an enum declaration, and type arguments where an enum type is written.
 - The type substitution helper in the [Generic Types Proposal] (3.6) handles enum types, the same as struct types.
+- The checker's rule for `??` accepts an `Option[T]` on the left when the right side is a `T`, and the compiler tests for `None` where it tests for `nil` today.
 
 #### Part 6: Docs and tooling
 
@@ -254,6 +258,10 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Modules Proposal] — how an enum and its variants are made visible outside a file.
 - [Debugger Proposal] — its variables view shows arrays and struct values, so a new kind of object needs a display.
 - [Collection Methods Proposal] — methods that look something up, like finding an item, are natural users of `Option[T]`.
+- [Result Proposal] — designs how `Result[T, E]` is used: which natives return it, the `?` operator, and the error type. It needs natives written in C to create an `Option` or a `Result`, which favors option (b) or (c) of [Q-option-home].
+- [Map Proposal] — `@mapGet` returns an `Option[V]`.
+- [For-Each Proposal] — an iterator's `next()` returns an `Option[T]`, and `in` has the same reserved word question as `enum` ([Q-keyword-in]).
+- [Trait Types Proposal] — an enum can implement a trait (Part 2), so an enum value converts to a trait type the same way a struct does.
 - [Top-Level Declarations Proposal] — `enum` would join `fun`, `struct`, `impl`, `trait`, and `type` in the list of declarations a file's top level may hold. A variant value such as `Colors.Red` or `Shape.Circle(1)` only builds data, so it would count as a comptime value when its contents do, once [Q-variant-access] and [Q-variant-fields] settle how it is written. `Option` and `Result` in `stdlib/stdlib.krb` ([Q-option-home], option (a)) are declarations only, so they fit. The samples here that use top-level statements are converted when [Q-samples] there is settled.
 
 ### Testing Plan
@@ -604,19 +612,21 @@ The two proposals should agree on how a call builds a value.
 
 **Status:** Open
 
-Options: (a) In `stdlib/stdlib.krb`, as ordinary Kirby enums. That file holds only `Date` today and runs before user code. It is simple and visible. But it puts `Option` and `Result` in every program's set of global names (the [String Interpolation Proposal] had the same worry about a `StringBuilder`, and chose a native instead), and native functions written in C would have to build a value of an enum declared in Kirby. (b) Built into the compiler, the way `Display`, `Eq`, `Ord`, and `Default` are already built in. C code can then create them, so natives could return `Option`. More C to write, and more to keep in step with Kirby's own rules. (c) Start with (a) for use in Kirby code, and give the natives an `Option` later once a way to build one from C is decided.
+Options: (Natives that return an `Option` or a `Result`, as the [Result Proposal] asks for, need C code to build one, which counts against (a).) (a) In `stdlib/stdlib.krb`, as ordinary Kirby enums. That file holds only `Date` today and runs before user code. It is simple and visible. But it puts `Option` and `Result` in every program's set of global names (the [String Interpolation Proposal] had the same worry about a `StringBuilder`, and chose a native instead), and native functions written in C would have to build a value of an enum declared in Kirby. (b) Built into the compiler, the way `Display`, `Eq`, `Ord`, and `Default` are already built in. C code can then create them, so natives could return `Option`. More C to write, and more to keep in step with Kirby's own rules. (c) Start with (a) for use in Kirby code, and give the natives an `Option` later once a way to build one from C is decided.
 
 ### **Q:** How does `Option[T]` relate to `nil`?
 
 <!-- [Q-option-nil]: #q-how-does-optiont-relate-to-nil -->
 
-**Status:** Open
+**Status:** Answered
 
 `nil` has the type `unit`, so it cannot stand for a missing `f64` (verified: `let x: f64 = nil;` reports `Expected f64, got unit.`). That is why natives that may return nothing have no type. `??` picks the right side when the left is `nil`, and is accepted on typed values such as an `f64`.
 
 Options: (a) Keep `nil` and `??` as they are. `Option[T]` is an ordinary enum next to them, and code chooses which to use. (b) Have `??` also work on `Option[T]`, choosing the right side for `None`. (c) Later, move "maybe no value" wholly to `Option[T]` and change what `nil` is.
 
-This proposal only needs the answer to be (a). (b) and (c) are here so they are decided on purpose and not by accident.
+#### Answer
+
+(b), and (c) is the intent. `??` works on an `Option[T]` as long as the right side is a `T`, and the result is a `T`. `nil` is expected to go away once `Option[T]` exists. Removing it is a separate change and not part of this proposal, so this proposal does not need to change what `nil` means.
 
 ### **Q:** How does an enum value print?
 
@@ -634,7 +644,7 @@ This proposal only needs the answer to be (a). (b) and (c) are here so they are 
 
 `enum` is a valid variable name today (`var enum = 1;` works, verified). The choice is the same one the [Pattern Matching Proposal] has for `match` ([Q-keyword-match]): (a) reserve it, like every other keyword, and any program using `enum` as a name stops compiling. (b) Treat it as a keyword only where a declaration can start. Nothing breaks, but the parser has more to decide.
 
-Both proposals should make the same choice.
+Both proposals, and the [For-Each Proposal] for `in` ([Q-keyword-in]), should make the same choice.
 
 ## Glossary
 
@@ -677,6 +687,10 @@ These are both technical and non-technical terms used throughout the proposal.
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
 [String Interpolation Proposal]: ../string-interpolation/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
+[Result Proposal]: ../result/PROPOSAL.md
+[Map Proposal]: ../map/PROPOSAL.md
+[For-Each Proposal]: ../for-each/PROPOSAL.md
+[Trait Types Proposal]: ../trait-types/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
@@ -686,6 +700,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-equality-tuples]: ../tuples/PROPOSAL.md#q-how-does-tuple-equality-compare-items
 [Q-syntax]: ../macros/PROPOSAL.md#q-what-form-of-syntax-value-do-macros-receive-and-return
 [Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
+[Q-keyword-in]: ../for-each/PROPOSAL.md#q-is-in-a-reserved-word
 
 <!-- External -->
 

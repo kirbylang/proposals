@@ -639,6 +639,15 @@ the same way. The docs to update are `docs/CLI.md` and `book/src/cli.md`
   [Q-snippets]: `krbLoad` takes a file and `krbEval` takes a snippet. Its
   compile-only mode (`krb compile`, which that proposal would give an output
   file) overlaps with [Q-check-only]. That proposal is updated to say so.
+- [Map Proposal] — a map literal only builds data, so it would be a comptime
+  value when its keys and values are. That proposal is updated to say so.
+- [Result Proposal] — `?` needs a function that returns a `Result`, so it is
+  not valid in a top-level `let` or `var` initializer. Whether it is valid in a
+  script's loose statements is [Q-try-top-level]. That proposal is updated to
+  say so.
+- [Strings Proposal], [String Encoding Proposal], [Trait Types Proposal],
+  [For-Each Proposal] — many of their code samples use top-level statements,
+  like the other proposals' samples. See [Q-samples].
 
 ### Testing Plan
 
@@ -1370,6 +1379,12 @@ These are both technical and non-technical terms used throughout the proposal.
 [Unimplemented Proposal]: ../unimplemented/PROPOSAL.md
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
 [Lua Transpiler Proposal]: ../lua-transpiler/PROPOSAL.md
+[Map Proposal]: ../map/PROPOSAL.md
+[Result Proposal]: ../result/PROPOSAL.md
+[Strings Proposal]: ../strings/PROPOSAL.md
+[String Encoding Proposal]: ../string-encoding/PROPOSAL.md
+[Trait Types Proposal]: ../trait-types/PROPOSAL.md
+[For-Each Proposal]: ../for-each/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
@@ -1380,6 +1395,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-constructor]: ../tuple-structs/PROPOSAL.md#q-how-is-a-tuple-struct-constructed
 [Q-array-mismatch]: ../destructuring/PROPOSAL.md#q-what-happens-when-an-array-pattern-does-not-fit
 [Q-register]: ../testing/PROPOSAL.md#q-how-are-tests-registered-when-the-top-level-cannot-make-calls
+[Q-try-top-level]: ../result/PROPOSAL.md#q-what-does-the-early-return-operator-do-at-the-top-level-of-a-script
 
 <!-- Questions -->
 

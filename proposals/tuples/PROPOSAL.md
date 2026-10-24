@@ -178,6 +178,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Tuple Structs Proposal] — depends on this proposal for reading an item by position.
 - [Destructuring Proposal] — tuple patterns like `let (a, b) = t;` depend on this proposal.
 - [Pattern Matching Proposal] — tuple patterns depend on this proposal.
+- [Map Proposal] and [For-Each Proposal] — looping over a map gives a pair of key and value, which is a tuple. `for ((key, value) in map)` needs this proposal and the [Destructuring Proposal].
 - [Sized Number Types Proposal] — Closed. It added ten number kinds and no `number` type, so the sketch's `number` becomes `i64` or `f64`.
 - [Top-Level Declarations Proposal] — a tuple literal only builds data, so it would count as a comptime value when its items do, and could start a top-level `let` or `var`. The samples here that use top-level statements are converted when [Q-samples] there is settled.
 
@@ -414,6 +415,8 @@ These are both technical and non-technical terms used throughout the proposal.
 [Tuple Structs Proposal]: ../tuple-structs/PROPOSAL.md
 [Destructuring Proposal]: ../destructuring/PROPOSAL.md
 [Pattern Matching Proposal]: ../pattern-matching/PROPOSAL.md
+[Map Proposal]: ../map/PROPOSAL.md
+[For-Each Proposal]: ../for-each/PROPOSAL.md
 [Sized Number Types Proposal]: ../sized-number-types/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 

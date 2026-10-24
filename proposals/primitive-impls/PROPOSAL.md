@@ -630,6 +630,13 @@ None of these interact with monomorphization, bounds, or modules — this is
 additive to the _existing_ trait system, not dependent on the generic-types
 proposal landing first. See [Q-sequencing].
 
+Two other proposals lean on this one. The [Trait Types Proposal] allows a
+trait name as a type, and leaves primitives out of it because a number has no
+object to find a method table through ([Q-primitives] there). The
+[Strings Proposal] orders strings with `<` directly, and treats
+`impl Ord for string` as a later way to get the same result ([Q-compare]
+there).
+
 ---
 
 ## Questions
@@ -843,6 +850,10 @@ A whole number literal is an `i64`. So "primitive kind" here covers `bool`,
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
+[Trait Types Proposal]: ../trait-types/PROPOSAL.md
+[Strings Proposal]: ../strings/PROPOSAL.md
+[Q-primitives]: ../trait-types/PROPOSAL.md#q-can-a-number-string-or-bool-convert-to-a-trait-type
+[Q-compare]: ../strings/PROPOSAL.md#q-is-string-ordering-an-operator-rule-or-an-ord-impl
 [Q-unit-empty]: ../tuples/PROPOSAL.md#q-is-unit-the-empty-tuple
 [Q-representation-enums]: ../enums/PROPOSAL.md#q-what-is-an-enum-value-at-run-time
 
