@@ -71,7 +71,7 @@ Three things about the current implementation shape the design. Each was verifie
 
 - **The VM's table only has string keys.** `Table` in `src/hashtable.h` is built from entries of `ObjString *key` and a `Value`. It backs globals, struct fields and methods. It can not be reused for keys that are numbers or structs without changing.
 - **`{` already has two meanings.** The parse rule table has `[TOKEN_LEFT_BRACE] = {blockExpr, struct_, PREC_CALL}`: a `{` that starts an expression is a block, and a `{` after a name starts a struct initializer. `let e = {};` gives `nil` (an empty block) and `{ 1 }` gives `1`.
-- **Generic arguments are not accepted yet.** `struct Box[T]` reports `Generic structs aren't supported yet.`, so `Map[string, f64]` can not be written as a type until the [Generic Types Proposal] lands. Native signatures can already use a placeholder (`fun ([T], T) => unit` for `@arrPush`), so a native that takes a map has a signature to follow.
+- **Generic arguments work for structs a program declares, not for built-in types.** `struct Box[T]` and `Box[string]` work ([PR #169]), but `Map` is not a struct a program declares, so `Map[string, f64]` can not be written as a type yet. Native signatures can use a placeholder (`fun ([T], T) => unit` for `@listPush`), so a native that takes a map has a signature to follow.
 
 ## Proposed Changes
 
@@ -176,7 +176,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 #### Part 3: Type checker
 
-- `Map[K, V]` as a type, and the native signatures above. Depends on the [Generic Types Proposal] (generic arguments) and the [Enums Proposal] (`Option`).
+- `Map[K, V]` as a type, and the native signatures above. Depends on a built-in type that takes generic arguments (type parameters are built, see the [Generic Types Proposal]) and the [Enums Proposal] (`Option`).
 - A key type is checked against the rule in Part C.
 
 #### Part 4: Parser
@@ -198,7 +198,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 ### Related Proposals
 
 - [Lists Proposal] — the list natives this proposal copies the style of are `@listPush` and `@listLen`, renamed from `@arrPush` and `@arrLen`. The `@map*` names do not change.
-- [Generic Types Proposal] — `Map[K, V]` needs generic arguments on a built-in type. The key rule needs a way to ask for `Eq` and `Hash` (trait bounds, Part 4 there).
+- [Generic Types Proposal] — `Map[K, V]` needs generic arguments on a built-in type. Type parameters on structs a program declares are built ([PR #169]). The key rule needs a way to ask for `Eq` and `Hash` (trait bounds, Part 4 there).
 - [Enums Proposal] — `@mapGet` returns an `Option[V]`.
 - [Collection Methods Proposal] — whether the operations are methods ([Q-api-shape]), and its question about whether to wait for `Set` and `Map` ([Q-scope-order]). This proposal is the sketch of `Map`'s shape that its option (b) asks for.
 - [For-Each Proposal] — looping over a map gives key and value pairs.
@@ -400,3 +400,4 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-empty-map]: #q-how-is-an-empty-map-written
 [Q-key-types]: #q-which-types-can-be-keys
 [Q-order]: #q-what-order-are-entries-walked-in
+[PR #169]: https://github.com/kirbylang/kirbylang/pull/169

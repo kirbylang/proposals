@@ -2,7 +2,7 @@
 status: Draft
 category: epic
 created: 2026-09-18
-from_commit: 2f96a2e
+from_commit: b41332d
 ---
 
 # Proposal: Generic Types, Macros, Tooling Needs
@@ -17,6 +17,10 @@ enough detail to implement without any other document.
 The plain-English rule for reading this: when the text says Kirby "does" or
 "has" something, that is a checked fact about `main`. When it says Kirby
 "should" or "will" do something, that is a proposal.
+
+**Part 3 (type parameters) is built.** It was merged in [PR #169] and
+[PR #170]. Parts 1.5 and 3 describe it as it is on `main`. Parts 4 onward are
+still proposals.
 
 ---
 
@@ -84,7 +88,7 @@ added.
 ## Part 1 — What Kirby's type system is today
 
 This part is the checked baseline. Every claim here was verified against a
-clean build of `main`.
+clean build of `main`. Section 1.5 covers generics, which Part 3 now builds.
 
 ### 1.1 The kinds of types
 
@@ -125,13 +129,17 @@ They are for native signatures only, and user code still can't write them:
 struct {
   // 0 is T, 1 is U, 2 is V, and so on
   int index;
+  // The name the program gave it. Native signatures have none.
+  InternedName name;
+  bool hasName;
+  // A declared parameter as seen inside its own declaration: one unknown
+  // type that is never filled in and is only equal to itself.
+  bool isOpaque;
 } genericParam;
 ```
 
-User code cannot declare one. `T` in user code is `Unknown type.` This is the
-most important fact about the current state: Kirby has a way to represent
-"some type `T` to be chosen later," but only for natives, and nothing a
-program writes can introduce one.
+A native signature makes one with only an index. A program makes one with a
+name when it declares `fun id[T]` or `struct Box[T]` (Part 3.1).
 
 ### 1.2 How types are compared
 
@@ -140,14 +148,18 @@ on the kind:
 
 - **Structs and traits are nominal.** Two struct types are equal only if they
   are the same named declaration. Two different structs with identical fields
-  are still different types.
+  are still different types. Two instances of a generic struct are equal only
+  if they come from the same declaration and all their type arguments are
+  equal, so `Box[f64]` and `Box[string]` differ (Part 3.5).
 - **Functions and arrays are structural.** Two function types are equal if
   their parameter types and return type are equal, regardless of where they
   were declared. Two array types are equal if their element types are equal.
 - Numbers are equal when they are the same number kind. `unit`, `bool`,
   `string` and `Self` are equal to their own kind.
-- **Generic parameters are equal when their numbers are equal.** Two `T`s are
-  the same type, wherever they came from. Part 3.1 changes this.
+- **Generic parameters are equal when their numbers are equal**, except an
+  opaque parameter, which is equal only to itself (Part 3.1). So the two `T`s in
+  a native's `fun ([T], T) => unit` are the same type, and the `T` inside
+  `fun id[T]` is not equal to any other parameter.
 
 A second function, `typeAccepts` (also `src/types.c`), decides whether a value
 can be given where a type is expected. It is `typesEqual` with three
@@ -231,57 +243,46 @@ to the trait method at run time. Any design that makes operators call trait
 methods (as this proposal does) is changing runtime behavior, not just adding
 a check.
 
-### 1.5 Generics: syntax parses, the type system rejects it
+### 1.5 Generics: type parameters work, bounds and a few edges do not
 
-This is the most easily misread part of the current state, so it is spelled
-out with checked results.
+Generic syntax is accepted by the parser (`genericParams` on struct, function,
+impl, and type-alias nodes, and `genericArgs` on type nodes, in `src/ast.h`),
+and since [PR #169] and [PR #170] the type checker handles nearly all of it.
+This was checked on a build of `main`:
 
-The **parser accepts** generic syntax. The AST has `genericParams` on struct,
-function, impl, and type-alias nodes, and `genericArgs` on type nodes
-(`src/ast.h`). So `struct Box[T]`, `fun id[T](x: T): T`, `type W[T] = T`, and
-`Box[f64]` all parse without error.
+- A generic struct is declared and used. `struct Box[T] { pub var value: T; }`
+  works, `Box[f64]` and `Box[string]` are different types, and
+  `let c: Box[string] = a;` with `a: Box[f64]` reports
+  `Expected Box[string], got Box[f64].`
+- A generic function is declared and called. `fun id[T](x: T): T = x;` works,
+  `id(5)` is an `i64`, and `let b: string = id(5);` reports
+  `Expected string, got i64.`
+- Inside a generic declaration, a parameter is opaque. `fun bad[A, B](a: A): B = a;`
+  reports `Expected B, got A.`, and `a + b` on two `T`s reports that `+` needs
+  two numbers.
+- A generic type alias is declared and used. `type Wrapped[T] = Box[T];` makes
+  `Wrapped[i64]` the same type as `Box[i64]`, and the argument count is checked
+  (`'Wrapped' needs 1 type argument(s).`).
+- A parameter only the return type mentions is filled in from the type the call
+  is expected to return. `let s: Stack[i64] = Stack.new();` and
+  `let xs: [i64] = empty();` work.
+- The number of type arguments is checked. `Box[f64, i64]` reports
+  `'Box' takes 1 type argument(s), got 2.` and a bare `Box` as a type reports
+  `'Box' needs 1 type argument(s).`
 
-The **type checker rejects** almost all of it:
+What does not work yet, each checked on `main`:
 
-- A generic struct is rejected outright. `struct Box[T] { ... }` gives, on a
-  clean `main` build:
-  ```
-  Generic structs aren't supported yet.
-  ```
-  (`src/typecheck.c`, in the struct-registration pass, guarded by
-  `sn->genericParamCount > 0`.)
-- A generic type annotation is rejected. `let b: Box[f64] = ...` gives:
-  ```
-  Generic types aren't supported yet.
-  ```
-  (the `genericArgCount > 0` branch of `typchkResolveType`, `src/typecheck.c`.)
-  Arrays need no generic arguments. They are written `[f64]`, and
-  `let xs: [f64] = [1, 2.5];` is checked item by item. Square brackets after a
-  name (`Box[f64]`) are generic arguments, and square brackets with nothing in
-  front are a list type, or an array type when a length follows (`[f64; 3]`).
-  A tuple type is `(A, B)` (see the [Tuples Proposal] and the [Lists
-  Proposal]).
-- A generic function does not work either. `fun id[T](x: T): T = x;` fails
-  because `T` is not a known type — `typchkResolveType` reaches its final case
-  and reports:
-  ```
-  Unknown type.
-  ```
-  (the final case of `typchkResolveType`, `src/typecheck.c`.) Nothing
-  registers the function's type parameters as
-  usable type names, so the parameter annotation `T` resolves to nothing.
-- A **non-generic** type alias does work and resolves regardless of
-  declaration order, with cycles detected (`type Number = f64;` makes `Number`
-  another spelling of `f64`). A **generic** alias like `type W[T] = T;` is
-  accepted only because its body is never checked against a use — the generic
-  alias machinery is parse-only (`typchkCheckProgram` skips aliases whose
-  `genericParamCount` is nonzero; the source comment reads "Generic aliases
-  are still parse-only").
-  The one small exception is a leftover `isGeneric` flag on struct types
-  (the `isGeneric` field of `struct_` in `src/types.h`). Its only job today is to let the checker reject a generic
-  struct once at its declaration and then stay quiet about that struct's fields
-  and impls, so the same struct does not produce a cascade of follow-on errors.
-  It does not represent a working generic type.
+- **Trait impls on a generic struct.** `impl D for Box { ... }` where `Box` is
+  generic reports `Trait implementations on generic structs aren't supported
+  yet.`
+- **Type arguments on a call.** `make[f64](1)` is read as indexing `make` with a
+  variable named `f64`, and fails at run time with `Undefined variable 'f64'.`
+- **A parameter only the return type mentions, with no expected type.**
+  `let xs = empty();` reports `Can't tell what 'T' is from the arguments.`
+- **A generic function with no expected type.** `let f = id;` gives `f` no
+  type, and calling `f` is not checked.
+- **Bounds.** A value of a type parameter can be passed around, returned and
+  stored, and nothing else (Part 3.3).
 
 ### 1.6 Generic natives
 
@@ -309,8 +310,9 @@ they give back is fixed: `@abs` is `fun (f64) => f64`, because
 
 **Summary of the baseline:** Kirby has primitives, structs (nominal), functions
 and arrays (structural), a real and enforced trait system with four built-in
-traits, and generics only inside native signatures. Generic syntax in user
-code parses but is turned away at the type-checking stage.
+traits, and generic structs and functions without bounds (Part 3). The call
+check that natives use, `typchkCheckGenericCall`, is the same one user generic
+functions use.
 
 ### 1.7 How method calls are dispatched today
 
@@ -521,160 +523,181 @@ let point_f = point_e * Point.new(3, 3);
 
 ## Part 3 — Generic type parameters
 
-Before bounds (Part 4) or monomorphization (Part 5) can exist, user code needs
-to be able to declare "a type to be chosen later." Today only native
-signatures can (Part 1.1).
+User code can declare "a type to be chosen later," on functions, structs and
+impls, without bounds. It was implemented and merged in [PR #169], with generic
+type aliases and expected-type inference added in [PR #170]. The
+sections below describe what was built. The earlier plan changed in four ways:
+a parameter has two forms instead of one, bounds are left to Part 4, a lookup
+for a parameter comes before struct and alias lookups, and a struct instance
+holds its arguments instead of a copy of its members.
 
-### 3.1 Named, distinct type parameters
+### 3.1 Named type parameters, in two forms
 
-`TYPE_GENERIC_PARAM` exists, holding only a number. A parameter a program
-declares also needs its name, for error messages, and, once Part 4 is in, the
-trait it is bound to (or none):
+`TYPE_GENERIC_PARAM` holds an index and, for a parameter a program declared, its
+name:
 
-```diff
-     struct {
-       // 0 is T, 1 is U, 2 is V, and so on
-       int index;
-+      InternedName name;
-+      // The trait this parameter is bound to, or a null-name sentinel for
-+      // an unbounded parameter. See Part 4.
-+      InternedName boundTrait;
-+      bool hasBound;
-     } genericParam;
+```c
+struct {
+  // 0 is T, 1 is U, 2 is V, and so on
+  int index;
+  // The name the program gave it. Native signatures have none.
+  InternedName name;
+  bool hasName;
+  // A declared parameter as seen inside its own declaration: one unknown
+  // type that is never filled in and is only equal to itself.
+  bool isOpaque;
+} genericParam;
 ```
 
-Each declared parameter becomes **one** `Type` value, and two generic
-parameters are the same type only if they are the very same value. In
-`typesEqual`, this is a pointer comparison, in place of today's comparison by
-number:
+A declared parameter has two forms, made by `typeDeclaredGenericParam`:
 
-```diff
-   case TYPE_GENERIC_PARAM:
--    return a->as.genericParam.index == b->as.genericParam.index;
-+    // Two generic parameters are equal only when they are the same
-+    // declaration. The a == b check at the top already caught that, so
-+    // any two distinct parameters compare unequal.
-+    return false;
+- A **blank** (`isOpaque` false) is the form a signature is stored with. A caller
+  fills it in. `typeBindGenericParams` binds it, `typeSubstituteGenericParams`
+  replaces it, and `typeGenericParamCount` counts it.
+- An **opaque** parameter (`isOpaque` true) is the form the declaration's own
+  body sees. Nothing fills it in, so the three helpers above skip it.
+
+```c
+case TYPE_GENERIC_PARAM:
+  // Opaque parameters are equal only to themselves, which the check at the
+  // top already caught
+  if (a->as.genericParam.isOpaque || b->as.genericParam.isOpaque)
+    return false;
+  return a->as.genericParam.index == b->as.genericParam.index;
 ```
 
-Native signatures rely on today's rule. `typchkResolveSignatureName` makes a
-new `typeGenericParam(index)` value for every `T` a signature mentions, so the
-two `T`s in `fun ([T], T) => unit` are only equal because their numbers are.
-Before this change, a signature has to make one value per parameter and use it
-everywhere that parameter appears.
+The signature of `fun id[T](x: T): T` is resolved once, with blanks, and stored.
+To check the body, the checker runs the stored signature through
+`typeSubstituteGenericParams` with opaque parameters as the bindings
+(`typchkCheckGenericFunctionBody`). Native signatures keep their blanks without
+names, so they work as before.
 
-The comment matters: the `a == b` fast path at the top already returns `true`
-for the same parameter, so reaching the `TYPE_GENERIC_PARAM` case means the two
-are distinct parameters, which must compare unequal. (Writing `return true`
-here would be a bug — it would make every pair of type parameters
-interchangeable.)
+Indexes number the parameters of one declaration. An `impl Box[T]` takes the
+struct's parameters in order, and a method's own parameters are numbered after
+the impl's (`env->_implGenericCount`).
 
 ### 3.2 Making a parameter name resolve to its type
 
-Today, resolving the annotation `T` in user code fails with "Unknown type"
-because nothing registers `T` (Part 1.5). The fix is a scope for generic parameters that
-`typchkResolveType` consults.
+`TypeEnv` holds a stack of name-to-type bindings for the generic parameters of
+the declarations being checked. `typchkEnterGenericParams` pushes one binding per
+declared parameter, `typchkLeaveGenericParams` pops them, and a duplicate name
+reports `Generic parameter 'T' is already declared.` The stack is pushed before a
+declaration's signature, struct fields or body are resolved.
 
-When the checker begins resolving a generic declaration (a function, struct,
-or impl with `genericParams`), it creates one `TYPE_GENERIC_PARAM` per declared
-parameter and pushes them into a small scope on the `TypeEnv`. `typchkResolveType`
-gains one lookup, tried before the final "Unknown type" error:
+`typchkResolveType` looks in this stack after the built-in names and `Self`, and
+**before** structs and aliases, so the innermost name wins:
 
-```diff
-   Type *aliasType = typchkTypeEnvLookupAlias(env, t->name);
-   if (aliasType != NULL)
-     return aliasType;
+```c
+Type *genericParam =
+    bindingArrayLookup(env->_genericParams, env->_genericParamCount, t->name);
+if (genericParam != NULL)
+  return genericParam;
 
-+  Type *genericParam = typchkTypeEnvLookupGenericParam(env, t->name);
-+  if (genericParam != NULL)
-+    return genericParam;
-+
-   typchkErrorAtToken(&t->name, "Unknown type.");
-   return NULL;
+Type *structType = typchkTypeEnvLookupStruct(env, t->name);
 ```
 
-The scope is pushed before the declaration's signature and body are checked,
-and popped after. Outside a generic declaration the scope is empty, so a bare
-`T` in ordinary code still correctly reports "Unknown type."
+A parameter named `T` hides a `struct T` inside its declaration. Outside a generic
+declaration the stack is empty, so a bare `T` in ordinary code still reports
+`Unknown type.`
 
 ### 3.3 Checking a generic function body
 
-With parameters resolvable, a generic function's signature and body type-check
-normally, treating each `TYPE_GENERIC_PARAM` as an opaque distinct type:
+With the opaque form in place, a generic body type-checks like any other:
 
-- `fun id[T](x: T): T = x;` — the body `x` has type `T`, matching the return
-  type `T`. Accepted.
-- `fun id[T](x: T): T = true;` — the body has type `bool`, the return type is
-  `T`, and `bool` is not equal to `T`. Rejected, with a message naming `T`.
-  For an **unbounded** parameter, the only operations allowed on a value of that
-  type are the ones allowed for _every_ type: pass it around, return it, store
-  it, compare it for identity where the language already allows that. You cannot
-  call a method on it, add it, or index it, because nothing guarantees the
-  eventual concrete type supports those. Any such use is a compile error at the
-  generic definition, not at the call site. This is the key property bounds
-  (Part 4) exist to widen.
+- `fun id[T](x: T): T = x;` is accepted.
+- `fun id[T](x: T): T = true;` reports `Expected T, got bool.`
+- `fun bad[A, B](a: A): B = a;` reports `Expected B, got A.`
+
+For an unbounded parameter the only things allowed on a value are the ones
+allowed for every type: pass it around, return it, store it. Adding it, indexing
+it or calling a method on it is an error in the generic definition, not at the
+call: `fun add[T](a: T, b: T): T = a + b;` reports that `+` needs two numbers,
+got `T` and `T`. Bounds (Part 4) are what widens this.
 
 ### 3.4 Checking a call to a generic function
 
-At a call site like `id(5)`, the checker must work out what each type parameter
-stands for, then check the arguments and produce the return type.
+`typchkCheckGenericCall` (Part 1.6), the check natives already used, handles user
+functions too. Arguments are checked once, left to right, by `typchkUnifyValue`:
 
-The procedure ("unification," kept deliberately simple):
+1. Every parameter starts unbound.
+2. A parameter type with no blanks left is checked like any other.
+3. Otherwise the argument is checked against the type with unfilled blanks
+   erased to unknown, then `typeBindGenericParams` fills the first blank each
+   argument lines up with. A later argument that disagrees is an ordinary
+   mismatch: `Expected i64, got string.` A lambda argument is checked against the
+   partly filled type, so its own parameters get types from earlier arguments.
+4. A parameter the arguments left empty is then filled from the type the call is
+   expected to return, when there is one (`env->_callExpected`). So
+   `let s: Stack[i64] = Stack.new();` makes `T` an `i64`.
+5. A parameter that appears in the signature but is still unfilled is an error
+   for a program's parameter: `Can't tell what 'T' is from the arguments.` For
+   a native it stays unknown.
+6. The bindings are substituted into the return type.
 
-1. Start every type parameter unbound (no type chosen yet).
-2. For each argument position, compare the argument's actual type against the
-   parameter's declared type shape. When a `TYPE_GENERIC_PARAM` lines up with
-   an actual type, record that as the parameter's binding. If it is already
-   bound to a different type, report a conflict.
-3. After all arguments, every parameter that appears in the signature must be
-   bound. (A parameter that appears only in the return type and cannot be
-   inferred from arguments is a separate open question — see Part 10.)
-4. Substitute the bindings into the return type and yield that as the call's
-   type.
-   For `id(5)`: argument `5` has type `i64`, lines up with parameter `T`, so
-   `T = i64`; the return type `T` becomes `i64`. `let a: string = id(5);` then
-   fails because `i64` is not `string` — matching the intended behavior.
+For `id(5)`, `5` is an `i64`, so `T` is `i64`, and `let a: string = id(5);`
+fails with `Expected string, got i64.`
 
-`typchkCheckGenericCall` (Part 1.6) already does steps 1, 2 and 4 for natives,
-and is the place to start. It differs from step 3: a parameter that is never
-bound is unknown, not an error. For user functions that has to become an
-error, or unknown would leak into programs that never asked for it.
+**A generic function used as a value** where a function type is expected is
+filled in from that type. `let f: fun (i64) => i64 = id;` makes `T` an `i64`, and
+`let g: fun (i64) => string = id;` reports
+`Expected fun (i64) => string, got fun (i64) => i64.` A generic method works the
+same way, such as `.flat_map(Id.new)` for `fun (T) => Self[U]`
+(`typchkFillGenericFunctionValue`). A lambda whose body's type fills a blank, such as
+`.flat_map(fun (n) { Id.new(n * n) })`, uses the body's own type
+(`typchkCheckInto`, `typeIsFullyKnown`).
+
+A generic function passed into a parameter that is itself generic, as in
+`apply(3, id)` for `fun apply[T, U](x: T, f: fun (T) => U): U`, fills `T` and
+`U` from the argument. One case is still unchecked: `let f = id;` with no
+expected type gives `f` no type, so the check is skipped instead of failing.
 
 ### 3.5 Generic structs
 
-A generic struct declaration (`struct Box[T]`) is registered with its type
-parameters in scope, so its field and method types may mention `T`. Replace the
-current outright rejection:
+A generic struct declaration has `genericParamCount` on its `Type`. Its fields and
+methods are resolved with the parameters in scope, so they may mention `T`.
 
-```diff
-       if (sn->genericParamCount > 0) {
--        typeStructMarkGeneric(placeholder);
--        typchkErrorAtToken(&sn->name, "Generic structs aren't supported yet.");
-+        typchkTypeEnvBindGenericParams(env, sn->genericParams,
-+                                       sn->genericParamCount, placeholder);
-       }
+A use such as `Box[f64]` is an **instance**: a separate `Type` of the struct kind
+with `typeConstructor` pointing at the declaration and the arguments in
+`typeArgs`:
+
+```c
+// How many type parameters `struct Box[T]` declares. 0 if none.
+int genericParamCount;
+
+// The generic struct this is an instance of: `Box` for `Box[f64]`.
+// NULL if this type is a type constructor, or a struct that isn't generic
+Type *typeConstructor;
+Type **typeArgs;
+int typeArgCount;
 ```
 
-An **instantiation** `Box[f64]` is checked where it appears as a type
-annotation (the branch that currently reports "Generic types aren't supported
-yet"). The steps:
+An instance holds no members. Looking up a field or method (`instantiateMember`)
+finds it on the declaration and substitutes the arguments, so a method added to
+the declaration later is seen by every instance. Two instances are equal when
+their declaration and all their arguments are equal, so `Box[f64]` and
+`Box[string]` differ. `typeAccepts` is lenient where an argument is unknown.
 
-1. Look up the generic struct `Box` by name.
-2. Check the number of type arguments matches the number of type parameters.
-3. Resolve each type argument to a concrete type.
-4. Produce an instantiated struct type in which every occurrence of the
-   struct's type parameters has been replaced by the corresponding argument.
-   Two instantiations are the same type only when their base struct and _all_
-   their type arguments are equal — so `Box[f64]` and `Box[string]` are different
-   types. This extends the nominal rule for structs (Part 1.2) with a structural
-   comparison of the type arguments.
+`typchkResolveGenericInstance` resolves the annotation. It finds the declaration
+(or `Self`), checks the count (`'Box' takes 1 type argument(s), got 2.`), and
+resolves each argument. A bare `Box` as a type reports
+`'Box' needs 1 type argument(s).`
+
+**Struct literals.** `Box { value: 1 }` works out its arguments from its fields
+(`typchkInferGenericStructInit`, which shares `typchkUnifyValue` with calls). With a
+type expected, the fields are checked against it, so `let a: Box[f64] = Box { value: 1 };`
+makes the `1` an `f64` (`typchkCheckGenericStructInit`). A literal that cannot work out
+an argument reports `Can't tell the type arguments of 'Box' from its fields.`
+
+**Impls and `Self`.** `impl Box[T]` must declare as many parameters as the struct,
+which stand for the struct's in order. In a type, `Self[T]` is the instance with
+arguments and a plain `Self` is `Box[T]`. In an expression, `Self` and `Box` are
+the declaration, and a call or literal works out the arguments. `impl Trait for` a
+generic struct is not supported yet.
 
 ### 3.6 A single substitution helper, used everywhere
 
-Replacing type parameters with type arguments happens in several places
-(function return types, struct fields, struct methods, nested generics like
-`Box[Pair[T]]`). Write it **once**, as a recursive function over `Type`, and
-call it from every site. It exists for natives, in `src/types.c`:
+Replacing type parameters happens in many places: call return types, struct
+members, `Self`, function values. It is written once in `src/types.c`:
 
 ```c
 // Replaces each generic parameter inside `type` with its slot in `bindings`.
@@ -682,34 +705,42 @@ call it from every site. It exists for natives, in `src/types.c`:
 Type *typeSubstituteGenericParams(Type *type, Type **bindings, int count);
 ```
 
-`bindings` is indexed by parameter number. It recurses into function
-parameter and return types and array element types. It needs to recurse into
-the type arguments of nested struct instantiations too, once those exist.
+It recurses into lists, arrays, function parameter and return types, and the type
+arguments of struct instances. `typeBindGenericParams`, `typeFindGenericParam` and
+`typeGenericParamCount` recurse the same way, and `typeEraseGenericParams` turns
+what is left into unknown. Only opaque parameters are skipped.
 
-Writing this once, rather than inlining the same walk at each site, is a
-deliberate correctness measure: the alternative (separate hand-written
-substitution at each use) is how paths drift apart and one of them ends up
-missing a case.
+### 3.7 A caution that still holds
 
-### 3.7 A caution carried over from analysis
+After substitution, a function type that has no parameters left must no longer be
+treated as generic, or later call checking would try to infer parameters that are
+gone and skip checks that depend on them. The answer to "is anything left to
+infer?" comes from the contents of the type. `typeGenericParamCount` walks the
+type and counts what is there, and no flag is kept that substitution could
+forget to update. Part 5 should keep this rule.
 
-An important trap to avoid when substituting into a function type: after
-substitution produces a fully concrete function type, that type must no longer
-be treated as generic. If a substituted method kept a leftover record of its
-original type parameters, later call-checking could believe there is still
-something to infer, try to unify against parameters that no longer appear, fail
-to bind them, and then skip the checks that depend on those bindings — silently
-accepting code it should reject.
+### 3.8 Generic type aliases
 
-The rule that avoids this: **substitution must clear a function type's
-generic-parameter record once every parameter has been substituted away.** A
-function type is only "still generic" if a generic parameter genuinely remains
-somewhere inside it. Whatever representation Part 5's monomorphization uses,
-the check "is there anything left to infer here?" must be answered by looking
-at the actual contents of the type after substitution, not by a flag that
-substitution forgot to update. `typeGenericParamCount` (Part 1.6) already
-works this way: it walks the type and counts what is there. This is called out explicitly because it is a
-real, easy-to-introduce soundness gap.
+An alias can declare type parameters: `type Wrapped[T] = Box[T];`. Aliases are
+resolved with the other aliases, in any order, with the parameters in scope as
+blanks. A generic alias is stored as `GenericAlias`, with its parameter count and
+its target:
+
+```c
+typedef struct {
+  InternedName name;
+  int paramCount;
+  Type *target;
+} GenericAlias;
+```
+
+Using one, as in `Wrapped[i64]`, goes through `typchkInstantiateGenericAlias`: it
+checks the argument count, resolves each argument, and runs the target through
+`typeSubstituteGenericParams`. So `Wrapped[i64]` is exactly `Box[i64]`, not a
+new type. An alias can use other aliases and generic structs, appear in
+fields and signatures, and take several parameters. Errors are
+`'Wrapped' needs 1 type argument(s).`, `'Wrapped' takes 1 type argument(s), got 2.`
+and, for an alias with no parameters, `'Number' doesn't take type arguments.`
 
 ---
 
@@ -749,7 +780,8 @@ or built-in traits for the number families.
 When a parameter `T` is bound to trait `Tr`:
 
 1. At the **definition**, the checker records `Tr` on the `TYPE_GENERIC_PARAM`
-   (the `boundTrait` field from Part 3.1). Inside the body, a value of type `T`
+   (a new `boundTrait` field and a `hasBound` flag next to `name` and `isOpaque`
+   from Part 3.1). Inside the body, a value of type `T`
    is now allowed to call exactly the methods `Tr` declares — nothing more. The
    method's result type is whatever `Tr`'s signature says (with `Self` read as
    `T`). Calling a method `Tr` does not declare remains an error.
@@ -1285,19 +1317,20 @@ Part 4 assumes (a); moving to (b) is additive.
 
 **Question:** how should a call be checked when a type parameter cannot be
 inferred from the arguments because it appears only in the return type (e.g. a
-`parse[T](s: string): T`)?
+`parse[T](s: string): T`, or `Stack.new()` for `fun new(): Self[T]`)?
 **Options:** (a) forbid it — every parameter must be inferable from arguments;
 (b) allow the call site to supply type arguments explicitly, e.g.
 `parse[f64](s)`; (c) infer from the surrounding expected type where one exists.
-**Why open:** Part 3.4 requires every parameter be bound by argument
-unification, which rules such functions out. Explicit type arguments at a call
-do not parse today: `parse[f64](s)` is read as indexing `parse` with a
-variable named `f64`, and the checker reports
-`Can't index into a fun (string) => i64.` So (b) needs the parser to tell type
-arguments from an index, and the checker and monomorphizer must then accept
-and thread explicit arguments. (c) has a start in the checker, which already
-passes expected types down for number literals. Deciding this affects how much
-of the generic surface is usable.
+**Status:** (c) is built ([PR #170]). A parameter the arguments left empty is
+filled from the expected return type, so `let s: Stack[i64] = Stack.new();` and
+`return empty();` work. With no expected type the call still reports
+`Can't tell what 'T' is from the arguments.`
+**Why still open:** Explicit type arguments at a call do not parse: `make[f64](1)`
+is read as indexing `make` with a variable named `f64`, and fails at run time with
+`Undefined variable 'f64'.` So (b) needs the parser to tell type arguments from an
+index, and the checker and monomorphizer must then accept and thread explicit
+arguments. (b) is still needed where no type is expected, such as
+`let n = parse[f64](s);` with no annotation, or as an argument to a call.
 
 ### 10.3 Operators for primitives: built-in fast path or uniform trait dispatch
 
@@ -1400,23 +1433,18 @@ A checklist of the concrete code touched, by area. This is a map, not a
 substitute for the parts above.
 
 - **`src/types.h` / `src/types.c`**
-  - add a name and an optional bound to `TYPE_GENERIC_PARAM`'s
-    `as.genericParam` payload — Part 3.1;
-  - compare generic parameters by identity in `typesEqual`, after native
-    signatures share one value per parameter — Part 3.1;
-  - extend `typeSubstituteGenericParams`, the single substitution helper, to
-    nested struct instantiations — Part 3.6;
-  - extend struct instantiation equality to compare type arguments — Part 3.5;
-  - ensure substitution clears a fully-substituted function type's
-    generic-parameter record — Part 3.7.
+  - done ([PR #169]): a name and an opaque form on `TYPE_GENERIC_PARAM`,
+    struct instances with `typeConstructor` and `typeArgs`, and the one
+    substitution helper that reaches into them — Parts 3.1, 3.5, 3.6;
+  - add an optional bound to `TYPE_GENERIC_PARAM`'s `as.genericParam` payload
+    — Part 4.1.
 - **`src/typecheck.c` / `src/typecheck.h`**
-  - a generic-parameter scope on `TypeEnv`, consulted by `typchkResolveType`
-    before the "Unknown type" error — Part 3.2;
-  - bind a declaration's generic parameters while checking its signature and
-    body; remove the "Generic structs aren't supported yet" and "Generic types
-    aren't supported yet" rejections — Parts 3.3, 3.5;
-  - call-site unification producing per-parameter bindings and a substituted
-    return type, starting from `typchkCheckGenericCall` — Part 3.4;
+  - done ([PR #169]): a generic-parameter scope on `TypeEnv`, bound while a
+    declaration is checked; call-site unification; generic structs and
+    impls — Parts 3.2 to 3.5;
+  - done ([PR #170]): fill a parameter that only the return type mentions from
+    the expected type, and generic type aliases — Parts 3.4, 3.8;
+  - explicit type arguments at a call — Part 10.2;
   - record and enforce bounds; at call sites, check the bound trait is
     implemented via `typeStructImplementsTrait` — Part 4.2;
   - the single operator/trait/method table and operator handling read from it
@@ -1459,15 +1487,25 @@ Every "today" claim in Part 1 can be checked on a clean `main` build at
 # build
 just build                 # produces build/krb
 
-# generics are rejected
-./build/krb exec 'struct Box[T] { pub var value: T; }'
-# "Generic structs aren't supported yet."
+# generic structs and functions work
+./build/krb exec 'struct Box[T] { pub var value: T; } let a: Box[f64] = Box { value: 1 }; let c: Box[string] = a;'
+# "Expected Box[string], got Box[f64]."
 
-./build/krb exec 'fun id[T](x: T): T = x;'
-# "Unknown type." for T
+./build/krb exec 'fun id[T](x: T): T = x; let b: string = id(5);'
+# "Expected string, got i64."
 
-./build/krb exec 'let b: Box[f64] = 1;'
-# "Generic types aren't supported yet."
+./build/krb exec 'fun bad[A, B](a: A): B = a;'
+# "Expected B, got A."
+
+# the edges that are not built
+./build/krb exec 'type W[T] = [T]; let a: W = [1];'
+# "'W' needs 1 type argument(s)."
+
+./build/krb exec 'fun empty[T](): [T] = []; let xs = empty();'
+# "Can't tell what 'T' is from the arguments."
+
+./build/krb exec 'fun make[T](x: T): T = x; let n = make[f64](1);'
+# "Undefined variable 'f64'." (at run time)
 
 # array types and generic natives work
 ./build/krb exec 'let xs: [f64] = [1, 2.5]; @println(xs);'
@@ -1494,6 +1532,8 @@ just build                 # produces build/krb
 
 ## Link References
 
+[PR #169]: https://github.com/kirbylang/kirbylang/pull/169
+[PR #170]: https://github.com/kirbylang/kirbylang/pull/170
 [box.krb]: ./examples/box.krb
 [point.krb]: ./examples/point.krb
 [Debugger Proposal]: ../debugger/PROPOSAL.md

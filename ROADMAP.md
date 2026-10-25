@@ -9,9 +9,9 @@ This is a high level view of the proposals and how they relate to each other.
 | 1     | [Top-Level Declarations]                                                                   |                                                                   | Ready       | Files hold declarations; `main` is called                                                                        |
 | 1     | [Tooling Data]: [Part 1: the span][td-1], [Part 2: a span on every node][td-2]             |                                                                   | Ready       |                                                                                                                  |
 | 1     | [Tooling Data]: [Part 4: instruction origins][td-4] to [Part 7: what reaches the VM][td-7] |                                                                   | Ready       | Source names, lines, local variable names                                                                        |
-| 1     | [Generic Types]: [Part 3: type parameters][gt-3]                                           |                                                                   | Ready       |                                                                                                                  |
+| 1     | [Generic Types]: [Part 3: type parameters][gt-3]                                           |                                                                   | Done        | [PR #169], [PR #170]                                                                                             |
 | 1     | [Projects]                                                                                 |                                                                   | Ready       | Design with modules ([module naming][Q-naming]). Multi-file projects wait for modules                            |
-| 2     | [Generic Types]: [Part 4: trait bounds][gt-4]                                              | generic-types: type parameters                                    | Not started |                                                                                                                  |
+| 2     | [Generic Types]: [Part 4: trait bounds][gt-4]                                              | generic-types: type parameters                                    | Ready       |                                                                                                                  |
 | 2     | [Macros], with [Tooling Data]: [Part 3: spans that survive generation][td-3]               | tooling-data: spans                                               | Not started | Built together: macros need origins on spans. Design with top-level-declarations ([comptime values][Q-comptime]) |
 | 3     | [Generic Types]: [Part 5: monomorphization][gt-5]                                          | generic-types: type parameters, trait bounds; tooling-data: spans | Not started | Each specialized copy keeps its source spans                                                                     |
 | 4     | [Modules]                                                                                  | generic-types: monomorphization; top-level-declarations           | Not started | Must ship generic bodies ([body form][Q-bodyform])                                                               |
@@ -59,7 +59,7 @@ None.
 
 | Proposal                 | Category | Status      |
 | ------------------------ | -------- | ----------- |
-| [Generic Types]          | epic     | Not started |
+| [Generic Types]          | epic     | Partial     |
 | [Macros]                 | epic     | Not started |
 | [Modules]                | epic     | Not started |
 | [Projects]               | epic     | Not started |
@@ -195,6 +195,8 @@ proposal, and generic types doesn't reopen.
 
 [gt-3]: ./proposals/generic-types/PROPOSAL.md#part-3--generic-type-parameters
 [gt-3.6]: ./proposals/generic-types/PROPOSAL.md#36-a-single-substitution-helper-used-everywhere
+[PR #169]: https://github.com/kirbylang/kirbylang/pull/169
+[PR #170]: https://github.com/kirbylang/kirbylang/pull/170
 [gt-4]: ./proposals/generic-types/PROPOSAL.md#part-4--trait-bounds
 [gt-5]: ./proposals/generic-types/PROPOSAL.md#part-5--monomorphization
 [gt-10.3]: ./proposals/generic-types/PROPOSAL.md#103-operators-for-primitives-built-in-fast-path-or-uniform-trait-dispatch

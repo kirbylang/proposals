@@ -109,7 +109,7 @@ Several things that already exist shape the design. Each was verified:
 - **The type checker has no enum kind.** There are ten kinds of type in `src/types.h`. Struct types are compared by name, and this proposal expects enum types to work the same way.
 - **A value has no room for a tag.** A value is a bool, `nil`, a number, or a pointer to a heap object (`src/value.h`). Objects are the only kind that can carry extra data.
 - **`Type.name` is already the way to reach a static method.** `Point.origin()` and `Struct.new(123)` work today. `Colors.Red` in the sketch looks the same. There is no `::` token.
-- **Array types are written `[T]`.** `struct Node { pub var args: [Node]; }` compiles and checks its items: `Node { args: [1] }` reports `Expected Node, got i64.` A struct can also refer to itself directly as a field type: `struct Node { pub var next: Node; }` compiles. Generic arguments are rejected: `Box[Node]` reports `Generic types aren't supported yet.`
+- **Array types are written `[T]`.** `struct Node { pub var args: [Node]; }` compiles and checks its items: `Node { args: [1] }` reports `Expected Node, got i64.` A struct can also refer to itself directly as a field type: `struct Node { pub var next: Node; }` compiles. Generic arguments work for structs a program declares ([PR #169]): `struct Box[T]` and `Box[Node]` compile.
 - **`==` on objects compares identity.** For structs, `==` also requires `Eq` at compile time (see the [Generic Types Proposal] Part 1.4).
 - **`nil` has the type `unit`.** `let x: f64 = nil;` reports `Expected f64, got unit.` So `nil` cannot stand for a missing `f64` in the type system today. `??` exists, and is accepted on a typed value (`let x: f64 = 1; @println(x ?? 2);` prints `1`).
 - **The standard library is small.** `stdlib/stdlib.krb` holds one struct, `Date`, and its `Display`, `Ord` and `Eq` impls. It is built into `krb` and runs before user code (`src/main.c`).
@@ -170,7 +170,7 @@ enum Option[T] {
 }
 ```
 
-- Type parameters are written in square brackets, as for generic structs (`Struct[T]`), which parse today but are rejected by the checker.
+- Type parameters are written in square brackets, as for generic structs (`Struct[T]`), which the checker accepts since [PR #169].
 - `Option[T]` and `Result[T, E]` are the two the sketch names. Where they are defined is [Q-option-home], and how `Option[T]` relates to `nil` is [Q-option-nil]. How `Result` is used, which natives return it, and the `?` operator are in the [Result Proposal].
 - `??` accepts an `Option[T]` on the left and a `T` on the right, and gives a `T`: `None` takes the right side. This is the answer to [Q-option-nil].
 - Part C depends entirely on the [Generic Types Proposal]. It is listed here so Parts A and B are designed so it can follow.
@@ -718,3 +718,4 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-option-nil]: #q-how-does-optiont-relate-to-nil
 [Q-print]: #q-how-does-an-enum-value-print
 [Q-keyword]: #q-is-enum-a-reserved-word
+[PR #169]: https://github.com/kirbylang/kirbylang/pull/169

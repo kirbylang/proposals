@@ -157,9 +157,10 @@ can't `impl` them the way it can `impl` a struct.
   to pick up where it stopped, not to re-decide anything it already settled
   for `f64`/`string`/`bool`/`unit`.
 - [Generic Types Proposal] matters for `Map[K, V]` and `Set[T]`, which need
-  generic type arguments. Those are rejected today (`Box[f64]` reports
-  `Generic types aren't supported yet.`). Arrays don't need them: `[i64]` is
-  an array of `i64` and the checker checks its items. See [Q-generics-order].
+  generic type arguments. They work for structs a program declares
+  (`Box[f64]`, [PR #169]), and no built-in type takes them yet. Arrays don't
+  need them: `[i64]` is an array of `i64` and the checker checks its items.
+  See [Q-generics-order].
 - [Map Proposal] designs `Map[K, V]`, with its operations written as natives (`@mapGet`, `@mapSet`) and a question about whether they become methods ([Q-api-shape]). It is the sketch of `Map`'s shape that option (b) of [Q-scope-order] asks for.
 - [For-Each Proposal] adds `for (item in collection)`. Methods like `filter` and `map` on arrays would be built on the same iteration rule.
 - [Tuples Proposal] designs the tuple type this proposal mentions. It writes
@@ -280,11 +281,13 @@ natives are typed through generic parameters in their signatures, which only
 native signatures can use: `@listPush` is `fun ([T], T) => unit`. A lambda
 passed to a generic native gets its parameter types from earlier arguments,
 which is what a typed `filter` or `map` needs. So a native such as `@arrMap`
-could be typed as `fun ([T], fun (T) => U) => [U]` today. User code still
-can't declare generic functions or methods ([Generic Types Proposal]).
+could be typed as `fun ([T], fun (T) => U) => [U]` today. User code can
+declare generic functions and methods ([PR #169]), but without trait bounds
+([Generic Types Proposal]), so a generic body can't compare, add or call
+anything on a `T`.
 
-Options: (a) wait for [Generic Types Proposal] to land, so collection
-methods can be written in Kirby and typed from the start; (b) ship them as
+Options: (a) wait for trait bounds ([Generic Types Proposal], Part 4), so
+collection methods can be written in Kirby and typed from the start; (b) ship them as
 typed natives first, the way `@listPush` and `@listContains` already work, and
 turn them into methods later. (b) unblocks this sooner but means a second
 pass later to move them; (a) avoids that second pass but is blocked on a
@@ -366,3 +369,4 @@ proposal.
 [Q-rfc]: #q-are-type_system_rfcmd-and-phase-4b-something-to-reconcile-with-first
 [Q-generics-order]: #q-does-this-wait-on-generics-or-ship-an-untyped-version-first
 [Q-scope-order]: #q-should-this-start-from-arrays-alone-or-wait-until-tuplessetmap-are-at-least-sketched
+[PR #169]: https://github.com/kirbylang/kirbylang/pull/169

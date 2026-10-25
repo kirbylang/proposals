@@ -52,7 +52,7 @@ fun f(x: Display): string = x.toString();
 // [line 1] Error at 'Display': Unknown type.
 ```
 
-The type resolver (`typchkResolveType` in `src/typecheck.c`) resolves function types and array types from their parts. For a plain name it knows only `unit`, `bool`, `string`, the number kinds, `Self`, a struct, and a type alias (and, while it reads a native's signature, the placeholder names those signatures use). Anything else ends in `typchkErrorAtToken(&t->name, "Unknown type.")`.
+The type resolver (`typchkResolveType` in `src/typecheck.c`) resolves function types and array types from their parts. For a plain name it knows only `unit`, `bool`, `string`, the number kinds, `Self`, a struct, a type alias, and a generic parameter of the declaration it is in ([PR #169]) (and, while it reads a native's signature, the placeholder names those signatures use). Anything else ends in `typchkErrorAtToken(&t->name, "Unknown type.")`.
 
 The effect is that a group of values that share behavior but not a type can not be held together:
 
@@ -365,3 +365,4 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-literal-inference]: #q-does-an-array-literal-take-its-item-type-from-the-expected-type
 [Q-primitives]: #q-can-a-number-string-or-bool-convert-to-a-trait-type
 [Q-downcast]: #q-can-the-original-type-be-recovered-from-a-trait-typed-value
+[PR #169]: https://github.com/kirbylang/kirbylang/pull/169
