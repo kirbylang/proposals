@@ -20,6 +20,7 @@ Grouped by category. See the [roadmap](/ROADMAP.md) for what each category means
 - [projects](/proposals/projects/PROPOSAL.md)
 - [tooling-support-data](/proposals/tooling-support-data/PROPOSAL.md)
 - [top-level-declarations](/proposals/top-level-declarations/PROPOSAL.md)
+- [type-info](/proposals/type-info/PROPOSAL.md)
 
 ### Features
 
@@ -42,6 +43,7 @@ Grouped by category. See the [roadmap](/ROADMAP.md) for what each category means
 
 - [debugger](/proposals/debugger/PROPOSAL.md)
 - [embedded-library](/proposals/embedded-library/PROPOSAL.md)
+- [language-server](/proposals/language-server/PROPOSAL.md)
 - [lua-transpiler](/proposals/lua-transpiler/PROPOSAL.md)
 - [testing](/proposals/testing/PROPOSAL.md)
 

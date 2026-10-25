@@ -13,6 +13,7 @@ This is a high level view of the proposals and how they relate to each other.
 | 1     | [Projects]                                                                                 |                                                                   | Ready       | Design with modules ([module naming][Q-naming]). Multi-file projects wait for modules                            |
 | 2     | [Generic Types]: [Part 4: trait bounds][gt-4]                                              | generic-types: type parameters                                    | Ready       |                                                                                                                  |
 | 2     | [Macros], with [Tooling Data]: [Part 3: spans that survive generation][td-3]               | tooling-data: spans                                               | Not started | Built together: macros need origins on spans. Design with top-level-declarations ([comptime values][Q-comptime]) |
+| 2     | [Type Info]                                                                                | tooling-data: spans                                               | Not started | Types, declarations and uses for tools. Its first step needs nothing                                             |
 | 3     | [Generic Types]: [Part 5: monomorphization][gt-5]                                          | generic-types: type parameters, trait bounds; tooling-data: spans | Not started | Each specialized copy keeps its source spans                                                                     |
 | 4     | [Modules]                                                                                  | generic-types: monomorphization; top-level-declarations           | Not started | Must ship generic bodies ([body form][Q-bodyform])                                                               |
 
@@ -47,6 +48,8 @@ This is a high level view of the proposals and how they relate to each other.
 | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------- |
 | [Embedded Library]: [Part 9: compiled scripts][el-9]                                                          |                                                              | In progress | The `KRBC` format and `krb build` are built (kirbylang #118). `.krbc` files, `krb compile -o`, `krbLoadBytes` are not |
 | [Embedded Library]: [Part 1: runtime without the compiler][el-1] to [Part 8: public header and library][el-8] |                                                              | Ready       |                                                                                                                       |
+| [Language Server]: [Part 1: messages][ls-1] to [Part 3: diagnostics][ls-3], [Part 5: VS Code][ls-5]           |                                                              | Ready       | Shares the error record with [embedded-library Part 4][el-4]. Ranges are exact once tooling-data spans are Done      |
+| [Language Server]: [Part 4: hover and go to definition][ls-4]                                                 | **type-info**                                                | Not started |                                                                                                                       |
 | [Lua Transpiler]                                                                                              |                                                              | Ready       | Easier after top-level-declarations                                                                                   |
 | [Debugger]                                                                                                    | **tooling-data: instruction origins to what reaches the VM** | Not started | Easier after top-level-declarations                                                                                   |
 | [Testing]                                                                                                     | **top-level-declarations**                                   | Not started | Easier after embedded-library                                                                                         |
@@ -65,6 +68,7 @@ None.
 | [Projects]               | epic     | Not started |
 | [Tooling Data]           | epic     | Not started |
 | [Top-Level Declarations] | epic     | Not started |
+| [Type Info]              | epic     | Not started |
 | [Collection Methods]     | feature  | Not started |
 | [Destructuring]          | feature  | Not started |
 | [Enums]                  | feature  | Not started |
@@ -81,6 +85,7 @@ None.
 | [Unimplemented]          | feature  | Not started |
 | [Debugger]               | tooling  | Not started |
 | [Embedded Library]       | tooling  | In progress |
+| [Language Server]        | tooling  | Not started |
 | [Lua Transpiler]         | tooling  | Not started |
 | [Testing]                | tooling  | Not started |
 
@@ -169,6 +174,7 @@ proposal, and generic types doesn't reopen.
 [Enums]: ./proposals/enums/PROPOSAL.md
 [For-Each]: ./proposals/for-each/PROPOSAL.md
 [Generic Types]: ./proposals/generic-types/PROPOSAL.md
+[Language Server]: ./proposals/language-server/PROPOSAL.md
 [Lists]: ./proposals/lists/PROPOSAL.md
 [Lua Transpiler]: ./proposals/lua-transpiler/PROPOSAL.md
 [Macros]: ./proposals/macros/PROPOSAL.md
@@ -189,6 +195,7 @@ proposal, and generic types doesn't reopen.
 [Trait Types]: ./proposals/trait-types/PROPOSAL.md
 [Tuple Structs]: ./proposals/tuple-structs/PROPOSAL.md
 [Tuples]: ./proposals/tuples/PROPOSAL.md
+[Type Info]: ./proposals/type-info/PROPOSAL.md
 [Unimplemented]: ./proposals/unimplemented/PROPOSAL.md
 
 <!-- Parts of proposals -->
@@ -217,6 +224,11 @@ proposal, and generic types doesn't reopen.
 [el-1]: ./proposals/embedded-library/PROPOSAL.md#part-1-the-runtime-links-without-the-compiler
 [el-8]: ./proposals/embedded-library/PROPOSAL.md#part-8-a-public-header-and-a-library-that-is-easy-to-link
 [el-9]: ./proposals/embedded-library/PROPOSAL.md#part-9-compiled-scripts-and-a-runtime-only-build
+[el-4]: ./proposals/embedded-library/PROPOSAL.md#part-4-everything-kirby-says-goes-through-a-hook
+[ls-1]: ./proposals/language-server/PROPOSAL.md#part-1-messages-in-and-out
+[ls-3]: ./proposals/language-server/PROPOSAL.md#part-3-diagnostics
+[ls-4]: ./proposals/language-server/PROPOSAL.md#part-4-hover-and-go-to-definition
+[ls-5]: ./proposals/language-server/PROPOSAL.md#part-5-the-vs-code-extension
 
 <!-- Questions in proposals -->
 

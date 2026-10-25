@@ -90,6 +90,11 @@ This proposal exists to close that gap, but most of _how_ is still open.
   multi-file programs are what make that necessary. How files are named and
   identified is shared with the [Tooling Data Proposal] ([Q-files] there), and
   turns on whether a module is a file or a name ([Q-naming]).
+- **Editors.** The [Type Info Proposal] records where each name is declared, for
+  go to definition, for one program and the stdlib. For a use of a name from
+  another module to point at its declaration, the module interface would need
+  the place of each public declaration: its file and span. Until then the
+  [Language Server Proposal] checks each open file on its own.
 - **Macros.** Compile-time reflection over a struct's shape reads the same
   information a module's public interface records. Whether they share one body
   of data is an open question in both proposals.
@@ -340,6 +345,8 @@ These are both technical and non technical terms used throughout the proposal.
 [Projects Proposal]: ../projects/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
+[Type Info Proposal]: ../type-info/PROPOSAL.md
+[Language Server Proposal]: ../language-server/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

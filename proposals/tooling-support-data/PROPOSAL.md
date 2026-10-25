@@ -159,7 +159,9 @@ below:
 - **Types of variables** in the compiled output. `CompiledUnit` stores no types
   today, and that belongs with the [Modules Proposal].
 - **A symbol index** for go to definition and find references. It needs names
-  resolved across files, and would be built on the spans here.
+  resolved across files, and would be built on the spans here. The [Type Info
+  Proposal] adds it for one program and the stdlib, as tables the type checker
+  fills in.
 - **Comments and blank lines**, which a formatter would need.
 - **Where a variable was declared.** A local variable record could hold the span
   of its declaration. The debugger does not need it, so it is not included.
@@ -496,6 +498,14 @@ Origin (Part 3) waits for macros.
   where a span would be handed over as data and not only as text. The size of
   the compiled scripts it ships ([Embedded Lbrary Part 9]) is evidence for [Q-strip].
   That proposal is updated to say so.
+- [Type Info Proposal] — the symbol index left out above. It records the types,
+  declarations, and uses the checker finds, each at a span from Parts 1 and 2. A
+  `fileId` only means something inside its unit, and the stdlib and the program
+  are checked in one session, so it adds which unit a place is in. That
+  interacts with [Q-files].
+- [Language Server Proposal] — an editor reads spans through it. It turns byte
+  columns into the encoding the editor asks for. Until spans exist, it uses the
+  token an error points at, or the whole line.
 
 ## Questions
 
@@ -898,6 +908,8 @@ These are both technical and non-technical terms used throughout the proposal.
 [Projects Proposal]: ../projects/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
+[Type Info Proposal]: ../type-info/PROPOSAL.md
+[Language Server Proposal]: ../language-server/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

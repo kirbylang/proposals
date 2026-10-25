@@ -158,7 +158,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 #### Part 4: Docs and tooling
 
 - `docs/TYPES.md` Traits section, and the changelog.
-- Hover and completion data ([Tooling Data Proposal]) list the trait's methods for a trait typed value.
+- Hover and completion data ([Type Info Proposal], built on the [Tooling Data Proposal]'s spans) list the trait's methods for a trait typed value. A call through a trait typed value is recorded as a use of the trait's method declaration.
 
 ## Impacts
 
@@ -178,6 +178,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Result Proposal] — an error type that any struct can implement (`Result[T, Error]`) is a candidate use ([Q-error-trait] there).
 - [Collection Methods Proposal] — methods on collection types dispatch through the receiver; a `[Shape]` array is an ordinary array.
 - [Macros Proposal] — derive-style macros would generate the impls that make a struct convertible.
+- [Type Info Proposal] — records what a method call on a trait typed value found, for hover and go to definition (Part 4 here). Completion is left out there.
 
 ### Testing Plan
 
@@ -352,6 +353,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
 [Macros Proposal]: ../macros/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
+[Type Info Proposal]: ../type-info/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

@@ -539,6 +539,9 @@ Each step is small, starts with a failing test, and leaves behavior without
   Part 2 is kept ([Embedded Lbrary Part 3]). The stdlib that proposal builds into the
   binary ([Embedded Lbrary Part 2]) has a source name of its own, which is what would
   mark it as library code for [Q-library]. That proposal is updated to say so.
+- [Language Server Proposal] — `krb lsp` speaks a JSON protocol over stdin and
+  stdout from C. The JSON code it adds is what option (b) of [Q-adapter] would
+  need. Both tools are started by the same VS Code extension.
 
 ## Questions
 
@@ -559,6 +562,9 @@ VS Code speaks the Debug Adapter Protocol, which is JSON. Options:
 
 The debugger core (Parts 2 and 3) does not depend on the protocol, so (b) could
 be added later on top of it.
+
+The [Language Server Proposal] adds a JSON reader and writer in C for `krb lsp`
+([Q-json] there). If it lands first, (b) no longer needs one of its own.
 
 ### **Q:** What carries the debugger messages?
 
@@ -688,6 +694,8 @@ These are both technical and non-technical terms used throughout the proposal.
 [Projects Proposal]: ../projects/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
+[Language Server Proposal]: ../language-server/PROPOSAL.md
+[Q-json]: ../language-server/PROPOSAL.md#q-which-json-library
 
 <!-- Other proposals' questions -->
 

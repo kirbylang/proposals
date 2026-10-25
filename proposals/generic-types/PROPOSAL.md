@@ -1217,7 +1217,10 @@ autocomplete — is a first-class goal, and macros make it harder unless planned
 for. This part states the one piece of infrastructure that must be present from
 the start. The design of that data (what a span holds, how it is stored, and
 what reaches the compiled output) is in the [Tooling Data Proposal]. This part
-records what the type-system work needs from it.
+records what the type-system work needs from it. The types and declarations the
+checker finds are recorded for tools by the [Type Info Proposal]. A generic body
+is checked once (3.3), so its entries there show its parameters, such as `T`.
+Monomorphization runs after checking (5.3) and adds none.
 
 ### 8.1 The problem macros create for tooling
 
@@ -1538,6 +1541,7 @@ just build                 # produces build/krb
 [point.krb]: ./examples/point.krb
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
+[Type Info Proposal]: ../type-info/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md

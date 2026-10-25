@@ -532,8 +532,11 @@ checker is written by one of five small functions: one in `parser.c`, two in
 checker's.) Each writes to stderr with `fprintf` a piece at a time: first
 `[line 3] Error`, then ` at 'x'`, then the message. They change to build one line and give
 it to the same hook and buffer. The text and its order stay the same. When the
-[Tooling Data Proposal] adds spans, these five functions are also where a
-structured record (file, line, column, message) can be handed over instead of
+[Language Server Proposal] needs the same five functions to hand over a record
+(line, the token's text, message) as well as text, so the two proposals share
+this change. When the [Tooling Data Proposal] adds spans, these five functions
+are also where a structured record (file, line, column, message) can be handed
+over instead of
 only text.
 
 **Left alone:** the `DEBUG_*` build flags write with `fprintf` and `printf` from
@@ -941,6 +944,14 @@ in `tests/`.
   none at run time, which is what one would expect. Not edited.
 - [Projects Proposal] — no change. A host decides where its scripts come from,
   and a script's source name can be a path in the game's own asset system.
+- [Language Server Proposal] — needs the five error functions of [Part 4] to
+  hand over a record, not only text, so whichever proposal lands first makes
+  that change. It checks a document once per edit, so it starts and ends many
+  checker sessions in one process. The `FrontEnd` bundle of [Part 2] would let
+  it keep one per open document. That proposal is updated to say so.
+- [Type Info Proposal] — adds two pieces of front-end state, a unit count and a
+  pointer to the tables being filled in. They belong in the `FrontEnd` bundle of
+  [Part 2]. That proposal is updated to say so.
 
 ### Testing Plan
 
@@ -2325,6 +2336,8 @@ These are both technical and non technical terms used throughout the proposal.
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
 [Macros Proposal]: ../macros/PROPOSAL.md
 [String Interpolation Proposal]: ../string-interpolation/PROPOSAL.md
+[Language Server Proposal]: ../language-server/PROPOSAL.md
+[Type Info Proposal]: ../type-info/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

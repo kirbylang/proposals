@@ -81,6 +81,9 @@ the same on every machine. That needs answers this proposal does not give yet:
   (`src/main.krb` or `main.krb`)? Is it written with `/` on every system?
 - **Files or names.** Whether a module is a file or a name is [Q-naming] in the
   [Modules] proposal, and decides how much the path matters.
+- **Editors.** The [Language Server Proposal] checks each open file on its own
+  for now. Once programs have several files, it needs to find the root from any
+  file the editor opens, the same way `krb` does.
 
 ## Glossary
 
@@ -113,6 +116,7 @@ These are both technical and non technical terms used throughout the proposal.
 [Modules]: ../modules/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
+[Language Server Proposal]: ../language-server/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
