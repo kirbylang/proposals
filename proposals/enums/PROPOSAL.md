@@ -264,6 +264,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [For-Each Proposal] — an iterator's `next()` returns an `Option[T]`, and `in` has the same reserved word question as `enum` ([Q-keyword-in]).
 - [Trait Types Proposal] — an enum can implement a trait (Part 2), so an enum value converts to a trait type the same way a struct does.
 - [Top-Level Declarations Proposal] — `enum` would join `fun`, `struct`, `impl`, `trait`, and `type` in the list of declarations a file's top level may hold. A variant value such as `Colors.Red` or `Shape.Circle(1)` only builds data, so it would count as a comptime value when its contents do, once [Q-variant-access] and [Q-variant-fields] settle how it is written. `Option` and `Result` in `stdlib/stdlib.krb` ([Q-option-home], option (a)) are declarations only, so they fit. The samples here that use top-level statements are converted when [Q-samples] there is settled.
+- [Formatter Proposal] — a trailing comma after the last variant is allowed here, and no list in Kirby allows one today. Whether every list should, and whether the formatter always prints one when it breaks a list over lines, is [Q-trailing-format] there. If it is answered yes, this rule becomes the general rule.
 
 ### Testing Plan
 
@@ -692,6 +693,8 @@ These are both technical and non-technical terms used throughout the proposal.
 [Map Proposal]: ../map/PROPOSAL.md
 [For-Each Proposal]: ../for-each/PROPOSAL.md
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md
+[Formatter Proposal]: ../formatter/PROPOSAL.md
+[Q-trailing-format]: ../formatter/PROPOSAL.md#q-should-lists-broken-over-lines-end-with-a-comma
 
 <!-- Other proposals' questions -->
 

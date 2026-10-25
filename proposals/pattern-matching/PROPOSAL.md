@@ -188,6 +188,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Result Proposal] — the main way to take a `Result` apart. Its `?` operator compiles to a test of the variant and an early return, the same shape as a `match` arm, and should reuse this proposal's compiler work.
 - [For-Each Proposal] — a pattern in a loop head (`for ((key, value) in map)`) uses the patterns from the [Destructuring Proposal]. `in` has the same reserved word question as `match` ([Q-keyword-in]).
 - [Trait Types Proposal] — getting a struct back out of a trait typed value would need a type pattern ([Q-downcast]).
+- [Formatter Proposal] — a trailing comma after the last arm is allowed here, and no list in Kirby allows one today. Whether every list should, and whether the formatter always prints one when it breaks a list over lines, is [Q-trailing-format] there. If it is answered yes, this rule becomes the general rule. A `match` also needs its own formatting rule when it lands.
 
 ### Testing Plan
 
@@ -488,6 +489,8 @@ These are both technical and non-technical terms used throughout the proposal.
 [For-Each Proposal]: ../for-each/PROPOSAL.md
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md
 [Lists Proposal]: ../lists/PROPOSAL.md
+[Formatter Proposal]: ../formatter/PROPOSAL.md
+[Q-trailing-format]: ../formatter/PROPOSAL.md#q-should-lists-broken-over-lines-end-with-a-comma
 
 <!-- Other proposals' questions -->
 

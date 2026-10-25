@@ -53,6 +53,8 @@ This is a high level view of the proposals and how they relate to each other.
 | [Lua Transpiler]                                                                                              |                                                              | Ready       | Easier after top-level-declarations                                                                                   |
 | [Debugger]                                                                                                    | **tooling-data: instruction origins to what reaches the VM** | Not started | Easier after top-level-declarations                                                                                   |
 | [Testing]                                                                                                     | **top-level-declarations**                                   | Not started | Easier after embedded-library                                                                                         |
+| [Formatter]: [Part 1: comments][fm-1] and [Part 5: the check][fm-5]                                           |                                                              | Ready       | Comment collection and `astEqual`                                                                                     |
+| [Formatter]: [Part 3: the style][fm-3] onwards                                                                | **tooling-data: spans**                                      | Not started | Literal text and blank lines come from spans. `textDocument/formatting` once [Language Server] exists                 |
 
 ## Experimental
 
@@ -85,6 +87,7 @@ None.
 | [Unimplemented]          | feature  | Not started |
 | [Debugger]               | tooling  | Not started |
 | [Embedded Library]       | tooling  | In progress |
+| [Formatter]              | tooling  | Not started |
 | [Language Server]        | tooling  | Not started |
 | [Lua Transpiler]         | tooling  | Not started |
 | [Testing]                | tooling  | Not started |
@@ -173,6 +176,7 @@ proposal, and generic types doesn't reopen.
 [Embedded Library]: ./proposals/embedded-library/PROPOSAL.md
 [Enums]: ./proposals/enums/PROPOSAL.md
 [For-Each]: ./proposals/for-each/PROPOSAL.md
+[Formatter]: ./proposals/formatter/PROPOSAL.md
 [Generic Types]: ./proposals/generic-types/PROPOSAL.md
 [Language Server]: ./proposals/language-server/PROPOSAL.md
 [Lists]: ./proposals/lists/PROPOSAL.md
@@ -229,6 +233,9 @@ proposal, and generic types doesn't reopen.
 [ls-3]: ./proposals/language-server/PROPOSAL.md#part-3-diagnostics
 [ls-4]: ./proposals/language-server/PROPOSAL.md#part-4-hover-and-go-to-definition
 [ls-5]: ./proposals/language-server/PROPOSAL.md#part-5-the-vs-code-extension
+[fm-1]: ./proposals/formatter/PROPOSAL.md#part-1-the-scanner-can-keep-comments
+[fm-3]: ./proposals/formatter/PROPOSAL.md#part-3-the-style
+[fm-5]: ./proposals/formatter/PROPOSAL.md#part-5-the-check
 
 <!-- Questions in proposals -->
 

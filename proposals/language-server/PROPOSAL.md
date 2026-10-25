@@ -135,8 +135,10 @@ The following is intentionally left out of scope for this proposal:
   parse ([Q-parse-errors]).
 - **Find references, document symbols, rename, and formatting.** Find
   references and document symbols are cheap once the [Type Info Proposal]'s
-  tables exist, and can come straight after this proposal. Rename and formatting
-  need more.
+  tables exist, and can come straight after this proposal. Rename needs more.
+  Formatting is the [Formatter Proposal]: once it exists, the server answers
+  `textDocument/formatting` by calling its `formatSource` on the open
+  document's text.
 - **Several files.** Each open document is checked on its own, after the
   stdlib, as `krb run FILE` does. Programs made of several files wait for the
   [Modules Proposal] and the [Projects Proposal].
@@ -364,6 +366,11 @@ Steps 1 to 5 need nothing that is not built yet.
   files, and knowing which files are in it, waits for them. A server would look
   for the project root the same way `krb` does ([Q-root] there). Those
   proposals are updated to say so.
+- [Formatter Proposal] — adds `krb format` and `formatSource`, which this
+  server can call for `textDocument/formatting`. Its VS Code provider runs
+  `krb format --stdin` until then, and is removed once the server formats. Both
+  proposals add a row to the `commands` table in `src/main.c`, and either can
+  land first.
 
 ### Testing Plan
 
@@ -629,6 +636,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Modules Proposal]: ../modules/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md
+[Formatter Proposal]: ../formatter/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 

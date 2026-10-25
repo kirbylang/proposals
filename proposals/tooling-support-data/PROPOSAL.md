@@ -139,6 +139,7 @@ Checked at `from_commit` (see [Appendix A]):
 | Editors (go to definition, find references, complete) | A span on every node. These tools read source, not compiled output, so they need only the AST side                                                 |
 | [Macros Proposal]                                     | Generated syntax that points back at the macro call, and a way to mark a variable the macro added                                                  |
 | [Generic Types Proposal]                              | Each specialization of a generic keeps the generic's file and positions                                                                            |
+| [Formatter Proposal]                                  | A span on every node, to keep literal text, find blank lines between statements, and place comments. The AST side only                             |
 
 ## Proposed Changes
 
@@ -162,7 +163,9 @@ below:
   resolved across files, and would be built on the spans here. The [Type Info
   Proposal] adds it for one program and the stdlib, as tables the type checker
   fills in.
-- **Comments and blank lines**, which a formatter would need.
+- **Comments and blank lines**, which a formatter would need. The [Formatter
+  Proposal] collects comments with its own pass of the scanner, and works out
+  blank lines from the spans here, so nothing is added to the AST for them.
 - **Where a variable was declared.** A local variable record could hold the span
   of its declaration. The debugger does not need it, so it is not included.
 - **Changing the text of errors or traces.** Their format stays. The only change
@@ -506,6 +509,10 @@ Origin (Part 3) waits for macros.
 - [Language Server Proposal] — an editor reads spans through it. It turns byte
   columns into the encoding the editor asks for. Until spans exist, it uses the
   token an error points at, or the whole line.
+- [Formatter Proposal] — needs Parts 1 and 2. It prints each literal as the
+  source text between its span's offsets, and finds blank lines from where one
+  statement's span ends and the next one's starts. It reads nothing from the
+  compiled output.
 
 ## Questions
 
@@ -910,6 +917,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
 [Type Info Proposal]: ../type-info/PROPOSAL.md
 [Language Server Proposal]: ../language-server/PROPOSAL.md
+[Formatter Proposal]: ../formatter/PROPOSAL.md
 
 <!-- Other proposals' questions -->
 
