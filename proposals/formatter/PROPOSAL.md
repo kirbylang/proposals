@@ -98,7 +98,7 @@ Checked at `from_commit` (see [Appendix A]):
   and so whether a blank line follows it.
 - **`print_ast` is not the same tree.** `krb parse` prints the tree with
   `print_ast` in `src/ast.c`. It leaves out the bodies of methods in an `impl`,
-  whether a field is `var` or `let`, and the kind of a number: `pub var value:
+  whether a field is `var` or immutable, and the kind of a number: `pub var value:
 T;` prints as `(pub-field value : T)`, and `1u8` prints as `1`. Two files
   with the same `print_ast` output can be different programs.
 - **`krb parse` exits with 0 after a parse error.** The parser reports the
@@ -776,7 +776,7 @@ code.
 
 Today the parser rejects a comma after the last item of every list: `[1, 2,
 3,]` and `@println(1, )` are "Expect expression." errors, and `struct P { x:
-f64, }` is "Expect field declaration." The [Enums Proposal] and the [Pattern
+f64, }` is "Expect ';' after field." The [Enums Proposal] and the [Pattern
 Matching Proposal] each allow one, and the [Tuples Proposal] needs one for a
 tuple with one item.
 
@@ -974,6 +974,10 @@ EOF
 # (var g (group (+ 1 2)))
 ```
 
+`let` is optional on an immutable struct field, so `let x: T;` and `x: T;` give
+the same tree (`(field x : T)`). The tree cannot say which one the source used,
+so the formatter prints one spelling for both.
+
 **`krb parse` exits with 0 after a parse error.**
 
 ```shell
@@ -987,7 +991,7 @@ printf 'var a = ;\n' > /tmp/b.krb
 for s in 'var a = [1, 2, 3,];' '@println(1, );' 'struct P { x: f64, }'; do
   printf '%s\n' "$s" > /tmp/c.krb; ./build/krb parse /tmp/c.krb
 done
-# Expect expression. / Expect expression. / Expect field declaration.
+# Expect expression. / Expect expression. / Expect ';' after field.
 ```
 
 **Style counts.** Over every `.krb` file in `tests`, `stdlib`, `examples` and

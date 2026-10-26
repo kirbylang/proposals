@@ -295,10 +295,14 @@ Prints `1`.
 
 ```kirby
 struct Account {
-  var balance: f64;
+  balance: f64;
 }
 
-let account = Account { balance: 1 };
+impl Account {
+  pub fun new(balance: f64): Self = Self { balance: balance };
+}
+
+let account = Account.new(1);
 
 let Account { balance } = account;
 ```

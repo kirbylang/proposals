@@ -2,12 +2,12 @@
 status: Draft
 category: feature
 created: 2026-09-20
-from_commit: 662d98b
+from_commit: c55e404
 ---
 
 # Proposal: Tuple Structs
 
-This proposal adds tuple structs to Kirby: structs whose fields have no names and are read by position. `struct Value(f64);` declares one, `Value(123)` builds one, and `val.0` reads its field. Fields are private and cannot be assigned to unless marked otherwise. This is a skeleton built from [Issue #23], which is a rough sketch, so the details are expected to change.
+This proposal adds tuple structs to Kirby: structs whose fields have no names and are read by position. `struct Value(f64);` declares one, `Value(123)` builds one, and `val.0` reads its field. Fields are private and cannot be assigned to unless marked otherwise, the same as the fields of a regular struct. This is a skeleton built from [Issue #23], which is a rough sketch, so the details are expected to change.
 
 ---
 
@@ -42,12 +42,12 @@ Wrapping one value, or a small group of values, in its own type needs a full str
 
 ```kirby
 struct Value {
-  var value: f64;
+  pub value: f64;
 }
 
 let val = Value { value: 123 };
 
-print val.value;
+@println(val.value);
 ```
 
 When the name of the field says nothing more than the name of the struct, it is noise. It also does not help to use a `type` alias. An alias is only another name for the same type. Verified against `from_commit`, this compiles and runs:
@@ -69,7 +69,7 @@ So an alias cannot stop a length in meters being used as a length in feet. A tup
 - `var` makes the field mutable
 - Fields are referenced by numeric position, `self.0`, `self.1`
 
-and gives these examples (shown here with the output Kirby really prints for a number, `123.000000`):
+and gives these examples (shown here with `print` written as `@println`, and the output Kirby really prints for a number):
 
 ```kirby
 struct Value(f64);
@@ -80,7 +80,7 @@ impl Value {
 
 let val = Value(123);
 
-print val.value(); // 123.000000
+@println(val.value()); // 123
 ```
 
 ```kirby
@@ -88,7 +88,7 @@ struct Value(pub f64);
 
 let val = Value(123);
 
-print val.0; // 123.000000
+@println(val.0); // 123
 
 val.0 = 456; // Error. Fields on tuple structs are immutable by default
 ```
@@ -100,7 +100,7 @@ let val = Value(123);
 
 val.0 = 456;
 
-print val.0; // 456.000000
+@println(val.0); // 456
 ```
 
 ```kirby
@@ -120,7 +120,7 @@ let val = Value.new(123);
 
 val.set(456);
 
-print val.get(); // 456.000000
+@println(val.get()); // 456
 ```
 
 None of this works today. Verified against a clean build of `from_commit`, `struct Value(f64);` reports `Expect '{' before struct body.` and then `Expect '}' after struct body.`
@@ -130,18 +130,19 @@ One detail in the sketch needs fixing to run at all. The first example's `pub fu
 Several rules for regular structs at `from_commit` affect this design. Each was verified:
 
 - **Calling a struct.** `Struct(123)` fails at run time with `Can only call functions and structs.` (exit code 70), and the type checker does not stop it. Even `Self(1)` inside an `impl` block compiles and only fails when it runs. The 0.4.0 entry in `docs/CHANGELOG.md` says "Deprecate the call syntax e.g. `Point()`". See [Q-constructor].
-- **Field mutability.** A field that can be reached can always be assigned. `let` fields do not exist (`pub let x: f64;` reports `Expect field declaration after 'pub'.`), and a `let` binding does not protect the fields of what it holds: `let s = S { x: 1 }; s.x = 2;` works. Immutable fields would be new. See [Q-immutability].
+- **Field mutability.** A field cannot be assigned unless it is declared with `var`. The `let` keyword is optional, so `let x: f64;` and `x: f64;` mean the same thing. Assigning to an immutable field is a run time error: `Field 'x' is immutable` (exit code 70). This only stops the field being reassigned. The value it holds can still change, such as a list being pushed to. See [Q-enforcement].
 - **Field privacy.** A private field can be used by the methods in the struct's own `impl` block, on any instance of that struct. Visibility is per struct, not per instance. Reading one from outside is a run time error, not a compile error: `Field 'balance' is private to 'Account'.` See [Q-enforcement].
-- **Printing.** `print S { x: 1 };` prints `S instance`.
+- **Printing.** `@println(S { x: 1 });` prints `S instance`.
 
 ## Proposed Changes
 
 ### Declaration
 
-A tuple struct is declared with a type for each field in parentheses. Each field can have `pub` and `var` in front of its type, in that order:
+A tuple struct is declared with a type for each field in parentheses. Each field can have `pub` and then `let` or `var` in front of its type, which is the same order a regular struct uses. `let` is optional and means the same as leaving it out:
 
 ```kirby
 struct Meters(f64);             // private, cannot be assigned
+struct Feet(let f64);           // the same as Meters
 struct Point(pub f64, pub f64); // public, cannot be assigned
 struct Counter(pub var f64);    // public, can be assigned
 ```
@@ -149,7 +150,9 @@ struct Counter(pub var f64);    // public, can be assigned
 | Declared as   | Read outside `impl` | Assign                  |
 | ------------- | ------------------- | ----------------------- |
 | `f64`         | no                  | no                      |
+| `let f64`     | no                  | no                      |
 | `pub f64`     | yes                 | no                      |
+| `pub let f64` | yes                 | no                      |
 | `var f64`     | no                  | yes, inside `impl` only |
 | `pub var f64` | yes                 | yes                     |
 
@@ -175,7 +178,7 @@ let f: Feet = m; // Compile error: a Meters is not a Feet
 What this proposal covers:
 
 - Declaring a tuple struct with positional fields
-- `pub` and `var` on each field
+- `pub`, `let` and `var` on each field, the same as a regular struct
 - Building a value and reading a field by position
 - `impl` blocks and trait impls on tuple structs
 
@@ -185,7 +188,6 @@ The following is intentionally left out of scope for this proposal:
 - Unit structs with no fields at all, such as `struct Marker;`
 - Generic tuple structs, such as `struct Wrapper[T](T);`. See the [Generic Types Proposal].
 - Structs with both named and positional fields
-- Making regular struct fields immutable. This is raised in [Q-immutability] but would be its own proposal.
 
 ### Implementation Plan
 
@@ -193,7 +195,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 #### Part 1: Parser
 
-- `structDeclaration` in `src/parser.c` currently expects `{` after the struct name. It should also accept `(`, then a list of fields, each `[pub] [var] Type`, then `)` and `;`.
+- `structDeclaration` in `src/parser.c` currently expects `{` after the struct name. It should also accept `(`, then a list of fields, each `[pub] [let | var] Type`, then `)` and `;`.
 
 #### Part 2: Reading a field by position
 
@@ -202,12 +204,12 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 #### Part 3: Type checker
 
 - A tuple struct is a struct type whose fields are named `0`, `1`, and so on. These are not valid names in Kirby code, so they cannot clash with anything the user writes.
-- A struct type today records each field's name and type, and nothing else. It needs to record whether each field can be assigned so the checker can reject `val.0 = 456` (see [Q-enforcement]).
+- A struct type today records each field's name and type, and nothing else. Regular struct fields are checked for privacy and mutability when the program runs, using the flags `OP_FIELD` carries. Tuple struct fields can be checked the same way, or the struct type can record the flags so the checker rejects `val.0 = 456` earlier (see [Q-enforcement]).
 - The struct name becomes callable. The call is checked like a function call: one argument per field, each of the field's type, returning the struct's type. `Self(...)` in an `impl` block is the same.
 
 #### Part 4: Compiler and virtual machine
 
-- Reuse the struct opcodes. `OP_STRUCT` and `OP_FIELD` declare the struct and its fields, and `OP_FIELD` already carries a flag for public or private. A flag for assignable would sit next to it if the check is done at run time.
+- Reuse the struct opcodes. `OP_STRUCT` and `OP_FIELD` declare the struct and its fields, and `OP_FIELD` already carries a flag for public or private and a flag for mutable.
 - Building a value from a call needs the virtual machine to accept a struct in call position. Today it reports `Can only call functions and structs.` for a call with arguments.
 
 #### Part 5: Docs and tooling
@@ -222,7 +224,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - `struct Name(` is a compile error today, so no valid program changes meaning.
 - Calling a regular struct name with `()` behaves as it does today. Tuple structs would be the first structs where `Name(...)` is valid, which needs care while the call syntax on structs is being deprecated ([Q-constructor]).
 - Regular structs, and every rule in the Problem Statement, are unchanged.
-- Immutable fields would exist only on tuple structs, so the two kinds of struct would differ ([Q-immutability]).
+- Fields work the same way as on regular structs: private and immutable by default, with `pub`, `var` and an optional `let`.
 
 ### Related Proposals
 
@@ -252,12 +254,12 @@ impl Value {
 
 let val = Value(123);
 
-print val.value();
+@println(val.value());
 ```
 
 ###### Expected Outcome
 
-Prints `123.000000`. Exit code 0.
+Prints `123`. Exit code 0.
 
 ##### NEW: tests/tuple_structs/tuple_struct_multiple_fields.krb
 
@@ -266,13 +268,13 @@ struct Pair(pub f64, pub string);
 
 let p = Pair(1, "a");
 
-print p.0;
-print p.1;
+@println(p.0);
+@println(p.1);
 ```
 
 ###### Expected Outcome
 
-Prints `1.000000` then `a`.
+Prints `1` then `a`.
 
 ##### NEW: tests/tuple_structs/tuple_struct_private_field_outside.krb
 
@@ -281,7 +283,7 @@ struct Value(f64);
 
 let val = Value(123);
 
-print val.0;
+@println(val.0);
 ```
 
 ###### Expected Outcome
@@ -311,12 +313,12 @@ let val = Value(123);
 
 val.0 = 456;
 
-print val.0;
+@println(val.0);
 ```
 
 ###### Expected Outcome
 
-Prints `456.000000`.
+Prints `456`.
 
 ##### NEW: tests/tuple_structs/tuple_struct_new_get_set.krb
 
@@ -337,12 +339,12 @@ let val = Value.new(123);
 
 val.set(456);
 
-print val.get();
+@println(val.get());
 ```
 
 ###### Expected Outcome
 
-Prints `456.000000`. Covers `Self(...)`, and assigning a `var` field from inside `impl`.
+Prints `456`. Covers `Self(...)`, and assigning a `var` field from inside `impl`.
 
 ##### NEW: tests/tuple_structs/tuple_struct_wrong_argument_count.krb
 
@@ -375,7 +377,7 @@ struct Value(pub f64);
 
 let val = Value(1);
 
-print val.1;
+@println(val.1);
 ```
 
 ###### Expected Outcome
@@ -408,17 +410,17 @@ The sketch builds a value with a call, `Value(123)`, and `Self(value)` inside `i
 
 Options: (a) Use the call, as sketched. It is short and familiar from other languages, and the checker can treat a tuple struct's name as a function of its fields. The deprecation is then only for regular structs, and the changelog wording should say so. (b) Use braces with positions, `Value { 0: 123 }`, which follows how regular structs are built and does not touch the call syntax. It is more to type and looks odd. (c) Provide no literal and require an `impl` block to define a `new` function. This makes tuple structs much less useful.
 
-### **Q:** Should fields be immutable by default when regular struct fields cannot be?
+### **Q:** Should fields be immutable by default?
 
-<!-- [Q-immutability]: #q-should-fields-be-immutable-by-default-when-regular-struct-fields-cannot-be -->
+<!-- [Q-immutability]: #q-should-fields-be-immutable-by-default -->
 
-**Status:** Open
+**Status:** Answered
 
-The sketch makes a tuple struct field immutable unless it is marked `var`. Regular structs have no such thing. Every field of a regular struct is declared with `var`, there is no immutable form (`pub let x: f64;` is a parse error), and a `let` binding does not stop the fields of the value it names from being assigned. So `var` would mean "this field can be assigned" on a tuple struct and only "this is a field" on a regular struct.
+Yes. The sketch makes a tuple struct field immutable unless it is marked `var`. When this proposal was drafted, regular struct fields had no immutable form, so the two kinds of struct would have differed. Regular struct fields are now immutable unless declared with `var`, and `let` is an optional keyword that changes nothing, so `x: f64;` and `let x: f64;` are the same. Tuple struct fields follow the same rules, including an optional `let`: `struct Value(let f64);` is the same as `struct Value(f64);`.
 
-Options: (a) As sketched. The two kinds of struct differ, and the difference is documented. (b) Tuple struct fields can always be assigned, like regular struct fields, and `var` is not part of tuple struct syntax. This is consistent but drops a requirement in the sketch. (c) Do (a) now, and propose immutable fields for regular structs separately so the two kinds match later.
+Immutable only means the field cannot be reassigned. The value in it can still change, so a list in an immutable field can be pushed to.
 
-The [Tuples Proposal] asks the same thing about tuple items ([Q-mutability-tuples]).
+The [Tuples Proposal] asks a related question about tuple items ([Q-mutability-tuples]).
 
 ### **Q:** When are visibility and mutability checked?
 
@@ -426,9 +428,9 @@ The [Tuples Proposal] asks the same thing about tuple items ([Q-mutability-tuple
 
 **Status:** Open
 
-Privacy is checked when the program runs today: `print a.balance;` on a private field reports `Field 'balance' is private to 'Account'.` and exits with code 70. The struct type the checker builds only records each field's name and type, so it cannot report this earlier.
+Privacy and mutability are both checked when the program runs today. `@println(a.balance);` on a private field reports `Field 'balance' is private to 'Account'.`, and assigning to an immutable field reports `Field 'x' is immutable`. Both exit with code 70. The struct type the checker builds only records each field's name and type, so it cannot report either earlier.
 
-Options: (a) Check both at run time, the same as privacy. It is the smallest change. It needs a flag next to the public flag on `OP_FIELD` and in `ObjStruct`. A mistake is only found when the line runs. (b) Check both at compile time, by recording them in the struct type. Errors are found earlier and the sketch's "Error." comments read naturally. (c) Do (b) for these new checks and leave regular struct privacy as it is.
+Options: (a) Check both at run time, the same as regular structs. It is the smallest change, because `OP_FIELD` already carries the public and mutable flags. A mistake is only found when the line runs. (b) Check both at compile time, by recording them in the struct type. Errors are found earlier and the sketch's "Error." comments read naturally. (c) Do (b) for tuple structs and leave regular structs as they are.
 
 ### **Q:** Is a tuple struct a regular struct with numbered fields?
 
@@ -456,7 +458,7 @@ Options: (a) Same as regular structs. It is consistent, and any change comes fro
 
 **Status:** Open
 
-A regular struct value prints as its name followed by `instance`, so `print S { x: 1 };` prints `S instance` (verified). Options: (a) Do the same, `Value instance`. (b) Print the name and the fields, `Value(123.000000)`, which matches how the value is built. (a) needs no work, and (b) is friendlier.
+A regular struct value prints as its name followed by `instance`, so `@println(S { x: 1 });` prints `S instance` (verified). Options: (a) Do the same, `Value instance`. (b) Print the name and the fields, `Value(123)`, which matches how the value is built. (a) needs no work, and (b) is friendlier.
 
 ## Glossary
 
@@ -469,7 +471,7 @@ These are both technical and non-technical terms used throughout the proposal.
 - **Position**: The number that says which field is meant. The first field is at position `0`.
 - **Field**: One value stored in a struct.
 - **Private field**: A field that can only be used inside the `impl` blocks of its own struct.
-- **Immutable**: Cannot be assigned to after the value is built.
+- **Immutable**: Cannot be reassigned. The value it holds can still change.
 - **Alias**: Another name for an existing type, made with `type`. It does not make a new type.
 - **Call syntax**: Writing a name followed by arguments in parentheses, like `Value(123)`.
 
@@ -507,7 +509,7 @@ These are both technical and non-technical terms used throughout the proposal.
 <!-- Questions -->
 
 [Q-constructor]: #q-how-is-a-tuple-struct-constructed
-[Q-immutability]: #q-should-fields-be-immutable-by-default-when-regular-struct-fields-cannot-be
+[Q-immutability]: #q-should-fields-be-immutable-by-default
 [Q-enforcement]: #q-when-are-visibility-and-mutability-checked
 [Q-representation]: #q-is-a-tuple-struct-a-regular-struct-with-numbered-fields
 [Q-equality]: #q-does-equality-compare-tuple-structs-by-their-fields

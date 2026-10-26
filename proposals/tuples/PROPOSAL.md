@@ -359,9 +359,9 @@ At run time `()` is `nil` today. Making it a tuple object would change what `@pr
 
 **Status:** Open
 
-The sketch does not say. Struct fields and array items can be assigned today, even through a `let` binding: `let s = S { x: 1 }; s.x = 2;` and `let a = [1, 2]; a[0] = 9;` both work (verified). `let` only stops the name being pointed somewhere else.
+The sketch does not say. Array items can be assigned today, even through a `let` binding: `let a = [1, 2]; a[0] = 9;` works (verified). `let` only stops the name being pointed somewhere else. Struct fields can be assigned only when declared with `var`: `let s = S { x: 1 }; s.x = 2;` works for a `var x` field and is a run time error (`Field 'x' is immutable`) for any other.
 
-Options: (a) Tuple items cannot be assigned. `(1, 2)` never changes, which makes item by item equality safer. (b) Items can be assigned, like struct fields. [Tuple Structs Proposal] proposes fields that are immutable unless marked `var`, so the two proposals should agree.
+Options: (a) Tuple items cannot be assigned. `(1, 2)` never changes, which makes item by item equality safer. (b) Items can be assigned, like struct fields. [Tuple Structs Proposal] makes fields immutable unless marked `var`, the same as regular struct fields, so the two proposals should agree.
 
 ### **Q:** Is a tuple type written `(A, B)` or `Tuple[A, B]`?
 

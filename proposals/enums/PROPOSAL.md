@@ -156,6 +156,7 @@ enum Shape {
 - **Tuple-like:** `Circle(f64)` holds values by position.
 - **Struct-like:** `Rect { width: f64, height: f64 }` holds values by name.
 - A single enum can mix plain, tuple-like, and struct-like variants, as `AstNode` does.
+- The values in a variant are always public, as in Rust, so a pattern can read them from anywhere. They cannot be assigned. This holds for both shapes ([Q-variant-fields]).
 - An enum can refer to itself, as `body: AstNode` does. Structs can already do this.
 - A value is built with the enum and variant names: `Shape.Circle(1)`, `Shape.Rect { width: 1, height: 2 }`. How this is written is [Q-variant-fields].
 - The values inside a variant can only be read with a pattern, because the value might be a different variant. This is why Part B depends on the [Pattern Matching Proposal]: without it a value can be built and can never be taken apart.
@@ -602,7 +603,7 @@ The sketch's comments (`// 0`, `// 1`, `// 2`) suggest every variant has a numbe
 
 The sketch has two shapes, and each raises questions:
 
-- **Declaring.** A struct-like variant writes `name: Type,` with commas. A struct writes `pub var name: Type;` with semicolons, and marks each field `pub` or private. Should the values in a variant be public, and can they be assigned to? In Rust they are public and only change through a mutable binding. Here, options: (a) always public, and never assignable. Simple, and no `pub` or `var` to write. (b) The same as struct fields, with `pub` and `var`. More to write for something that is usually only read.
+- **Declaring.** A struct-like variant writes `name: Type,` with commas, and a struct writes `pub var name: Type;` with semicolons. The values in a variant, in both shapes, are always public and never assignable. There is no `pub`, `let` or `var` on them. This is decided. A pattern is the only way to read a value, so a private one could only be matched inside the enum's own `impl` blocks, and a name bound by a pattern holds a copy, so there is nothing to assign to. Assigning could be added later with `var` if a way to reach the value is designed. Not decided: whether the separator should be a comma or a semicolon.
 - **Building.** A tuple-like variant is built with a call, `Shape.Circle(1)`. That is the same call syntax the [Tuple Structs Proposal] asks about ([Q-constructor]), and the changelog says to deprecate calling structs. A struct-like variant would be built with braces, `Shape.Rect { width: 1, height: 2 }`. The parser only allows a struct name before `{` today.
 - **Reading.** Only with a pattern. A `.0` is not offered, because the value might be a different variant.
 
