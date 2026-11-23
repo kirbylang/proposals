@@ -524,11 +524,10 @@ Each step is small, starts with a failing test, and leaves behavior without
   source paths ([Q-paths]), and a project could name a default file to debug.
   How the root is found is not decided there yet, and is now a question in that
   proposal. That proposal is updated to say so.
-- [Top-Level Declarations Proposal] — a run becomes "load the files, then call
-  `main`". A file's top level then only defines names, so `stopOnEntry` would
-  stop at the first line of `main`, not at the first line of the file, and the
-  `script` frame in the session example would be `main` ([Q-call-main]).
-  Nothing here changes until that proposal is accepted.
+- [Top-Level Declarations Proposal] — a run is "load the files, then call
+  `main`". A file's top level only defines names, so `stopOnEntry` stops at the
+  first line of `main`, not at the first line of the file, and the `script`
+  frame in the session example is `main` ([Q-call-main]).
 - [Embedded Library Proposal] — the debugger's check before each instruction and that
   proposal's check at loops and calls both sit in the loop of `run()`, and could
   share one flag test ([Q-check]). The check at loops and calls costs about 1%

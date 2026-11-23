@@ -531,13 +531,19 @@ checker is written by one of five small functions: one in `parser.c`, two in
 `compiler.c`, two in `typecheck.c`. (`definite_assignment.c` uses the
 checker's.) Each writes to stderr with `fprintf` a piece at a time: first
 `[line 3] Error`, then ` at 'x'`, then the message. They change to build one line and give
-it to the same hook and buffer. The text and its order stay the same. When the
-[Language Server Proposal] needs the same five functions to hand over a record
-(line, the token's text, message) as well as text, so the two proposals share
-this change. When the [Tooling Data Proposal] adds spans, these five functions
-are also where a structured record (file, line, column, message) can be handed
-over instead of
-only text.
+it to the same hook and buffer. The text and its order stay the same.
+
+The [Top-Level Declarations Proposal] adds a sixth place that writes compile
+errors, `writeError` in `src/top_level.c`. Three small helpers in that file
+build a finished line each and pass it to `writeError`, so the hook is one
+change there and the file needs no other.
+
+When the [Language Server Proposal] needs the same functions to hand over a
+record (line, the token's text, message) as well as text, so the two proposals
+share this change. In `src/top_level.c` the three helpers are where the record
+is built, since `writeError` only sees the finished line. When the
+[Tooling Data Proposal] adds spans, these functions are also where a structured
+record (file, line, column, message) can be handed over instead of only text.
 
 **Left alone:** the `DEBUG_*` build flags write with `fprintf` and `printf` from
 `debug.c`, `gc.c` and `object.c`. They are for people working on Kirby, not for
@@ -634,7 +640,7 @@ KrbStatus krbInvoke(Kirby *k, KrbValue receiver, const char *method, int argc,
 that the host sets has no type the checker knows, so code that reads it is
 unchecked, the same as a native with no signature ([A.3]).
 
-The `interpretMain(void)` that the [Top-Level Declarations Proposal] adds
+The `interpretMain(void)` that the [Top-Level Declarations Proposal] added
 becomes `krbCallGlobal(k, "main", 0, NULL, &result)`. It needs no function of
 its own.
 
@@ -801,9 +807,10 @@ KrbStatus krbLoadBytes(Kirby *k, const char *name, const void *bytes,
 `krb compile file.krb` gets an output, `-o file.krbc`, and `krb run file.krbc`
 runs a compiled file, recognized by its first bytes. `krb compile` exists today
 without the output: it type checks and compiles a file, runs nothing, and prints
-`Compiled!`. This overlaps with the "check without
-running" question in the [Top-Level Declarations Proposal] ([Q-check-only]) and
-should be settled with it.
+`Compiled!`. That proposal has `krb compile` check its file as a library file,
+so a compiled library needs no `main`, and a compiled entry file is the one
+`krb build` makes. How tests use it is the "check without running" question in
+the [Top-Level Declarations Proposal] ([Q-check-only]).
 
 **The format** is the one `unitEncode` writes today, a header followed by the
 unit:
@@ -897,17 +904,18 @@ in `tests/`.
   general `krbCallGlobal` ([Part 5]). A script an embedded host loads is what
   that proposal calls a library file: it declares things and is never run, so it
   has no `main`. `krbLoad` follows the file rules and `krbEval` the snippet
-  rules. Until that proposal lands, both accept statements. The compile-only
+  rules. The compile-only
   mode of [Part 9] (`krb compile` today, which would gain `-o`) and the
-  check-only question ([Q-check-only]) should be settled together. That
-  proposal is updated to say so.
+  check-only question ([Q-check-only]) should be settled together. Its pass
+  over the top level is a sixth place that writes compile errors ([Part 4]).
+  That proposal is updated to say so.
 - [Modules Proposal] — the bytecode file of [Part 9] is the container that
   proposal's compiled modules need ([Q-interface]), and its interface data would
   go beside the unit in the same file. Whether host functions become a module
   is [Q-host-names]. That proposal is updated to say so.
 - [Tooling Data Proposal] — its Part 5 adds a source name to `parse`, `compile`
   and `compileSource`. For an embedded host the name is whatever the host passes
-  to `krbLoad`, so it need not be a file. The five diagnostic functions of
+  to `krbLoad`, so it need not be a file. The diagnostic functions of
   [Part 4] are where structured spans would be reported. The size of shipped
   scripts ([Part 9]) is evidence for its [Q-strip]. That proposal is updated to
   say so.
@@ -944,7 +952,7 @@ in `tests/`.
   none at run time, which is what one would expect. Not edited.
 - [Projects Proposal] — no change. A host decides where its scripts come from,
   and a script's source name can be a path in the game's own asset system.
-- [Language Server Proposal] — needs the five error functions of [Part 4] to
+- [Language Server Proposal] — needs the error functions of [Part 4] to
   hand over a record, not only text, so whichever proposal lands first makes
   that change. It checks a document once per edit, so it starts and ends many
   checker sessions in one process. The `FrontEnd` bundle of [Part 2] would let

@@ -233,7 +233,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Pattern Matching Proposal] — tuple struct patterns depend on this proposal.
 - [Enums Proposal] — a variant like `Bool(bool)` is a close relative of a tuple struct. Both need positional fields, and the two should share how they are stored and how they are written.
 - [Generic Types Proposal] — generic tuple structs would need the same substitution work as generic structs (Part 3.5 there). Out of scope here.
-- [Top-Level Declarations Proposal] — a tuple struct declaration is a declaration, and it must be at the top level anyway. A value built as `Meters(1)` only builds data, so it would count as a comptime value when its arguments do, the same as a struct literal, once [Q-constructor] settles how it is written. The samples here that use top-level statements are converted when [Q-samples] there is settled.
+- [Top-Level Declarations Proposal] — a tuple struct declaration is a declaration, and it must be at the top level anyway. A value built as `Meters(1)` only builds data, so it would count as a comptime value when its arguments do, the same as a struct literal, once [Q-constructor] settles how it is written. The samples here that use top-level statements are converted the next time this proposal is edited ([Q-samples]).
 
 ### Testing Plan
 

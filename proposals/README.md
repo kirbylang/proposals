@@ -7,6 +7,7 @@
 - ✅ [string-interpolation](/proposals/string-interpolation/PROPOSAL.md)
 - ✅ [sized-number-types](/proposals/sized-number-types/PROPOSAL.md)
 - ✅ [lists](/proposals/lists/PROPOSAL.md)
+- ✅ [top-level-declarations](/proposals/top-level-declarations/PROPOSAL.md)
 
 ## Draft
 
@@ -19,7 +20,6 @@ Grouped by category. See the [roadmap](/ROADMAP.md) for what each category means
 - [modules](/proposals/modules/PROPOSAL.md)
 - [projects](/proposals/projects/PROPOSAL.md)
 - [tooling-support-data](/proposals/tooling-support-data/PROPOSAL.md)
-- [top-level-declarations](/proposals/top-level-declarations/PROPOSAL.md)
 - [type-info](/proposals/type-info/PROPOSAL.md)
 
 ### Features

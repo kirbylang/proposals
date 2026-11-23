@@ -6,13 +6,13 @@ This is a high level view of the proposals and how they relate to each other.
 
 | Stage | Proposal                                                                                   | Needs                                                             | Status      | Notes                                                                                                            |
 | ----- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------- |
-| 1     | [Top-Level Declarations]                                                                   |                                                                   | Ready       | Files hold declarations; `main` is called                                                                        |
+| 1     | [Top-Level Declarations]                                                                   |                                                                   | Done        | [PR #173]                                                                                                        |
 | 1     | [Tooling Data]: [Part 1: the span][td-1], [Part 2: a span on every node][td-2]             |                                                                   | Ready       |                                                                                                                  |
 | 1     | [Tooling Data]: [Part 4: instruction origins][td-4] to [Part 7: what reaches the VM][td-7] |                                                                   | Ready       | Source names, lines, local variable names                                                                        |
 | 1     | [Generic Types]: [Part 3: type parameters][gt-3]                                           |                                                                   | Done        | [PR #169], [PR #170]                                                                                             |
 | 1     | [Projects]                                                                                 |                                                                   | Ready       | Design with modules ([module naming][Q-naming]). Multi-file projects wait for modules                            |
 | 2     | [Generic Types]: [Part 4: trait bounds][gt-4]                                              | generic-types: type parameters                                    | Ready       |                                                                                                                  |
-| 2     | [Macros], with [Tooling Data]: [Part 3: spans that survive generation][td-3]               | tooling-data: spans                                               | Not started | Built together: macros need origins on spans. Design with top-level-declarations ([comptime values][Q-comptime]) |
+| 2     | [Macros], with [Tooling Data]: [Part 3: spans that survive generation][td-3]               | tooling-data: spans                                               | Not started | Built together: macros need origins on spans. Builds on the comptime values of top-level-declarations ([Q-comptime]) |
 | 2     | [Type Info]                                                                                | tooling-data: spans                                               | Not started | Types, declarations and uses for tools. Its first step needs nothing                                             |
 | 3     | [Generic Types]: [Part 5: monomorphization][gt-5]                                          | generic-types: type parameters, trait bounds; tooling-data: spans | Not started | Each specialized copy keeps its source spans                                                                     |
 | 4     | [Modules]                                                                                  | generic-types: monomorphization; top-level-declarations           | Not started | Must ship generic bodies ([body form][Q-bodyform])                                                               |
@@ -50,9 +50,9 @@ This is a high level view of the proposals and how they relate to each other.
 | [Embedded Library]: [Part 1: runtime without the compiler][el-1] to [Part 8: public header and library][el-8] |                                                              | Ready       |                                                                                                                       |
 | [Language Server]: [Part 1: messages][ls-1] to [Part 3: diagnostics][ls-3], [Part 5: VS Code][ls-5]           |                                                              | Ready       | Shares the error record with [embedded-library Part 4][el-4]. Ranges are exact once tooling-data spans are Done      |
 | [Language Server]: [Part 4: hover and go to definition][ls-4]                                                 | **type-info**                                                | Not started |                                                                                                                       |
-| [Lua Transpiler]                                                                                              |                                                              | Ready       | Easier after top-level-declarations                                                                                   |
-| [Debugger]                                                                                                    | **tooling-data: instruction origins to what reaches the VM** | Not started | Easier after top-level-declarations                                                                                   |
-| [Testing]                                                                                                     | **top-level-declarations**                                   | Not started | Easier after embedded-library                                                                                         |
+| [Lua Transpiler]                                                                                              |                                                              | Ready       |                                                                                                                       |
+| [Debugger]                                                                                                    | **tooling-data: instruction origins to what reaches the VM** | Not started |                                                                                                                       |
+| [Testing]                                                                                                     | **top-level-declarations**                                   | Ready       | Easier after embedded-library                                                                                         |
 | [Formatter]: [Part 1: comments][fm-1] and [Part 5: the check][fm-5]                                           |                                                              | Ready       | Comment collection and `astEqual`                                                                                     |
 | [Formatter]: [Part 3: the style][fm-3] onwards                                                                | **tooling-data: spans**                                      | Not started | Literal text and blank lines come from spans. `textDocument/formatting` once [Language Server] exists                 |
 
@@ -69,7 +69,7 @@ None.
 | [Modules]                | epic     | Not started |
 | [Projects]               | epic     | Not started |
 | [Tooling Data]           | epic     | Not started |
-| [Top-Level Declarations] | epic     | Not started |
+| [Top-Level Declarations] | epic     | Done        |
 | [Type Info]              | epic     | Not started |
 | [Collection Methods]     | feature  | Not started |
 | [Destructuring]          | feature  | Not started |
@@ -111,7 +111,6 @@ Answering these can move a row between stages.
   It recommends independent.
 - [Generic Types 10.3: operators for primitives][gt-10.3]: if every operator
   becomes a trait method, generic-types needs primitive-impls first.
-- [Top-Level Declarations: when samples drop top-level statements][Q-samples]
 - Debugger and testing: `krb test` support goes in whichever lands second.
 
 ## Closed
@@ -208,6 +207,7 @@ proposal, and generic types doesn't reopen.
 [gt-3.6]: ./proposals/generic-types/PROPOSAL.md#36-a-single-substitution-helper-used-everywhere
 [PR #169]: https://github.com/kirbylang/kirbylang/pull/169
 [PR #170]: https://github.com/kirbylang/kirbylang/pull/170
+[PR #173]: https://github.com/kirbylang/kirbylang/pull/173
 [gt-4]: ./proposals/generic-types/PROPOSAL.md#part-4--trait-bounds
 [gt-5]: ./proposals/generic-types/PROPOSAL.md#part-5--monomorphization
 [gt-10.3]: ./proposals/generic-types/PROPOSAL.md#103-operators-for-primitives-built-in-fast-path-or-uniform-trait-dispatch
@@ -244,5 +244,4 @@ proposal, and generic types doesn't reopen.
 [Q-sequencing]: ./proposals/primitive-impls/PROPOSAL.md#q-should-this-land-before-after-or-independent-of-the-generic-types-proposals-operator-dispatch-decision
 [Q-bodyform]: ./proposals/modules/PROPOSAL.md#q-in-what-form-does-a-module-ship-its-generic-bodies
 [Q-naming]: ./proposals/modules/PROPOSAL.md#q-is-a-module-named-by-its-file-path-or-by-a-namespace
-[Q-samples]: ./proposals/top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
 [Q-comptime]: ./proposals/top-level-declarations/PROPOSAL.md#q-how-much-is-a-comptime-value

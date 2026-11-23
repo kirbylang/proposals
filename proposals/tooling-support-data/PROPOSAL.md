@@ -490,14 +490,16 @@ Origin (Part 3) waits for macros.
   meant to be relative to in the long run ([Q-paths]). That proposal does not
   say yet how a root is found, which is now a question there ([Q-root]). That
   proposal is updated to say so.
-- [Top-Level Declarations Proposal] — also adds a parameter to `compileSource`:
+- [Top-Level Declarations Proposal] — also added a parameter to `compileSource`:
   the kind of source (entry file, library file, or snippet). It is separate from
   the source name added in Part 5, and either proposal can land first. It also
-  splits `runFile` into `loadFile` and `runFile`, and both pass the path on.
-  That proposal is updated to say so.
+  splits `runFile` into `loadFile` and `runFile`, and both pass the path on. Its
+  pass over the top level also writes compile errors, through three helpers that
+  hold the line, the token and the message, so a span would be handed over there
+  too. That proposal is updated to say so.
 - [Embedded Library Proposal] — a host that embeds Kirby names each script it loads, so
   the source name of [Part 5] is whatever the host passes, and it need not be a
-  path. The five functions that write compile errors ([Embedded Lbrary Part 4]) are
+  path. The functions that write compile errors ([Embedded Lbrary Part 4]) are
   where a span would be handed over as data and not only as text. The size of
   the compiled scripts it ships ([Embedded Lbrary Part 9]) is evidence for [Q-strip].
   That proposal is updated to say so.

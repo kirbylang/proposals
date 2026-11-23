@@ -228,6 +228,11 @@ proposal lands first makes the change, and the other uses it. When the
 [Tooling Data Proposal] gives nodes spans, the record carries the span in place
 of `line`, `at`, and `atLength`.
 
+The [Top-Level Declarations Proposal] adds a sixth writer, `writeError` in
+`src/top_level.c`. It only sees a finished line, so the record is built by the
+three small helpers in front of it, which hold the line, the token and the
+message.
+
 `krb lsp` sets a sink and turns off the stderr text. Stderr is not part of the
 protocol, and the errors already reach the editor as diagnostics.
 
@@ -340,8 +345,9 @@ Steps 1 to 5 need nothing that is not built yet.
 
 - **No language change.**
 - **`krb`** gains the `lsp` command.
-- **The five error functions** also hand a record to a sink. With no sink set
-  they behave as today, so no snapshot changes.
+- **The five error functions**, and the three helpers of the top-level pass in
+  `src/top_level.c` ([Top-Level Declarations Proposal]), also hand a record to a
+  sink. With no sink set they behave as today, so no snapshot changes.
 - **`compileSource`** moves out of `src/main.c` so `src/lsp.c` can call it.
 - **A JSON library** is added under `lib/` ([Q-json]).
 - **`vsc/`** gains a dependency, `vscode-languageclient`.
@@ -358,6 +364,10 @@ Steps 1 to 5 need nothing that is not built yet.
   output through a hook. [Part 3] needs the same change, so the two share it.
   Its `FrontEnd` bundle (Part 2) would let the server keep a session per
   document. That proposal is updated to say so.
+- [Top-Level Declarations Proposal] — its pass over the top level is a sixth
+  place that writes compile errors, next to the five that [Part 3] changes. Its
+  three helpers each hold the line, the token and the message, so each builds a
+  record as well as the line. That proposal is updated to say so.
 - [Debugger Proposal] — [Q-adapter] there asks whether the Debug Adapter
   Protocol, which is also JSON, should live in C inside `krb`. The JSON library
   this proposal adds would make that option cheaper. That proposal is updated to
@@ -633,6 +643,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Type Info Proposal]: ../type-info/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
+[Top-Level Declarations Proposal]: ../top-level-declarations/PROPOSAL.md
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Modules Proposal]: ../modules/PROPOSAL.md
 [Projects Proposal]: ../projects/PROPOSAL.md

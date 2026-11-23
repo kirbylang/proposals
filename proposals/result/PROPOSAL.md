@@ -204,7 +204,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Strings Proposal] — `@strFromBytes` and `@strFromCode` return a `Result`. The [String Encoding Proposal] ([Q-invalid-input]) asks the same question about reading invalid text.
 - [Trait Types Proposal] — an error that any struct can implement is a use of a trait type ([Q-error-type]).
 - [Unimplemented Proposal] — `???` and `unwrap()` both stop the program with a message.
-- [Top-Level Declarations Proposal] — decides where a script's statements live, which `?` at the top level depends on ([Q-try-top-level]).
+- [Top-Level Declarations Proposal] — puts a script's statements in `main`, which `?` at the top level depends on ([Q-try-top-level]).
 
 ### Testing Plan
 
@@ -338,7 +338,7 @@ Options: (a) They must be the same type. Easy to check and to read, and a functi
 
 **Status:** Open
 
-A script's statements are not in a function that returns a `Result`. Options: (a) A compile error, as in Part C. (b) The script ends with the error text and exit code 70, the same as an uncaught failure does today. (c) Same as (b), but only in a `main` function once the [Top-Level Declarations Proposal] lands.
+A script's statements are not in a function that returns a `Result`. Options: (a) A compile error, as in Part C. (b) The script ends with the error text and exit code 70, the same as an uncaught failure does today. (c) Same as (b), but only in a `main` function, which is where a script's statements now live ([Top-Level Declarations Proposal]).
 
 (b) matches what failures do today, and makes a short script easy to write. (a) is the safest start.
 

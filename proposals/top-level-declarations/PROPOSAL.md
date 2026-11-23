@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Closed
 category: epic
 created: 2026-09-20
 from_commit: 2f96a2e
@@ -8,10 +8,11 @@ from_commit: 2f96a2e
 # Proposal: Top-Level Declarations Only
 
 This proposal changes what a `.krb` file may contain at its top level. A file
-would hold only _declarations_: functions, structs, impls, traits, type aliases,
+holds only _declarations_: functions, structs, impls, traits, type aliases,
 and `let` / `var` bindings whose values are known at compile time. Loading a
-file would do nothing else. To run a file, it needs a `fun main(): unit`, which
-Kirby calls after the file has loaded.
+file does nothing else. To run a file, it needs a `fun main(): unit`, which
+Kirby calls after the file has loaded. It was implemented and merged in
+[PR #173]. The sections below describe that implementation.
 
 The point is that loading a file, for example importing it as a module, never
 has side effects.
@@ -41,7 +42,10 @@ defined in the [Glossary] below.
   the current implementation. Each such claim was checked against a build at
   `from_commit`, and [Appendix A] shows how to check it again.
 - When the proposal text says Kirby "should" or "will" do something, that is
-  true after changes presented in this proposal.
+  true after changes presented in this proposal. All of them have been made,
+  so those sentences describe what Kirby does now. The "does" sentences about
+  how things were before the change, including everything in [Appendix A],
+  stay true of `from_commit` and not of `main`.
 
 ### Code & Changes
 
@@ -148,6 +152,11 @@ Files play one of two roles:
   so it needs no `main`.
 
 Both roles follow the same top-level rules. Only the entry file needs `main`.
+
+Requiring `main` follows the intent to run the file. `krb compile` runs nothing,
+so it checks its file as a library file and needs no `main`. That is how a
+library file or a module is checked on its own. `krb build` makes a program that
+runs, so its file is an entry file.
 
 ### What can appear at the top level
 
@@ -409,8 +418,10 @@ text (`KIRBY_STDLIB`), not a file, so `loadFile` takes text.
 `krb exec`, so that one line covers all four. `runFile` (used by `krb run` and
 `krb example`) passes `SOURCE_ENTRY_FILE`. `repl` and `runCode` (`krb exec`)
 pass `SOURCE_SNIPPET`. `krb compile` (`cmdCompile`) and `krb build`
-(`cmdBuild`) compile the stdlib and a file without `sessionBegin`, and pass
-`SOURCE_LIBRARY_FILE` and `SOURCE_ENTRY_FILE`. This part changes no behavior,
+(`cmdBuild`) compile the stdlib and a file without `sessionBegin`. The stdlib is
+`SOURCE_LIBRARY_FILE` in both. The file is `SOURCE_ENTRY_FILE` for `krb build`,
+because the program it makes runs, and `SOURCE_LIBRARY_FILE` for `krb compile`,
+because it runs nothing and so needs no `main`. This part changes no behavior,
 so it has no new test of its own: the existing suite is the test.
 
 The [Tooling Data Proposal] also adds a parameter to `compileSource`, a source
@@ -470,6 +481,16 @@ the type checker, so both kinds of error appear in one run ([Q-check-where]):
 Statement nodes carry a line number but no token, so the message has the form
 `[line N] Error: ...`, like "Can't return from top-level code." Test first:
 `tests/run/top_level/statements.krb`.
+
+The pass writes its own errors. Three small helpers in `src/top_level.c` each
+build one finished line (`[line N] Error at 'x': ...`, `[line N] Error: ...`,
+and `Error: ...` for a file with no `main`) and hand it to `writeError`, the
+only place the file writes to stderr. Each stage of the front end owns its error
+writers (`parse_error_at`, `compilerErrorAt`, `typchkErrorAtToken`), so the pass
+does not borrow the type checker's. Those also set the checker's private error
+flag, which the checker resets when it starts. Keeping the write in one function
+means the hook that the [Embedded Library Proposal] plans for compile errors is
+one change here ([Related Proposals]).
 
 #### Part 4: Check that top-level initializers are comptime
 
@@ -566,7 +587,8 @@ the same way. The docs to update are `docs/CLI.md` and `book/src/cli.md`
 - **Top-level initializers that are not comptime stop compiling.** In `tests/`
   that is 156 of 773, plus 11 with no initializer.
 - **`krb run FILE` needs a `main`.** A file made only of declarations used to run
-  and do nothing. Now it is an error.
+  and do nothing. Now it is an error. `krb build` needs one too. `krb compile`
+  does not, because it runs nothing.
 - **`main` becomes a special name in the entry file.** It must be
   `fun main(): unit`. `tests/run/closures/upvalue_global.krb` uses `main` as a
   helper name today.
@@ -613,7 +635,9 @@ the same way. The docs to update are `docs/CLI.md` and `book/src/cli.md`
 - [Tooling Data Proposal] — also adds a parameter to `compileSource`, a source
   name (its Part 5). The two parameters are separate, and either proposal can
   land first. It also splits `runFile` into `loadFile` and `runFile`, and both
-  pass the path on. That proposal is updated to say so.
+  pass the path on. Its spans would also be handed over by the helpers of the
+  pass in Part 3, which write compile errors too. That proposal is updated to
+  say so.
 - [Enums Proposal] — `enum` would join the declarations a top level may hold.
   A variant value only builds data, so it would be a comptime value when its
   contents are, once [Q-variant-access] and [Q-variant-fields] settle how it is
@@ -639,7 +663,14 @@ the same way. The docs to update are `docs/CLI.md` and `book/src/cli.md`
   function of its own ([Q-call-main]). The interface follows the rules of
   [Q-snippets]: `krbLoad` takes a file and `krbEval` takes a snippet. Its
   compile-only mode (`krb compile`, which that proposal would give an output
-  file) overlaps with [Q-check-only]. That proposal is updated to say so.
+  file) overlaps with [Q-check-only]. The pass of Part 3 is a sixth place that
+  writes compile errors, next to the five in that proposal's Part 4.
+  `writeError` already receives a whole line, so only its write changes. That
+  proposal is updated to say so.
+- [Language Server Proposal] — each compile error is handed to a sink as a
+  record by the functions that write them. The pass of Part 3 is another writer.
+  Its three helpers hold the line, the token and the message, so they are where
+  its record is built. That proposal is updated to say so.
 - [Map Proposal] — a map literal only builds data, so it would be a comptime
   value when its keys and values are. That proposal is updated to say so.
 - [Result Proposal] — `?` needs a function that returns a `Result`, so it is
@@ -901,13 +932,29 @@ is the shape of most of the 933 files that have a top-level statement. A change 
 `.exit` of a migrated test means the migration changed what the test checks, and
 is reviewed by hand.
 
+## Outcome
+
+**Status:** Accepted
+
+Implemented and delivered in commit `c19e144` ([PR #173]). Every question below
+was answered, and the answers are what was built. Two things went beyond the
+plan:
+
+- `krb compile` checks its file as a library file, so it needs no `main`. It
+  runs nothing, and compiling a library file or a module is expected to be
+  common. `krb run`, `krb example` and `krb build` need `main`, because they run
+  the file. This settled [Q-check-only] in favor of its option (b).
+- The code samples in the language's own book and `docs/TYPES.md` were moved
+  into `main`. The hover text in the VS Code extension is left as one line
+  snippets ([Q-samples]).
+
 ## Questions
 
 ### **Q:** How much is a comptime value?
 
 <!-- [Q-comptime]: #q-how-much-is-a-comptime-value -->
 
-**Status:** Open
+**Status:** Answered
 
 Kirby has no compile-time evaluation today ([Appendix A], A.1), so this
 proposal has to say what "comptime" means. Options:
@@ -941,11 +988,20 @@ Two smaller choices inside (b):
 - `if` and block expressions are left out to keep the list short. They could be
   added later without breaking anything.
 
+#### Answer
+
+Option (b). A comptime value is a literal, an operator over comptime values
+(including `and`, `or` and `??`, and parentheses), an array or struct literal of
+comptime values, a lambda, the name of a top-level `fun`, or the name of an
+_earlier_ comptime `let`. A call, a field access, indexing, or the name of a
+`var` is not one. `if` and block expressions are left out. The check is
+`isComptime` in `src/top_level.c`.
+
 ### **Q:** Should `main` take parameters or return a value?
 
 <!-- [Q-main-signature]: #q-should-main-take-parameters-or-return-a-value -->
 
-**Status:** Open
+**Status:** Answered
 
 Proposed: `fun main(): unit`, with no parameters and no return value.
 
@@ -958,11 +1014,17 @@ Alternatives are `main(args: [string])` and
 a `main` that returns the exit code (which gives two ways to exit). Accepting
 more signatures later does not break a file that uses `fun main(): unit`.
 
+#### Answer
+
+`fun main(): unit`, with no parameters, no generic parameters and a return type
+of `unit`. Anything else named `main` in an entry file, including a `let` or
+`var`, reports `'main' must be declared as 'fun main(): unit'.`
+
 ### **Q:** Are top-level declarations without a value allowed?
 
 <!-- [Q-no-value]: #q-are-top-level-declarations-without-a-value-allowed -->
 
-**Status:** Open
+**Status:** Answered
 
 Proposed: no. A top-level `var` needs a comptime value. (`let` already needs an
 initializer today.)
@@ -977,11 +1039,16 @@ To migrate one, give it a starting value, for example
 `var handler: fun () => unit = fun () {};`. For a type with no natural starting
 value, create the value in `main` and pass it down.
 
+#### Answer
+
+No. A top-level `let` or `var` without a value reports `A top-level 'let' must
+be assigned a comptime value.` (or `'var'`).
+
 ### **Q:** What happens when a file has no `main`?
 
 <!-- [Q-missing-main]: #q-what-happens-when-a-file-has-no-main -->
 
-**Status:** Open
+**Status:** Answered
 
 Proposed: a compile error with exit code 65, and only when running an entry
 file. A library file needs no `main`.
@@ -991,11 +1058,18 @@ like the other errors that exit with 65. The alternative is exit code 64, the
 code `krb` uses for a usage error, on the view that the person asked Kirby to run
 a file that cannot be run.
 
+#### Answer
+
+A compile error with exit code 65, only for an entry file: `No 'main' function.
+Running a file needs 'fun main(): unit'.` A library file, and `krb compile`, need
+no `main`. A library file can declare anything under the name `main`, because
+its shape is only checked when the file is run.
+
 ### **Q:** Are the REPL and code snippets exempt?
 
 <!-- [Q-snippets]: #q-are-the-repl-and-code-snippets-exempt -->
 
-**Status:** Open
+**Status:** Answered
 
 Proposed: yes. The REPL and `krb exec` keep today's rules: statements, no `main`, no
 limit on initializers. The stdlib that is loaded before a snippet is a library
@@ -1007,11 +1081,16 @@ test's program as a snippet. `tests/exec/` and `tests/repl/` hold such tests.
 What is left is the tests that show snippets still allow statements once
 every other test is migrated.
 
+#### Answer
+
+Yes. The REPL and `krb exec` take snippets and keep their old rules. The
+stdlib is a library file.
+
 ### **Q:** How does Kirby call `main`?
 
 <!-- [Q-call-main]: #q-how-does-kirby-call-main -->
 
-**Status:** Open
+**Status:** Answered
 
 - **(a) The host calls it** (proposed). After the file has loaded, `runFile`
   asks the VM to call the global `main` (Part 5). The compiled unit only defines
@@ -1024,11 +1103,19 @@ every other test is migrated.
   entry file and a library file compile to different units, and traces end with an
   extra `in script` line.
 
+#### Answer
+
+Option (a). `interpretMain` in `src/vm.c` looks up the global `main` and calls it
+with no arguments, after the file has loaded. `krb run`, `krb example` and
+`krb-runtime` (the program `krb build` makes) all use it. The
+[Embedded Library Proposal]'s call by name is not built yet, so
+`interpretMain` is a function of its own until then.
+
 ### **Q:** Where does the top-level check run?
 
 <!-- [Q-check-where]: #q-where-does-the-top-level-check-run -->
 
-**Status:** Open
+**Status:** Answered
 
 Proposed: a separate pass after parsing and before type checking, for files
 only (Part 3).
@@ -1046,11 +1133,20 @@ Once macros exist, the [Macros Proposal] expands them before type checking, and 
 top-level macro call that expands into declarations is not a side effect. The
 pass should run on the expanded program, right after expansion.
 
+#### Answer
+
+Option (a). `topLevelCheck` in `src/top_level.c` runs from `compileSource` in
+`src/main.c` after parsing and before type checking, for entry files and
+library files, so both kinds of error show in one run. `compileSource` takes a
+`SourceKind` (entry file, library file or snippet) to say which. The pass writes
+its own errors, through three small helpers (token, line, and no location),
+which makes it a sixth place that writes compile errors.
+
 ### **Q:** How are tests that only check compilation written?
 
 <!-- [Q-check-only]: #q-how-are-tests-that-only-check-compilation-written -->
 
-**Status:** Open
+**Status:** Answered
 
 174 test files contain only declarations. Most are compile-error tests. The 12
 that succeed today do nothing when run, and under this proposal they need a
@@ -1061,16 +1157,25 @@ that succeed today do nothing when run, and under this proposal they need a
 - **(b) A check-only mode** that compiles and type checks without running and
   without needing `main`. `krb compile FILE` is that mode today: it type checks
   and compiles the file and the stdlib, runs nothing, and prints `Compiled!`.
-  A test uses it through its own `.argv` file
+  It checks its file as a library file, so it needs no `main` ([Files and
+  snippets]). A test uses it through its own `.argv` file
   (`compile`, then `$file`), so the harness needs no per-test option either.
   This is useful for tools too. Nothing new is needed in the CLI or the harness;
-  what is left to decide is whether tests like these use it.
+  what is left to decide is whether tests like these use it. The cost is that a
+  test that succeeds loses its bytecode listing, because `compile` prints none,
+  and that listing is a snapshot of what the compiler produced.
+
+#### Answer
+
+Option (b). A test that only checks that a file compiles has an `.argv` of
+`compile` and `$file`, and sits in `tests/compile/`. Because `compile` prints
+no bytecode listing, those tests do not snapshot one.
 
 ### **Q:** When do code samples in other proposals change?
 
 <!-- [Q-samples]: #q-when-do-code-samples-in-other-proposals-change -->
 
-**Status:** Open
+**Status:** Answered
 
 79 `kirby` code blocks in thirteen other proposals use top-level statements:
 the [Tuple Structs Proposal] (12), the [Tuples Proposal] (12), the
@@ -1087,6 +1192,15 @@ about `from_commit` and stays true. A sample that shows proposed behavior is
 rewritten with a `main` the next time that proposal is edited after this one is
 accepted. Only the design points that this proposal changes are edited now (see
 [Related Proposals]).
+
+#### Answer
+
+As proposed: they are left. A sample that shows behavior from before the change
+stays a checked fact about `from_commit`, and a sample that shows new behavior
+is rewritten with a `main` the next time its proposal is edited. In the
+language's own repository the book chapters, the builtin function reference and
+`docs/TYPES.md` were moved into `main`, and the one line hover texts were left
+as snippets.
 
 ## Appendix A: Checking the claims
 
@@ -1360,6 +1474,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Testing Plan]: #testing-plan
 [Appendix A]: #appendix-a-checking-the-claims
 [Top-level `let` and `var` take comptime values]: #top-level-let-and-var-take-comptime-values
+[Files and snippets]: #files-and-snippets
 
 <!-- Proposals -->
 
@@ -1379,6 +1494,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
 [Unimplemented Proposal]: ../unimplemented/PROPOSAL.md
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
+[Language Server Proposal]: ../language-server/PROPOSAL.md
 [Lua Transpiler Proposal]: ../lua-transpiler/PROPOSAL.md
 [Map Proposal]: ../map/PROPOSAL.md
 [Result Proposal]: ../result/PROPOSAL.md
@@ -1409,3 +1525,4 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-check-where]: #q-where-does-the-top-level-check-run
 [Q-check-only]: #q-how-are-tests-that-only-check-compilation-written
 [Q-samples]: #q-when-do-code-samples-in-other-proposals-change
+[PR #173]: https://github.com/kirbylang/kirbylang/pull/173

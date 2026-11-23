@@ -181,7 +181,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Pattern Matching Proposal] — tuple patterns depend on this proposal.
 - [Map Proposal] and [For-Each Proposal] — looping over a map gives a pair of key and value, which is a tuple. `for ((key, value) in map)` needs this proposal and the [Destructuring Proposal].
 - [Sized Number Types Proposal] — Closed. It added ten number kinds and no `number` type, so the sketch's `number` becomes `i64` or `f64`.
-- [Top-Level Declarations Proposal] — a tuple literal only builds data, so it would count as a comptime value when its items do, and could start a top-level `let` or `var`. The samples here that use top-level statements are converted when [Q-samples] there is settled.
+- [Top-Level Declarations Proposal] — a tuple literal only builds data, so it would count as a comptime value when its items do, and could start a top-level `let` or `var`. The samples here that use top-level statements are converted the next time this proposal is edited ([Q-samples]).
 - [Formatter Proposal] — the trailing comma in a one-item tuple, `(1,)`, is what tells it apart from a grouping, so the formatter always keeps it. Whether other lists may end with a comma is [Q-trailing-format] there. A tuple literal is a list for its line breaking rules.
 
 ### Testing Plan

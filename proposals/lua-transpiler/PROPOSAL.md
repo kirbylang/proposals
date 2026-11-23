@@ -494,9 +494,9 @@ translation.
 - [Modules Proposal] — a translated module is a Lua table, and an import is a
   `require`. What a module exports decides what `M` holds ([Q-exports]).
 - [Top-Level Declarations Proposal] — a file made only of declarations is what
-  fits the file-as-a-table rule. A top-level statement would have to run when
-  the file is loaded, so this proposal would be easier if that one lands. `main`
-  is a call at the end of the runner.
+  fits the file-as-a-table rule. A top-level statement would have had to run when
+  the file is loaded, and none can now. `main` is a call at the end of the
+  runner.
 - [Tooling Data Proposal] — its spans are what a line map would be built from
   ([Q-source-map]).
 - [Debugger Proposal] — debugging the Lua is the Lua host's business. A line map
