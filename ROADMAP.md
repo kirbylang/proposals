@@ -4,43 +4,68 @@ This is a high level view of the proposals and how they relate to each other.
 
 ## Epics
 
-| Stage | Proposal                                                                                   | Needs                                                             | Status      | Notes                                                                                                            |
-| ----- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------- |
-| 1     | [Top-Level Declarations]                                                                   |                                                                   | Done        | [PR #173]                                                                                                        |
-| 1     | [Tooling Data]: [Part 1: the span][td-1], [Part 2: a span on every node][td-2]             |                                                                   | Ready       |                                                                                                                  |
-| 1     | [Tooling Data]: [Part 4: instruction origins][td-4] to [Part 7: what reaches the VM][td-7] |                                                                   | Ready       | Source names, lines, local variable names                                                                        |
-| 1     | [Generic Types]: [Part 3: type parameters][gt-3]                                           |                                                                   | Done        | [PR #169], [PR #170]                                                                                             |
-| 1     | [Projects]                                                                                 |                                                                   | Ready       | Design with modules ([module naming][Q-naming]). Multi-file projects wait for modules                            |
-| 2     | [Generic Types]: [Part 4: trait bounds][gt-4]                                              | generic-types: type parameters                                    | Ready       |                                                                                                                  |
+| Stage | Proposal                                                                                   | Needs                                                             | Status      | Notes                                                                                                                |
+| ----- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| 1     | [Top-Level Declarations]                                                                   |                                                                   | Done        | [PR #173]                                                                                                            |
+| 1     | [Tooling Data]: [Part 1: the span][td-1], [Part 2: a span on every node][td-2]             |                                                                   | Ready       |                                                                                                                      |
+| 1     | [Tooling Data]: [Part 4: instruction origins][td-4] to [Part 7: what reaches the VM][td-7] |                                                                   | Ready       | Source names, lines, local variable names                                                                            |
+| 1     | [Generic Types]: [Part 3: type parameters][gt-3]                                           |                                                                   | Done        | [PR #169], [PR #170]                                                                                                 |
+| 1     | [Projects]                                                                                 |                                                                   | Ready       | Design with modules ([module naming][Q-naming]). Multi-file projects wait for modules                                |
+| 2     | [Generic Types]: [Part 4: trait bounds][gt-4]                                              | generic-types: type parameters                                    | Done        | [PR #176]                                                                                                            |
 | 2     | [Macros], with [Tooling Data]: [Part 3: spans that survive generation][td-3]               | tooling-data: spans                                               | Not started | Built together: macros need origins on spans. Builds on the comptime values of top-level-declarations ([Q-comptime]) |
-| 2     | [Type Info]                                                                                | tooling-data: spans                                               | Not started | Types, declarations and uses for tools. Its first step needs nothing                                             |
-| 3     | [Generic Types]: [Part 5: monomorphization][gt-5]                                          | generic-types: type parameters, trait bounds; tooling-data: spans | Not started | Each specialized copy keeps its source spans                                                                     |
-| 4     | [Modules]                                                                                  | generic-types: monomorphization; top-level-declarations           | Not started | Must ship generic bodies ([body form][Q-bodyform])                                                               |
+| 2     | [Type Info]                                                                                | tooling-data: spans                                               | Not started | Types, declarations and uses for tools. Its first step needs nothing                                                 |
+| 3     | [Generic Types]: [Part 5: monomorphization][gt-5]                                          | generic-types: type parameters, trait bounds; tooling-data: spans | Not started | Each specialized copy keeps its source spans                                                                         |
+| 4     | [Modules]                                                                                  | generic-types: monomorphization; top-level-declarations           | Not started | Must ship generic bodies ([body form][Q-bodyform])                                                                   |
 
 ## Features
 
-| Stage | Proposal                                                                  | Needs                                                                                | Status      | Notes                                                     |
-| ----- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ----------- | --------------------------------------------------------- |
-| 1     | [Tuples]                                                                  |                                                                                      | Ready       |                                                           |
-| 1     | [Enums]: [Part A: plain variants][en-a]                                   |                                                                                      | Ready       |                                                           |
-| 1     | [Destructuring]: [struct patterns][de-struct], [array patterns][de-array] |                                                                                      | Ready       |                                                           |
-| 1     | [For-Each]: [Part A: arrays][fe-a], [Part B: ranges][fe-b]                |                                                                                      | Ready       |                                                           |
-| 1     | [String Encoding]                                                         |                                                                                      | Ready       |                                                           |
-| 1     | [Primitive Impls]                                                         |                                                                                      | Ready       | [Order against generics][Q-sequencing] is open            |
-| 1     | [Trait Types]                                                             |                                                                                      | Ready       |                                                           |
-| 1     | [Unimplemented]                                                           |                                                                                      | Ready       |                                                           |
-| 2     | [Tuple Structs]                                                           | tuples                                                                               | Not started |                                                           |
-| 2     | [Pattern Matching]                                                        | destructuring: struct and array patterns; enums: plain variants                      | Not started | Tuple patterns in `match` follow destructuring's          |
-| 2     | [Strings]                                                                 | string-encoding                                                                      | Not started |                                                           |
-| 2     | [Collection Methods]                                                      | primitive-impls                                                                      | Not started | `Map`/`Set` methods [wait for generics][Q-generics-order] |
-| 3     | [Destructuring]: [tuple and tuple struct patterns][de-tuple]              | tuples, tuple-structs                                                                | Not started |                                                           |
-| 3     | [Enums]: [Part B: variants that carry values][en-b]                       | pattern-matching                                                                     | Not started | Unusable without `match`                                  |
-| 4     | [Enums]: [Part C: type parameters][en-c]                                  | enums: variants that carry values; **generic-types: type parameters**                | Not started | `Option[T]`, `Result[T, E]`                               |
-| 5     | [Result]                                                                  | enums: type parameters; pattern-matching                                             | Not started |                                                           |
-| 5     | [Map]                                                                     | enums: type parameters                                                               | Not started | `@mapGet` returns `Option[V]`                             |
-| 5     | [For-Each]: [Part C: one rule for everything else][fe-c]                  | for-each: arrays, ranges; enums: type parameters; **generic-types: type parameters** | Not started | `Iterator[T]`                                             |
+| Stage | Proposal                                                                  | Needs                                                                                                    | Status      | Notes                                                                                                                                                |
+| ----- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | [Tuples]                                                                  |                                                                                                          | Ready       |                                                                                                                                                      |
+| 1     | [Enums]: [Part A: plain variants][en-a]                                   |                                                                                                          | Ready       |                                                                                                                                                      |
+| 1     | [Destructuring]: [struct patterns][de-struct], [array patterns][de-array] |                                                                                                          | Ready       |                                                                                                                                                      |
+| 1     | [For-Each]: [Part A: arrays][fe-a], [Part B: ranges][fe-b]                |                                                                                                          | Ready       |                                                                                                                                                      |
+| 1     | [String Encoding]                                                         |                                                                                                          | Ready       |                                                                                                                                                      |
+| 1     | [Primitive Impls]                                                         |                                                                                                          | Ready       | [Order against generics][Q-sequencing] is open                                                                                                       |
+| 1     | [Trait Types]                                                             |                                                                                                          | Ready       |                                                                                                                                                      |
+| 1     | [Unimplemented]                                                           |                                                                                                          | Ready       |                                                                                                                                                      |
+| 2     | [Generic Traits]                                                          | generic-types: type parameters, trait bounds                                                             | Ready       | Traits with their own type parameters, and impls on generic types. Draft                                                                             |
+| 2     | [Tuple Structs]                                                           | tuples                                                                                                   | Not started |                                                                                                                                                      |
+| 2     | [Pattern Matching]                                                        | destructuring: struct and array patterns; enums: plain variants                                          | Not started | Tuple patterns in `match` follow destructuring's                                                                                                     |
+| 2     | [Strings]                                                                 | string-encoding                                                                                          | Not started |                                                                                                                                                      |
+| 2     | [Collection Methods]                                                      | primitive-impls                                                                                          | Not started | `Map`/`Set` methods [wait for generics][Q-generics-order]. Methods on a generic item type (`join`) need primitive-impls to reach numbers and strings |
+| 3     | [Destructuring]: [tuple and tuple struct patterns][de-tuple]              | tuples, tuple-structs                                                                                    | Not started |                                                                                                                                                      |
+| 3     | [Enums]: [Part B: variants that carry values][en-b]                       | pattern-matching                                                                                         | Not started | Unusable without `match`                                                                                                                             |
+| 4     | [Enums]: [Part C: type parameters][en-c]                                  | enums: variants that carry values; **generic-types: type parameters**                                    | Not started | `Option[T]`, `Result[T, E]`. Methods on them need [generic-traits][Generic Traits]                                                                   |
+| 5     | [Result]                                                                  | enums: type parameters; pattern-matching                                                                 | Not started |                                                                                                                                                      |
+| 5     | [Map]                                                                     | enums: type parameters                                                                                   | Not started | `@mapGet` returns `Option[V]`                                                                                                                        |
+| 5     | [For-Each]: [Part C: one rule for everything else][fe-c]                  | for-each: arrays, ranges; enums: type parameters; **generic-types: type parameters**; **generic-traits** | Not started | `Iterator[T]`                                                                                                                                        |
 
 **Bold** marks an epic.
+
+## Current focus
+
+The order the implementation is following now. Each step has its own patches.
+A step moves to Done in the tables above when its last patch lands.
+
+| Step | Proposal                                                                       | Needs                                                   |
+| ---- | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| 1    | [Primitive Impls]                                                              |                                                         |
+| 2    | [Enums]: [Part A: plain variants][en-a]                                        |                                                         |
+| 3    | [Destructuring]: [struct patterns][de-struct], [array patterns][de-array]      |                                                         |
+| 4    | [Pattern Matching]                                                             | steps 2, 3                                              |
+| 5    | [Enums]: [Part B: variants that carry values][en-b]                            | step 4                                                  |
+| 6    | [Generic Traits]                                                               |                                                         |
+| 7    | [Enums]: [Part C: type parameters][en-c]                                       | steps 5, 6                                              |
+| 8    | [Collection Methods]                                                           | step 1 (and step 6 if methods go through `Iterator[T]`) |
+| 9    | [Result], [Map], [For-Each]: [Part C][fe-c]                                    | steps 6, 7                                              |
+| 10   | [Tooling Data]: [Part 1: the span][td-1], [Part 2: a span on every node][td-2] |                                                         |
+| 11   | [Generic Types]: [Part 5: monomorphization][gt-5]                              | step 10                                                 |
+| 12   | [Modules], with [Projects]                                                     | step 11                                                 |
+
+[Tuples] and [Tuple Structs] have no step. They need nothing (tuple structs need
+tuples) and can be built any time after step 1. Their dispatch question
+([Q-category]) follows step 1.
 
 ## Tooling
 
@@ -48,7 +73,7 @@ This is a high level view of the proposals and how they relate to each other.
 | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------- |
 | [Embedded Library]: [Part 9: compiled scripts][el-9]                                                          |                                                              | In progress | The `KRBC` format and `krb build` are built (kirbylang #118). `.krbc` files, `krb compile -o`, `krbLoadBytes` are not |
 | [Embedded Library]: [Part 1: runtime without the compiler][el-1] to [Part 8: public header and library][el-8] |                                                              | Ready       |                                                                                                                       |
-| [Language Server]: [Part 1: messages][ls-1] to [Part 3: diagnostics][ls-3], [Part 5: VS Code][ls-5]           |                                                              | Ready       | Shares the error record with [embedded-library Part 4][el-4]. Ranges are exact once tooling-data spans are Done      |
+| [Language Server]: [Part 1: messages][ls-1] to [Part 3: diagnostics][ls-3], [Part 5: VS Code][ls-5]           |                                                              | Ready       | Shares the error record with [embedded-library Part 4][el-4]. Ranges are exact once tooling-data spans are Done       |
 | [Language Server]: [Part 4: hover and go to definition][ls-4]                                                 | **type-info**                                                | Not started |                                                                                                                       |
 | [Lua Transpiler]                                                                                              |                                                              | Ready       |                                                                                                                       |
 | [Debugger]                                                                                                    | **tooling-data: instruction origins to what reaches the VM** | Not started |                                                                                                                       |
@@ -85,6 +110,7 @@ None.
 | [Tuple Structs]          | feature  | Not started |
 | [Tuples]                 | feature  | Not started |
 | [Unimplemented]          | feature  | Not started |
+| [Generic Traits]         | epic     | Not started |
 | [Debugger]               | tooling  | Not started |
 | [Embedded Library]       | tooling  | In progress |
 | [Formatter]              | tooling  | Not started |
@@ -96,6 +122,9 @@ None.
 
 - **Epics:** generic-types: type parameters → trait bounds → monomorphization
   → modules. Four stages.
+- **Generic traits:** generic-types: type parameters, trait bounds →
+  generic-traits → for-each: everything else (`Iterator[T]`). It is a
+  third path. It does not wait on monomorphization or modules.
 - **Features:** destructuring: struct and array patterns → pattern-matching →
   enums: variants that carry values → enums: type parameters → result, map,
   for-each: everything else. Five stages. Joins the epics at generic-types:
@@ -176,6 +205,7 @@ proposal, and generic types doesn't reopen.
 [Enums]: ./proposals/enums/PROPOSAL.md
 [For-Each]: ./proposals/for-each/PROPOSAL.md
 [Formatter]: ./proposals/formatter/PROPOSAL.md
+[Generic Traits]: ./proposals/generic-traits/PROPOSAL.md
 [Generic Types]: ./proposals/generic-types/PROPOSAL.md
 [Language Server]: ./proposals/language-server/PROPOSAL.md
 [Lists]: ./proposals/lists/PROPOSAL.md
@@ -208,6 +238,7 @@ proposal, and generic types doesn't reopen.
 [PR #169]: https://github.com/kirbylang/kirbylang/pull/169
 [PR #170]: https://github.com/kirbylang/kirbylang/pull/170
 [PR #173]: https://github.com/kirbylang/kirbylang/pull/173
+[PR #176]: https://github.com/kirbylang/kirbylang/pull/176
 [gt-4]: ./proposals/generic-types/PROPOSAL.md#part-4--trait-bounds
 [gt-5]: ./proposals/generic-types/PROPOSAL.md#part-5--monomorphization
 [gt-10.3]: ./proposals/generic-types/PROPOSAL.md#103-operators-for-primitives-built-in-fast-path-or-uniform-trait-dispatch
@@ -241,6 +272,7 @@ proposal, and generic types doesn't reopen.
 
 [Q-generics-order]: ./proposals/collection-methods/PROPOSAL.md#q-does-this-wait-on-generics-or-ship-an-untyped-version-first
 [Q-scope-order]: ./proposals/collection-methods/PROPOSAL.md#q-should-this-start-from-arrays-alone-or-wait-until-tuplessetmap-are-at-least-sketched
+[Q-category]: ./proposals/collection-methods/PROPOSAL.md#q-is-collection-type-one-category-or-two
 [Q-sequencing]: ./proposals/primitive-impls/PROPOSAL.md#q-should-this-land-before-after-or-independent-of-the-generic-types-proposals-operator-dispatch-decision
 [Q-bodyform]: ./proposals/modules/PROPOSAL.md#q-in-what-form-does-a-module-ship-its-generic-bodies
 [Q-naming]: ./proposals/modules/PROPOSAL.md#q-is-a-module-named-by-its-file-path-or-by-a-namespace

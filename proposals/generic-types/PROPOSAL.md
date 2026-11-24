@@ -22,6 +22,11 @@ The plain-English rule for reading this: when the text says Kirby "does" or
 [PR #170]. Parts 1.5 and 3 describe it as it is on `main`. Parts 4 onward are
 still proposals.
 
+**Part 4 (trait bounds) is built.** It was merged in [PR #176]. Sections 1.4
+and 4 describe it as it is on `main`, and say where the build differs from the
+design that was first written here. Traits with their own type parameters
+are the [Generic Traits Proposal]. Parts 5 onward are still proposals.
+
 ---
 
 ## How to read this document
@@ -224,24 +229,25 @@ values is a compile error (in `typchkInferBinary`, `src/typecheck.c`):
 P needs 'impl Eq for P' to support '=='.
 ```
 
-But at run time, `==` does **not** call the `Eq` trait's `equals` method. It
-compiles to a single `OP_EQUAL` instruction that does built-in value/identity
-equality (`valuesEqual`, invoked by the `OP_EQUAL` case in `src/vm.c`). The consequence, checked on `main`:
+Since [PR #176], `==` on a struct calls its `equals` method at run time. It no
+longer compiles to a plain `OP_EQUAL` that compares identity. Checked on `main`:
 
 ```kirby
 struct P { pub var x: f64; }
-impl Eq for P { fun equals(self, other: Self): bool = self.x == other.x; }
-let a = P { x: 1 };
-let b = P { x: 1 };
-@println(a == b);        // prints false -- OP_EQUAL, not equals()
-@println(a.equals(b));   // prints true  -- the method really was called
+impl Eq for P { pub fun equals(self, other: Self): bool = self.x == other.x; }
+
+fun main(): unit {
+  let a = P { x: 1 };
+  let b = P { x: 1 };
+  @println(a == b);           // prints true -- equals() is called
+  @println(a != b);           // prints false
+  @println([1, 2] == [1, 2]); // prints false -- arrays still compare by identity
+}
 ```
 
-So on `main` the built-in traits act as **compile-time gates** — the checker
-insists the trait is implemented — but the operator does not actually dispatch
-to the trait method at run time. Any design that makes operators call trait
-methods (as this proposal does) is changing runtime behavior, not just adding
-a check.
+Before that change the checker only used `Eq` as a compile-time gate, and `==`
+on two equal-looking structs printed `false`. The change is recorded as
+**Breaking** in `docs/CHANGELOG.md`. Arrays and lists still compare by identity.
 
 ### 1.5 Generics: type parameters work, bounds and a few edges do not
 
@@ -762,8 +768,8 @@ struct Wrapper[T: Display] {
 }
 ```
 
-One bound per parameter to start. (Multiple bounds — `T: Display + Eq` — is an
-open question, Part 10.) The grammar change is local: where the parser reads a
+A parameter can have several bounds, joined with `+`: `T: Display + Eq`
+(answered in 10.1). The grammar change is local: where the parser reads a
 generic parameter list (`parseGenericParamList`, `src/parser.c`), allow an
 optional `: TraitName` after each parameter name and store it on the AST node
 alongside the parameter name.
@@ -780,8 +786,9 @@ or built-in traits for the number families.
 When a parameter `T` is bound to trait `Tr`:
 
 1. At the **definition**, the checker records `Tr` on the `TYPE_GENERIC_PARAM`
-   (a new `boundTrait` field and a `hasBound` flag next to `name` and `isOpaque`
-   from Part 3.1). Inside the body, a value of type `T`
+   (`boundTraits` and `boundCount` next to `name` and `isOpaque` from Part 3.1.
+   Only the trait names are kept, because a trait is found through the type
+   environment). Inside the body, a value of type `T`
    is now allowed to call exactly the methods `Tr` declares — nothing more. The
    method's result type is whatever `Tr`'s signature says (with `Self` read as
    `T`). Calling a method `Tr` does not declare remains an error.
@@ -851,6 +858,14 @@ Two coherent options:
   because existing programs that rely on today's `==`-is-identity behavior would
   observe a difference.
 
+**Built:** the first option, in [PR #176]. A binary or unary operator on a
+struct calls its trait method. The checker stores the table row on the Binary or
+Unary AST node as `traitDispatch`, and the compiler reads it. The traits are
+`Add`, `Sub`, `Mul`, `Div`, `Mod`, `Neg`, `Eq` and `Ord`. Numbers have the
+methods built in (`typchkNumberImplementsTrait` in the checker and
+`invokeNumber` in the VM), so a bounded generic can call `add` on a number. They
+stay until primitives can implement traits (the [Primitive Impls Proposal]).
+
 ### 4.5 Built-in trait dispatch table
 
 The operators, their trait, and the trait's method belong in **one** table
@@ -870,6 +885,11 @@ Driving all three sites from this one table prevents them drifting apart — for
 instance, the checker requiring a trait the compiler does not actually call, or
 two operators' error messages ending up worded inconsistently. Hand-writing
 each operator separately in each place is exactly how such drift happens.
+
+**Built:** the table is `src/operator_traits.h`. Each row has the token, the
+trait, the method and whether the operator is unary, so unary `-` (`Neg`) and
+binary `-` (`Sub`) are separate rows. A unit test checks every row against the
+trait definitions.
 
 ---
 
@@ -1315,6 +1335,7 @@ a set of bounds from the beginning.
 expressive but complicates the parser, the `TYPE_GENERIC_PARAM` representation
 (one trait name versus a list), and the call-site check (verify all bounds).
 Part 4 assumes (a); moving to (b) is additive.
+**Answered:** (b), built in [PR #176]: `T: Add + Eq`.
 
 ### 10.2 Type parameters that appear only in the return type
 
@@ -1349,8 +1370,15 @@ different paths for the "same" operator; (b) is more uniform but slower on the
 hottest path and needs the "primitive trait implementations aren't supported
 yet" restriction lifted first (the primitive-impls proposal proposes exactly
 that lift, independent of this document).
+**Answered:** (a), built in [PR #176]. Numbers have the operator traits'
+methods built in, and a primitive still cannot implement a trait. The
+[Primitive Impls Proposal] may replace the built-in methods.
 
 ### 10.4 Changing `==` runtime semantics
+
+**Answered:** (a), in [PR #176]: `==` and `!=` on a struct call `Eq`'s
+`equals`, and the changelog marks it **Breaking**. The question is kept below as
+it was asked.
 
 **Question:** when `==` starts dispatching to `Eq` for structs (Part 4.4), how
 is the behavior change from today managed?
@@ -1537,12 +1565,15 @@ just build                 # produces build/krb
 
 [PR #169]: https://github.com/kirbylang/kirbylang/pull/169
 [PR #170]: https://github.com/kirbylang/kirbylang/pull/170
+[PR #176]: https://github.com/kirbylang/kirbylang/pull/176
 [box.krb]: ./examples/box.krb
 [point.krb]: ./examples/point.krb
 [Debugger Proposal]: ../debugger/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Type Info Proposal]: ../type-info/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
+[Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
+[Generic Traits Proposal]: ../generic-traits/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md
 [Map Proposal]: ../map/PROPOSAL.md

@@ -448,9 +448,9 @@ Options: (a) Yes. The compiler declares a struct whose fields are named `0`, `1`
 
 **Status:** Open
 
-A wrapper type like `Meters(1)` is most useful when `Meters(1) == Meters(1)` is `true`. For regular structs, `==` checks at compile time that the struct implements `Eq` but compares identity at run time (verified; described in the [Generic Types Proposal] Part 1.4), so two equal-looking values compare as different.
+A wrapper type like `Meters(1)` is most useful when `Meters(1) == Meters(1)` is `true`. For regular structs, `==` needs an `Eq` impl and calls its `equals` method ([PR #176](https://github.com/kirbylang/kirbylang/pull/176); described in the [Generic Types Proposal] Part 1.4), so equality is whatever the impl says.
 
-Options: (a) Same as regular structs. It is consistent, and any change comes from the [Generic Types Proposal] 10.4. (b) Compare fields item by item, like the proposed rule for tuples ([Q-equality-tuples]). More useful, but differs from regular structs.
+Options: (a) Same as regular structs: the author writes `impl Eq`. It is consistent. (b) Compare fields item by item, like the proposed rule for tuples ([Q-equality-tuples]). More useful, but differs from regular structs.
 
 ### **Q:** How does a tuple struct print?
 

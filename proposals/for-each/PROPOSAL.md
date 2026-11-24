@@ -142,7 +142,7 @@ trait Iterable[T] {
 - A map would give a pair of key and value. With a pattern in place of the name, `for ((key, value) in map)` takes the pair apart ([Q-pattern]).
 - A string gives what [Q-string-iteration] decides.
 
-This part depends on generic traits and `Option[T]`. Parts A and B need neither, which is why they come first and why the array loop does not go through `Iterator`.
+This part depends on generic traits (the [Generic Traits Proposal]) and `Option[T]`. Parts A and B need neither, which is why they come first and why the array loop does not go through `Iterator`.
 
 ### Implementation Plan
 
@@ -193,7 +193,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Tuples Proposal] and [Destructuring Proposal] — a pair is a tuple, and a pattern in the loop head takes it apart ([Q-pattern]).
 - [Pattern Matching Proposal] — the same hidden local and keyword question ([Q-keyword-match]).
 - [Enums Proposal] — `Option[T]` is the result of `next()`, and `enum` has the same keyword question ([Q-keyword-enum]).
-- [Generic Types Proposal] — `Iterator[T]` and `Iterable[T]` are generic traits.
+- [Generic Types Proposal] — type parameters and trait bounds, both built. `Iterator[T]` and `Iterable[T]` are generic traits, which the [Generic Traits Proposal] designs.
 - [Collection Methods Proposal] — methods like `map` and `filter` on arrays would be built from the same iteration rule.
 - [Lists Proposal] — the loop works on a list `[T]` and a fixed size array `[T; n]` alike. The natives that change an array while it is read (`@listPush` and the others) are `@list*` natives.
 - [Trait Types Proposal] — a function that takes any `Iterable` is a use of a trait type, though generic traits would need to be allowed ([Q-iterator-trait]).
@@ -408,6 +408,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Pattern Matching Proposal]: ../pattern-matching/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
+[Generic Traits Proposal]: ../generic-traits/PROPOSAL.md
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md

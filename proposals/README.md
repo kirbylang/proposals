@@ -38,6 +38,7 @@ Grouped by category. See the [roadmap](/ROADMAP.md) for what each category means
 - [tuple-structs](/proposals/tuple-structs/PROPOSAL.md)
 - [tuples](/proposals/tuples/PROPOSAL.md)
 - [unimplemented](/proposals/unimplemented/PROPOSAL.md)
+- [generic-traits](/proposals/generic-traits/PROPOSAL.md)
 
 ### Tooling
 

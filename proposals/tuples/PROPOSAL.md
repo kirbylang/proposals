@@ -337,9 +337,9 @@ Options: (a) A new kind of heap object that holds a fixed list of items. `ObjArr
 
 **Status:** Open
 
-The sketch says equality is "based on the items equality". Today `==` on two objects asks whether they are the same object (`valuesEqual` in `src/value.c`). `@println([1, 2] == [1, 2]);` prints `false`. Two structs that both `impl Eq` also compare by identity under `==`, even though calling `.equals` returns `true` (verified against `from_commit`, and described in the [Generic Types Proposal] Part 1.4).
+The sketch says equality is "based on the items equality". Today `==` on two objects asks whether they are the same object (`valuesEqual` in `src/value.c`). `@println([1, 2] == [1, 2]);` prints `false`. Two structs that both `impl Eq` are compared by `==` through their `equals` method ([PR #176](https://github.com/kirbylang/kirbylang/pull/176); described in the [Generic Types Proposal] Part 1.4).
 
-Options: (a) Items are compared the way `==` compares that item's type today: numbers, bools, and strings by value, nested tuples item by item, and anything else by identity. (b) Items are compared through `Eq` where the item's type has one. This needs the decision in the [Generic Types Proposal] 10.4 first.
+Options: (a) Items are compared the way `==` compares that item's type today: numbers, bools, and strings by value, nested tuples item by item, and anything else by identity. (b) Items are compared through `Eq` where the item's type has one. The [Generic Types Proposal] 10.4 is answered, so `==` on a struct already works this way.
 
 Either way, tuples and arrays would compare differently. Changing arrays is out of scope here.
 

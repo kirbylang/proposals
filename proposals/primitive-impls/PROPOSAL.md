@@ -421,7 +421,7 @@ false for every primitive. Whether `impl Display for f64` should change how
 
 ### 1.9 The built-in traits, for reference
 
-Four traits are always in scope (`typchkTypeEnvDefineBuiltinTraits`,
+Ten traits are always in scope (`typchkTypeEnvDefineBuiltinTraits`,
 `src/typecheck.c`), with these exact signatures:
 
 | Trait                   | Method             | Signature                             |
@@ -430,6 +430,12 @@ Four traits are always in scope (`typchkTypeEnvDefineBuiltinTraits`,
 | `Eq`                    | `equals`           | `fun equals(self, other: Self): bool` |
 | `Ord` (supertrait `Eq`) | `cmp`              | `fun cmp(self, other: Self): i64`     |
 | `Default`               | `default` (static) | `fun default(): Self`                 |
+| `Add`                   | `add`              | `fun add(self, other: Self): Self`    |
+| `Sub`                   | `sub`              | `fun sub(self, other: Self): Self`    |
+| `Mul`                   | `mul`              | `fun mul(self, other: Self): Self`    |
+| `Div`                   | `div`              | `fun div(self, other: Self): Self`    |
+| `Mod`                   | `mod`              | `fun mod(self, other: Self): Self`    |
+| `Neg`                   | `neg`              | `fun neg(self): Self`                 |
 
 `Ord` requires `Eq` regardless of declaration order, and that check
 (`typchkCheckTraitSupertraitSatisfied`) already resolves its target through
@@ -438,31 +444,25 @@ has a `NULL`-target early-out with the comment `// already reported, or a
 (currently unsupported) primitive`, i.e. the supertrait check is already
 written to be indifferent to _why_ a target didn't resolve.
 
-### 1.10 Operators do not check or call any trait, for primitives, at all
+### 1.10 Numbers have the operator traits built in, and nothing else does
 
-Unlike structs — where `==` at least _checks_ for `Eq` even though it doesn't
-call it (generic-types proposal, Part 1.4) — primitive operators don't
-involve traits in either direction. `typchkInferBinary` checks numbers (two
-of the same kind) and, for `+`, strings directly:
+Since [PR #176](https://github.com/kirbylang/kirbylang/pull/176), `+ - * / %`, unary `-`, `== !=` and `< > <= >=` are read as calls to
+the trait methods in 1.9 (the table is `src/operator_traits.h`). For a struct
+the operator calls the method the struct's impl wrote. For a number there is no
+impl to call, so two built-in pieces stand in for one:
 
-```c
-case TOKEN_EQUAL_EQUAL:
-case TOKEN_BANG_EQUAL:
-  if (!typesEqual(leftType, rightType)) { ... }
-  if (leftType->kind == TYPE_STRUCT &&
-      !typeStructImplementsTrait(leftType,
-                                 internTokenName(tokenFromCString("Eq")))) {
-    // requires Eq -- but only for TYPE_STRUCT
-  }
-  return typeBool();
-```
+- The checker's `typchkNumberImplementsTrait` says a number implements an
+  operator trait, and `Neg` only for a signed kind. It is reached only when a
+  number fills a bounded type parameter.
+- The VM's `invokeNumber` runs `add`, `sub`, `mul`, `div`, `mod`, `neg`,
+  `equals` and `cmp` on a number by method name.
 
-So today, `impl Eq for f64` — even if it type-checked — would add a callable
-`.equals()` method and nothing else; `1.5 == 1.5` neither requires it nor
-calls it, exactly as `+`, `-`, `<`, etc. neither require nor call any trait
-for number operands. This is consistent with, and a slightly stronger version of,
-the point in the [Problem Statement] about operator dispatch being a
-separate, later question.
+So `fun sum[T: Add](a: T, b: T): T = a + b;` accepts numbers. A call on a
+concrete number is still an error: `x.add(1)` on an `i64` reports
+`Can't access '.add' on a i64.`. `string` and `bool` have none of these, and
+`impl Eq for f64` is still rejected. This proposal's impls should replace the
+two built-in pieces ([generic-types] 10.3), and an `impl Add for f64`
+written by a program must not conflict with them while they exist.
 
 ---
 
