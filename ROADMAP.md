@@ -33,10 +33,10 @@ This is a high level view of the proposals and how they relate to each other.
 | 2     | [Tuple Structs]                                                           | tuples                                                                                                   | Not started |                                                                                                                                                      |
 | 2     | [Pattern Matching]                                                        | destructuring: struct and array patterns; enums: plain variants                                          | Not started | Tuple patterns in `match` follow destructuring's                                                                                                     |
 | 2     | [Strings]                                                                 | string-encoding                                                                                          | Not started |                                                                                                                                                      |
-| 2     | [Collection Methods]                                                      | primitive-impls                                                                                          | Not started | `Map`/`Set` methods [wait for generics][Q-generics-order]. Methods on a generic item type (`join`) need primitive-impls to reach numbers and strings |
 | 3     | [Destructuring]: [tuple and tuple struct patterns][de-tuple]              | tuples, tuple-structs                                                                                    | Not started |                                                                                                                                                      |
 | 3     | [Enums]: [Part B: variants that carry values][en-b]                       | pattern-matching                                                                                         | Not started | Unusable without `match`                                                                                                                             |
 | 4     | [Enums]: [Part C: type parameters][en-c]                                  | enums: variants that carry values; **generic-types: type parameters**                                    | Not started | `Option[T]`, `Result[T, E]`. Methods on them need [generic-traits][Generic Traits]                                                                   |
+| 4     | [Collection Methods]                                                      | primitive-impls; generic-types: monomorphization                                                         | Not started | `Map`/`Set` methods [wait for generics][Q-generics-order]. Generic methods such as `join` call methods on numbers and strings, so they wait for monomorphization |
 | 5     | [Result]                                                                  | enums: type parameters; pattern-matching                                                                 | Not started |                                                                                                                                                      |
 | 5     | [Map]                                                                     | enums: type parameters                                                                                   | Not started | `@mapGet` returns `Option[V]`                                                                                                                        |
 | 5     | [For-Each]: [Part C: one rule for everything else][fe-c]                  | for-each: arrays, ranges; enums: type parameters; **generic-types: type parameters**; **generic-traits** | Not started | `Iterator[T]`                                                                                                                                        |
@@ -48,20 +48,26 @@ This is a high level view of the proposals and how they relate to each other.
 The order the implementation is following now. Each step has its own patches.
 A step moves to Done in the tables above when its last patch lands.
 
-| Step | Proposal                                                                       | Needs                                                   |
-| ---- | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| 1    | [Primitive Impls]                                                              |                                                         |
-| 2    | [Enums]: [Part A: plain variants][en-a]                                        |                                                         |
-| 3    | [Destructuring]: [struct patterns][de-struct], [array patterns][de-array]      |                                                         |
-| 4    | [Pattern Matching]                                                             | steps 2, 3                                              |
-| 5    | [Enums]: [Part B: variants that carry values][en-b]                            | step 4                                                  |
-| 6    | [Generic Traits]                                                               |                                                         |
-| 7    | [Enums]: [Part C: type parameters][en-c]                                       | steps 5, 6                                              |
-| 8    | [Collection Methods]                                                           | step 1 (and step 6 if methods go through `Iterator[T]`) |
-| 9    | [Result], [Map], [For-Each]: [Part C][fe-c]                                    | steps 6, 7                                              |
-| 10   | [Tooling Data]: [Part 1: the span][td-1], [Part 2: a span on every node][td-2] |                                                         |
-| 11   | [Generic Types]: [Part 5: monomorphization][gt-5]                              | step 10                                                 |
-| 12   | [Modules], with [Projects]                                                     | step 11                                                 |
+Monomorphization comes before Collection Methods. A method on a number or string
+is a direct call to a function the compiler knows. Generic code can only make
+that call once each copy knows its type, so the standard library methods are
+written after monomorphization instead of through a run-time lookup that
+monomorphization would then make redundant.
+
+| Step | Proposal                                                                       | Needs                                                                 |
+| ---- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| 1    | [Primitive Impls]: calls on values whose type is known                         |                                                                       |
+| 2    | [Enums]: [Part A: plain variants][en-a]                                        |                                                                       |
+| 3    | [Destructuring]: [struct patterns][de-struct], [array patterns][de-array]      |                                                                       |
+| 4    | [Pattern Matching]                                                             | steps 2, 3                                                            |
+| 5    | [Enums]: [Part B: variants that carry values][en-b]                            | step 4                                                                |
+| 6    | [Generic Traits]                                                               |                                                                       |
+| 7    | [Enums]: [Part C: type parameters][en-c]                                       | steps 5, 6                                                            |
+| 8    | [Tooling Data]: [Part 1: the span][td-1], [Part 2: a span on every node][td-2] |                                                                       |
+| 9    | [Generic Types]: [Part 5: monomorphization][gt-5]                              | step 8. After step 6 so generic traits are specialized from the start |
+| 10   | [Collection Methods]                                                           | steps 1, 9 (and step 6 if methods go through `Iterator[T]`)           |
+| 11   | [Result], [Map], [For-Each]: [Part C][fe-c]                                    | steps 6, 7                                                            |
+| 12   | [Modules], with [Projects]                                                     | step 9                                                                |
 
 [Tuples] and [Tuple Structs] have no step. They need nothing (tuple structs need
 tuples) and can be built any time after step 1. Their dispatch question
@@ -100,6 +106,7 @@ None.
 | [Destructuring]          | feature  | Not started |
 | [Enums]                  | feature  | Not started |
 | [For-Each]               | feature  | Not started |
+| [Generic Traits]         | feature  | Not started |
 | [Map]                    | feature  | Not started |
 | [Pattern Matching]       | feature  | Not started |
 | [Primitive Impls]        | feature  | Not started |
@@ -110,7 +117,6 @@ None.
 | [Tuple Structs]          | feature  | Not started |
 | [Tuples]                 | feature  | Not started |
 | [Unimplemented]          | feature  | Not started |
-| [Generic Traits]         | epic     | Not started |
 | [Debugger]               | tooling  | Not started |
 | [Embedded Library]       | tooling  | In progress |
 | [Formatter]              | tooling  | Not started |
@@ -122,6 +128,9 @@ None.
 
 - **Epics:** generic-types: type parameters → trait bounds → monomorphization
   → modules. Four stages.
+- **Standard library methods:** primitive-impls (step 1) and monomorphization
+  (step 9) → collection-methods. A generic method that calls `toString` on an
+  item works for numbers and strings only after monomorphization.
 - **Generic traits:** generic-types: type parameters, trait bounds →
   generic-traits → for-each: everything else (`Iterator[T]`). It is a
   third path. It does not wait on monomorphization or modules.
@@ -134,7 +143,6 @@ None.
 
 Answering these can move a row between stages.
 
-- [Collection Methods: wait for generics?][Q-generics-order]
 - [Collection Methods: lists alone, or after a `Map`/`Set` sketch?][Q-scope-order]
 - [Primitive Impls: before, after, or independent of generics?][Q-sequencing]
   It recommends independent.

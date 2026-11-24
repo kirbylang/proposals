@@ -864,7 +864,8 @@ Unary AST node as `traitDispatch`, and the compiler reads it. The traits are
 `Add`, `Sub`, `Mul`, `Div`, `Mod`, `Neg`, `Eq` and `Ord`. Numbers have the
 methods built in (`typchkNumberImplementsTrait` in the checker and
 `invokeNumber` in the VM), so a bounded generic can call `add` on a number. They
-stay until primitives can implement traits (the [Primitive Impls Proposal]).
+stay until monomorphization (Part 5) removes them. The [Primitive Impls Proposal]
+gives primitives their impls.
 
 ### 4.5 Built-in trait dispatch table
 
@@ -905,6 +906,20 @@ can not be a trait type, which is one reason a bound is not a replacement for
 it.
 
 ## Part 5 — Monomorphization
+
+Building this part also removes three limits that earlier parts leave in place:
+
+- A primitive that implements a trait can fill a bounded type parameter. Until
+  then the checker rejects it (`string doesn't implement Display, required by
+  T.`), even after the [Primitive Impls Proposal] is built.
+- The built-in number methods for the operator traits
+  (`typchkNumberImplementsTrait` in the checker, `invokeNumber` in the VM) are
+  deleted, and numbers get those traits from impls.
+- `T.default()`, a static method through a bound, can be called. Today it is the
+  error `Can't call a static method on type parameter 'T'.`
+
+The [roadmap](../../ROADMAP.md) builds this before the standard library
+methods that rely on it.
 
 Parts 3 and 4 let generics be _written_ and _checked_. This part says how they
 are _compiled and run_: by producing a separate concrete copy of a generic for

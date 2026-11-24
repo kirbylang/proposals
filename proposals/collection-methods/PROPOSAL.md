@@ -274,7 +274,7 @@ comment before this proposal goes further.
 
 <!-- [Q-generics-order]: #q-does-this-wait-on-generics-or-ship-an-untyped-version-first -->
 
-**Status:** Open
+**Status:** Answered
 
 Arrays are typed by their items: `[i64]` is an array of `i64`. The array
 natives are typed through generic parameters in their signatures, which only
@@ -282,9 +282,10 @@ native signatures can use: `@listPush` is `fun ([T], T) => unit`. A lambda
 passed to a generic native gets its parameter types from earlier arguments,
 which is what a typed `filter` or `map` needs. So a native such as `@arrMap`
 could be typed as `fun ([T], fun (T) => U) => [U]` today. User code can
-declare generic functions and methods ([PR #169]), but without trait bounds
-([Generic Types Proposal]), so a generic body can't compare, add or call
-anything on a `T`.
+declare generic functions and methods ([PR #169]), and a type parameter can
+have trait bounds ([PR #176]), so a generic body can compare, add or call
+the methods of its bound. A number or string cannot yet fill a bounded
+parameter, because a primitive cannot implement a trait.
 
 Options: (a) wait for trait bounds ([Generic Types Proposal], Part 4), so
 collection methods can be written in Kirby and typed from the start; (b) ship them as
@@ -292,6 +293,15 @@ typed natives first, the way `@listPush` and `@listContains` already work, and
 turn them into methods later. (b) unblocks this sooner but means a second
 pass later to move them; (a) avoids that second pass but is blocked on a
 proposal with its own open questions.
+
+#### Answer
+
+(a): wait. Trait bounds are built, but a method such as `join` calls `toString`
+on each item, and for a number or string that is a call on a primitive inside
+generic code. Primitives get their impls in the [Primitive Impls Proposal].
+Generic code can call them once each copy of it knows its type, which is
+monomorphization ([Generic Types Proposal] Part 5). The order is in the
+[roadmap](../../ROADMAP.md): monomorphization is built before this proposal.
 
 ### **Q:** Should this start from arrays alone, or wait until tuples/`Set`/`Map` are at least sketched?
 
@@ -370,3 +380,4 @@ proposal.
 [Q-generics-order]: #q-does-this-wait-on-generics-or-ship-an-untyped-version-first
 [Q-scope-order]: #q-should-this-start-from-arrays-alone-or-wait-until-tuplessetmap-are-at-least-sketched
 [PR #169]: https://github.com/kirbylang/kirbylang/pull/169
+[PR #176]: https://github.com/kirbylang/kirbylang/pull/176

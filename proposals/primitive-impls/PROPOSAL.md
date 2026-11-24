@@ -460,9 +460,10 @@ impl to call, so two built-in pieces stand in for one:
 So `fun sum[T: Add](a: T, b: T): T = a + b;` accepts numbers. A call on a
 concrete number is still an error: `x.add(1)` on an `i64` reports
 `Can't access '.add' on a i64.`. `string` and `bool` have none of these, and
-`impl Eq for f64` is still rejected. This proposal's impls should replace the
-two built-in pieces ([generic-types] 10.3), and an `impl Add for f64`
-written by a program must not conflict with them while they exist.
+`impl Eq for f64` is still rejected. The two built-in pieces are removed when
+monomorphization is built ([generic-types] Part 5, 10.3), and the operator traits
+for numbers then come from impls. An `impl Add for f64` written by a program
+must not conflict with them while they exist.
 
 ---
 
@@ -701,7 +702,7 @@ behavior one.
 
 [Q-dispatch]: #q-how-should-the-run-time-attach-and-dispatch-methods-for-kinds-with-no-heap-object
 
-**Status:** Open
+**Status:** Answered
 
 Per 1.5, number and `bool` values carry no `Obj*` at all, and `ObjString` has
 no method-table slot. `defineMethod` and `invoke` both hard-require
@@ -722,6 +723,20 @@ was deliberately left open rather than guessed at, since it's pure
 implementation with no behavioral consequence either option would surface to
 a Kirby programmer. The [Enums Proposal] faces the same question if plain enum
 variants are plain numbers ([Q-representation-enums]).
+
+#### Answer
+
+For primitives this is not needed. A call on a value whose type is known where
+the call is written compiles to a direct call of the impl's function, with no
+method table. Generic code calls a primitive's method only after monomorphization
+([generic-types] Part 5), which makes each copy's calls direct too. The
+[roadmap](../../ROADMAP.md) puts monomorphization before the standard library
+methods that need it. Until then a primitive cannot fill a bounded type
+parameter, and the checker keeps rejecting it.
+
+What stays open is a trait type that holds a primitive ([Q-primitives] in the
+Trait Types proposal). That is the one case where the type is not known at
+compile time. It would need a run-time lookup, and is designed there.
 
 ### **Q:** What is the receiver syntax for calling a static trait method on a primitive kind?
 
