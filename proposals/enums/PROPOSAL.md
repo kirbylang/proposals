@@ -255,7 +255,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Destructuring Proposal] — `let` can not take an enum apart, because the value might be a different variant. That is done with `match`.
 - [Tuple Structs Proposal] — a variant like `Circle(f64)` is a close relative of a tuple struct. Both need positional values, so how they are built ([Q-constructor]) and stored should agree.
 - [Generic Types Proposal] — Part C depends on it. The type substitution helper in 3.6 needs to handle enum types, and 10.4 (`==` on objects) affects [Q-equality].
-- [Primitive Impls Proposal] — calling a method on a value that is a plain number has "nowhere to keep a method" (1.3 there). That is the problem Part A would have if variants were numbers ([Q-representation]).
+- [Primitive Impls Proposal] — a method on a value that is a plain number is resolved from the type the checker knows, and such a value can not fill a bounded type parameter yet. Part A would share that limit if variants were numbers ([Q-representation]).
 - [Macros Proposal] — the sketch writes `impl Display for Colors` by hand. Derive-style macros (7.7 in the [Generic Types Proposal]) could write it. The macros question about what form syntax takes ([Q-syntax]) could be answered by an enum much like `AstNode`.
 - [Modules Proposal] — how an enum and its variants are made visible outside a file.
 - [Debugger Proposal] — its variables view shows arrays and struct values, so a new kind of object needs a display.

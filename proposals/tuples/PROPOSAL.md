@@ -147,7 +147,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 - New AST node kinds for a tuple literal and a tuple type. The property access node accepts a number as its name.
 - A new type kind, `TYPE_TUPLE`, in `src/types.h`. It holds the item types. `typesEqual` and `typeToString` in `src/types.c` get a case for it.
-- `typchkInferGet` only allows `.name` on a struct today and reports `Can't access '.foo' on a f64.` for anything else. It needs a tuple branch that checks the position and returns the item's type.
+- `typchkInferGet` allows `.name` on a struct, and on a value with methods (primitives, lists and arrays). It needs a tuple branch that checks the position and returns the item's type.
 - `==` and `!=` are allowed when both sides are the same tuple type.
 
 #### Part 3: Compiler and virtual machine
@@ -174,7 +174,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 ### Related Proposals
 
 - [Collection Methods Proposal] — treats tuples as a possible collection type. Both proposals spell the type `(f64, string)` ([Q-type-spelling]). The question there about whether collection types are one category or two ([Q-category]) is informed by this proposal: a tuple has a fixed size and its item types are known at compile time.
-- [Primitive Impls Proposal] — asks whether `unit` gets impls ([Q-unit]). Whether `unit` is the empty tuple is [Q-unit-empty] here, and the two answers should agree.
+- [Primitive Impls Proposal] — `unit` has impls ([Q-unit]), and what their methods return is open ([Q-unit-methods]). Whether `unit` is the empty tuple is [Q-unit-empty] here, and the answers should agree.
 - [Generic Types Proposal] — 10.4 is about `==` on objects, which tuple equality depends on. Tuple types also need to be handled by the type substitution helper in 3.6. See 10.9 there.
 - [Tuple Structs Proposal] — depends on this proposal for reading an item by position.
 - [Destructuring Proposal] — tuple patterns like `let (a, b) = t;` depend on this proposal.
@@ -429,6 +429,7 @@ These are both technical and non-technical terms used throughout the proposal.
 
 [Q-category]: ../collection-methods/PROPOSAL.md#q-is-collection-type-one-category-or-two
 [Q-unit]: ../primitive-impls/PROPOSAL.md#q-does-unit-get-impls-too
+[Q-unit-methods]: ../primitive-impls/PROPOSAL.md#q-what-should-units-trait-methods-return
 [Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
 
 <!-- External -->

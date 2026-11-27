@@ -210,11 +210,10 @@ Type` block, the parser sets every method's visibility to public regardless
   'P' also needs 'impl Eq for P' -- 'Ord' requires it.
   ```
 
-- **You cannot implement a trait for a primitive.** `impl Eq for f64` reports
-  "Primitive trait implementations aren't supported yet." Lifting this
-  restriction — independent of generics, bounds, or monomorphization — is its
-  own proposal (`/proposals/primitive-impls/PROPOSAL.md`).
-  There is **no bound syntax.** You cannot write `fun f[T: Display](x: T)`. The
+- **A program cannot implement a trait for a primitive.** `impl Eq for f64`
+  reports "You can't write an impl for a primitive type in user code." The
+  standard library has such impls ([Primitive Impls Proposal], [PR #178]).
+- There is **no bound syntax.** You cannot write `fun f[T: Display](x: T)`. The
   grammar has no place for it and the checker has no notion of it.
 
 ### 1.4 The `==` operator and `Eq`: a subtle split
@@ -843,11 +842,8 @@ Two coherent options:
   call. This matches how `OP_EQUAL` already special-cases built-in equality;
   it extends the same shape to route struct operands through the trait method.
 - **Make every operator a trait method uniformly**, including for numbers, by
-  giving primitives real trait implementations (which requires lifting the
-  current "primitive trait implementations aren't supported yet" restriction;
-  the primitive-impls proposal (`/proposals/primitive-impls/PROPOSAL.md`)
-  designs that lift on its own, independent of this proposal, and should be
-  consumed here rather than re-derived if this option is chosen).
+  using trait impls on primitives (the standard library has them, see the
+  [Primitive Impls Proposal]).
   Cleaner in principle, more work, and pays a dispatch cost on the hottest
   path (plain number arithmetic) unless specially optimized.
   The first option is the smaller, safer step and is recommended. Whichever is
@@ -864,8 +860,9 @@ Unary AST node as `traitDispatch`, and the compiler reads it. The traits are
 `Add`, `Sub`, `Mul`, `Div`, `Mod`, `Neg`, `Eq` and `Ord`. Numbers have the
 methods built in (`typchkNumberImplementsTrait` in the checker and
 `invokeNumber` in the VM), so a bounded generic can call `add` on a number. They
-stay until monomorphization (Part 5) removes them. The [Primitive Impls Proposal]
-gives primitives their impls.
+stay until monomorphization (Part 5) removes them. The standard library also
+implements these traits for the primitives ([PR #178]), which is what a call on
+a value of a known type uses.
 
 ### 4.5 Built-in trait dispatch table
 
@@ -909,9 +906,10 @@ it.
 
 Building this part also removes three limits that earlier parts leave in place:
 
-- A primitive that implements a trait can fill a bounded type parameter. Until
-  then the checker rejects it (`string doesn't implement Display, required by
-  T.`), even after the [Primitive Impls Proposal] is built.
+- A primitive, list or array that implements a trait can fill a bounded type
+  parameter. The impls are built ([Primitive Impls Proposal]), but today the
+  checker rejects such a call: `string implements Display, but a primitive can't
+  be used with a bound yet, required by T.`
 - The built-in number methods for the operator traits
   (`typchkNumberImplementsTrait` in the checker, `invokeNumber` in the VM) are
   deleted, and numbers get those traits from impls.
@@ -1382,12 +1380,12 @@ operator a trait method for all types, requiring primitive trait impls and
 accepting dispatch cost on numeric arithmetic unless optimized.
 **Why open:** (a) is faster and smaller but means primitives and structs take
 different paths for the "same" operator; (b) is more uniform but slower on the
-hottest path and needs the "primitive trait implementations aren't supported
-yet" restriction lifted first (the primitive-impls proposal proposes exactly
-that lift, independent of this document).
+hottest path.
 **Answered:** (a), built in [PR #176]. Numbers have the operator traits'
-methods built in, and a primitive still cannot implement a trait. The
-[Primitive Impls Proposal] may replace the built-in methods.
+methods built in for bounded generics. [PR #178] added standard library impls of
+the same traits, used by calls on values of a known type. Monomorphization
+(Part 5) removes the built-in methods, and whether concrete number operands keep
+the built-in instructions afterwards is part of that work.
 
 ### 10.4 Changing `==` runtime semantics
 
@@ -1571,9 +1569,9 @@ just build                 # produces build/krb
 ./build/krb exec 'struct P { pub var x: f64; } impl Ord for P { fun cmp(self, other: Self): i64 = 0; }'
 # "'P' also needs 'impl Eq for P' -- 'Ord' requires it."
 
-# primitive impls rejected
+# primitive impls rejected in programs (checked on 90ca32cd)
 ./build/krb exec 'impl Eq for f64 { fun equals(self, other: Self): bool = true; }'
-# "Primitive trait implementations aren't supported yet."
+# "You can't write an impl for a primitive type in user code."
 ```
 
 ## Link References
@@ -1587,6 +1585,7 @@ just build                 # produces build/krb
 [Tooling Data Proposal]: ../tooling-support-data/PROPOSAL.md
 [Type Info Proposal]: ../type-info/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
+[PR #178]: https://github.com/kirbylang/kirbylang/pull/178
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
 [Generic Traits Proposal]: ../generic-traits/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md

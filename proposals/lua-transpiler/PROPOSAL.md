@@ -519,7 +519,8 @@ translation.
   the `@strConcat`, `@numberToString` and `@boolToString` natives, which become
   support functions like any other native.
 - [Primitive Impls Proposal] and [Collection Methods Proposal] — a method on a
-  number, string or array is a call to a support function.
+  number, string, list or array is a plain call of a standard library function,
+  which the writer translates like any other function.
 - [Prefixed Native Functions Proposal] (Closed) and [Additional Native Functions
   Proposal] (Closed) — the natives that [Part 5] maps.
 

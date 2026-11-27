@@ -338,9 +338,9 @@ Can't tell the type of this placeholder. Declare it before this line, or give it
 
 ### Related Proposals
 
-- [Primitive Impls Proposal] — adds `impl Display for f64` with a `toString`
-  method. Once merged, number (and other) placeholders could convert through
-  the trait instead of `@numberToString`.
+- [Primitive Impls Proposal] — added `Display` impls for the primitives.
+  Number, string and `bool` placeholders still convert without them
+  ([Q-print-display] there), and a `unit` placeholder is rejected.
 - Display for structs and enums — a placeholder whose type implements the
   built-in `Display` trait converts with its `toString()` method, and so do
   `print` and the `@print` natives. Values whose parts are only known at
@@ -444,8 +444,8 @@ avoids (a)'s global name and stdlib dependency.
 
 At the proposal's original `from_commit` the only conversion from a
 non-string type to a string was `@numberToString` for `f64`. `bool`, `nil`,
-and struct values had none — `Display` impls on primitives are unmerged work
-in [Primitive Impls Proposal].
+and struct values had none, and `Display` impls on primitives did not exist yet
+([Primitive Impls Proposal]).
 
 #### Answer
 
@@ -579,6 +579,7 @@ proposal.
 <!-- Proposals -->
 
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
+[Q-print-display]: ../primitive-impls/PROPOSAL.md#q-should-printing-use-a-primitives-display-impl
 [Macros Proposal]: ../macros/PROPOSAL.md
 [Testing Proposal]: ../testing/PROPOSAL.md
 [Modules]: ../modules/PROPOSAL.md

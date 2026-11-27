@@ -937,10 +937,10 @@ in `tests/`.
 - [Additional Native Functions Proposal] (Closed) — natives added by that
   proposal are in the library groups of [Part 7]. Any native added later must be
   put in one. Not edited.
-- [Collection Methods Proposal] and [Primitive Impls Proposal] — a native that
-  becomes a method stops being a global function, and drops out of its library
-  group. Whether methods are always available or also grouped is [Q-libs]. Not
-  edited.
+- [Collection Methods Proposal] and [Primitive Impls Proposal] — the standard
+  library's methods on primitives, lists and arrays call natives, so a library
+  group that leaves out a native also affects the method that calls it. Whether
+  methods are always available or also grouped is [Q-libs].
 - [Sized Number Types Proposal] (Closed) — every number carries one of ten
   kinds at run time, and a whole number literal is an `i64`. So host
   signatures ([Part 6]) name number kinds, and `KrbValue` needs accessors that

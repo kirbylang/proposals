@@ -26,7 +26,8 @@ This is a high level view of the proposals and how they relate to each other.
 | 1     | [Destructuring]: [struct patterns][de-struct], [array patterns][de-array] |                                                                                                          | Ready       |                                                                                                                                                      |
 | 1     | [For-Each]: [Part A: arrays][fe-a], [Part B: ranges][fe-b]                |                                                                                                          | Ready       |                                                                                                                                                      |
 | 1     | [String Encoding]                                                         |                                                                                                          | Ready       |                                                                                                                                                      |
-| 1     | [Primitive Impls]                                                         |                                                                                                          | Ready       | [Order against generics][Q-sequencing] is open                                                                                                       |
+| 1     | [Primitive Impls]: calls on values whose type is known                    |                                                                                                          | Done        | [PR #178]. Standard library impls only                                                                                                               |
+| 1     | [Primitive Impls]: impls written by programs                              |                                                                                                          | Ready       | [Whether to allow them][Q-user-impls] is open                                                                                                        |
 | 1     | [Trait Types]                                                             |                                                                                                          | Ready       |                                                                                                                                                      |
 | 1     | [Unimplemented]                                                           |                                                                                                          | Ready       |                                                                                                                                                      |
 | 2     | [Generic Traits]                                                          | generic-types: type parameters, trait bounds                                                             | Ready       | Traits with their own type parameters, and impls on generic types. Draft                                                                             |
@@ -109,7 +110,7 @@ None.
 | [Generic Traits]         | feature  | Not started |
 | [Map]                    | feature  | Not started |
 | [Pattern Matching]       | feature  | Not started |
-| [Primitive Impls]        | feature  | Not started |
+| [Primitive Impls]        | feature  | Partial     |
 | [Result]                 | feature  | Not started |
 | [String Encoding]        | feature  | Not started |
 | [Strings]                | feature  | Not started |
@@ -128,7 +129,7 @@ None.
 
 - **Epics:** generic-types: type parameters → trait bounds → monomorphization
   → modules. Four stages.
-- **Standard library methods:** primitive-impls (step 1) and monomorphization
+- **Standard library methods:** primitive-impls (step 1, built) and monomorphization
   (step 9) → collection-methods. A generic method that calls `toString` on an
   item works for numbers and strings only after monomorphization.
 - **Generic traits:** generic-types: type parameters, trait bounds →
@@ -144,10 +145,6 @@ None.
 Answering these can move a row between stages.
 
 - [Collection Methods: lists alone, or after a `Map`/`Set` sketch?][Q-scope-order]
-- [Primitive Impls: before, after, or independent of generics?][Q-sequencing]
-  It recommends independent.
-- [Generic Types 10.3: operators for primitives][gt-10.3]: if every operator
-  becomes a trait method, generic-types needs primitive-impls first.
 - Debugger and testing: `krb test` support goes in whichever lands second.
 
 ## Closed
@@ -247,9 +244,9 @@ proposal, and generic types doesn't reopen.
 [PR #170]: https://github.com/kirbylang/kirbylang/pull/170
 [PR #173]: https://github.com/kirbylang/kirbylang/pull/173
 [PR #176]: https://github.com/kirbylang/kirbylang/pull/176
+[PR #178]: https://github.com/kirbylang/kirbylang/pull/178
 [gt-4]: ./proposals/generic-types/PROPOSAL.md#part-4--trait-bounds
 [gt-5]: ./proposals/generic-types/PROPOSAL.md#part-5--monomorphization
-[gt-10.3]: ./proposals/generic-types/PROPOSAL.md#103-operators-for-primitives-built-in-fast-path-or-uniform-trait-dispatch
 [td-1]: ./proposals/tooling-support-data/PROPOSAL.md#part-1--the-span
 [td-2]: ./proposals/tooling-support-data/PROPOSAL.md#part-2--a-span-on-every-ast-node
 [td-3]: ./proposals/tooling-support-data/PROPOSAL.md#part-3--spans-that-survive-generation
@@ -281,7 +278,7 @@ proposal, and generic types doesn't reopen.
 [Q-generics-order]: ./proposals/collection-methods/PROPOSAL.md#q-does-this-wait-on-generics-or-ship-an-untyped-version-first
 [Q-scope-order]: ./proposals/collection-methods/PROPOSAL.md#q-should-this-start-from-arrays-alone-or-wait-until-tuplessetmap-are-at-least-sketched
 [Q-category]: ./proposals/collection-methods/PROPOSAL.md#q-is-collection-type-one-category-or-two
-[Q-sequencing]: ./proposals/primitive-impls/PROPOSAL.md#q-should-this-land-before-after-or-independent-of-the-generic-types-proposals-operator-dispatch-decision
+[Q-user-impls]: ./proposals/primitive-impls/PROPOSAL.md#q-may-a-program-implement-its-own-traits-for-primitive-types
 [Q-bodyform]: ./proposals/modules/PROPOSAL.md#q-in-what-form-does-a-module-ship-its-generic-bodies
 [Q-naming]: ./proposals/modules/PROPOSAL.md#q-is-a-module-named-by-its-file-path-or-by-a-namespace
 [Q-comptime]: ./proposals/top-level-declarations/PROPOSAL.md#q-how-much-is-a-comptime-value

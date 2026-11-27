@@ -183,7 +183,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [String Encoding Proposal] — decides what a string and a position are. Parts A to C here assume UTF-8 and byte positions ([Q-model] there).
 - [Result Proposal] — `@strFromBytes`, `@strFromCode` and `@parseInt` are inputs from outside the program's control, and are natural to return a `Result`.
 - [For-Each Proposal] — a `for` loop over a string would use these natives.
-- [Primitive Impls Proposal] — `Ord` for `string` is the other way to get `<` ([Q-compare]). It lists primitive trait impls as unsupported today (`Primitive trait implementations aren't supported yet.`).
+- [Primitive Impls Proposal] — `Ord` for `string` is the other way to get `<` ([Q-compare]). The standard library implements `Display`, `Eq`, `Default` and `Add` for `string`, and no `Ord`.
 - [String Interpolation Proposal] — Closed. `$"..."` shares `stringLiteral`, and `@strConcat` is the answer to building strings.
 - [Additional Native Functions Proposal] — Closed. It added the other `str*` natives and sets the pattern for naming.
 - [Collection Methods Proposal] — if strings get methods, these natives become methods.
@@ -267,7 +267,7 @@ Options: (a) `\u{XXXX}` with one to six hex digits, as in Rust. Reaches every co
 
 **Status:** Open
 
-Options: (a) The type checker and VM accept `<` on two strings directly, as they do for two numbers. Small, and works at once. (b) `impl Ord for string`, so `<` is `a.cmp(b) < 0`. This is how `Ord` already orders a struct and it would work with generic code that asks for `Ord`. It needs the [Primitive Impls Proposal], which does not support trait impls on primitives yet.
+Options: (a) The type checker and VM accept `<` on two strings directly, as they do for two numbers. Small, and works at once. (b) `impl Ord for string`, so `<` is `a.cmp(b) < 0`. This is how `Ord` already orders a struct and it would work with generic code that asks for `Ord`. The standard library can write it ([Primitive Impls Proposal]), but its `cmp` needs another way to compare two strings, and a `string` can not fill a bounded type parameter before monomorphization.
 
 (a) first, and (b) later makes both true: the operator keeps working, and `string` also satisfies `Ord`.
 

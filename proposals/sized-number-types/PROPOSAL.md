@@ -630,7 +630,7 @@ kind) and `integer` (any integer kind) ([PR #160], [PR #165]).
 `integer`, and natives that only produce whole numbers return `i64` (`@strLen`,
 `@listLen`, `@argc`, `@now`, `@parseInt`). The math natives such as `@sqrt` and
 `@floor` still take only `f64`, as (b) expected. Of the builtin traits, `Ord`'s `cmp` returns an `i64`.
-Trait impls for primitives are still the [Primitive Impls Proposal]'s work.
+Trait impls for every number kind were added by the [Primitive Impls Proposal].
 
 ## Glossary
 

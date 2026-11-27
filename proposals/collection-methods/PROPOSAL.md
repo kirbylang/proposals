@@ -2,17 +2,18 @@
 status: Draft
 category: feature
 created: 2026-09-18
-from_commit: 2f96a2e
+from_commit: 90ca32cd
 ---
 
 # Proposal: Methods on Built-in Collection Types
 
 This proposal is less settled than most in this repository, and it stays
 that way on purpose. The goal isn't `arr.filter(fn)` specifically — it's
-figuring out what category arrays (and, eventually, tuples, `Set`, and
-`Map`/`Dict`) actually belong to, and whether the mechanism already being
-built for primitive types fits them or not. Until that's answered, a
-concrete design for array methods would be guessing. This document is
+figuring out what category lists and arrays (and, eventually, tuples, `Set`,
+and `Map`/`Dict`) belong to, and what methods they should have. Lists and
+arrays already have a first set of methods, built with the same mechanism as
+primitive types. Designing more before the open questions are answered would be
+guessing. This document is
 mostly [Questions] for that reason.
 
 ---
@@ -50,117 +51,46 @@ defined in the [Glossary] below.
 
 ## Problem Statement
 
-Method-call syntax, `receiver.method(args)`, is handled at run time by one
-function, `invoke()` in `src/vm.c`. Checked against a clean `main` build, it
-recognizes exactly two kinds of receiver:
-
-```c
-static bool invoke(ObjString *name, int argCount) {
-  Value caller = peekStack(argCount);
-
-  if (IS_STRUCT(caller)) {
-    return invokeStatic(AS_STRUCT(caller), name, argCount);
-  }
-
-  if (!IS_INSTANCE(caller)) {
-    runtimeError(&vm, "Only instances have methods.");
-    return false;
-  }
-  // ...instance method lookup via the struct's method table...
-```
-
-Anything that isn't a struct or a struct instance — an array, a string, a
-number — would hit `"Only instances have methods."` and fail. The type checker
-stops such a call before it runs: `arr.push(2)` on an array of `i64` reports
-`Can't access '.push' on a [i64].`, and `"hi".trim()` reports
-`Can't access '.trim' on a string.` (`typchkInferGet` in `src/typecheck.c`).
-
-[Primitive Impls Proposal] is already closing this gap for `f64`, `string`,
-`bool`, and `unit` — but not through `invoke()`. An unmerged branch,
-`initial-primitive-traits`, implements it: `impl`/trait blocks on these four
-types are resolved **statically, at compile time**, into direct calls to
-mangled functions, restricted to `stdlib/stdlib.krb` (not user code). A
-method body is ordinary Kirby that mostly just delegates to an existing
-native:
+Lists `[T]` and fixed size arrays `[T; N]` have methods ([PR #178], [PR #184]).
+The standard library writes them in Kirby, and each one calls a native:
 
 ```kirby
-// stdlib/stdlib.krb, on initial-primitive-traits
-impl Display for f64 {
-    pub fun toString(self): string = numberToString(self);
+impl[T] [T] {
+    pub fun len(self): i64 = @listLen(self);
+    pub fun contains(self, item: T): bool = @listContains(self, item);
 }
 ```
 
-The branch was written when `f64` was Kirby's only number type and `Array`
-was a type name. On main today there are ten number kinds, and arrays are
-written `[T]`.
+A call such as `xs.push(2)` is resolved at compile time from the static type of
+`xs`, into a direct call of a function ([Primitive Impls Proposal]). The
+virtual machine's `invoke()` is not involved.
 
-This works because a value's primitive type is a single, fixed, compile-time
-fact — there's no subtyping or polymorphism among `f64` values, so the
-compiler always knows exactly which `toString` a given call site means, with
-no need for the runtime method-table lookup `invoke()` does for structs.
+| Type     | Methods                                                                                                        |
+| -------- | -------------------------------------------------------------------------------------------------------------- |
+| `[T]`    | `len`, `isEmpty`, `push`, `pop`, `insert`, `remove`, `clear`, `contains`, `copy`, `reverse`, `slice`, `concat` |
+| `[T; N]` | `len`, `contains`, `copy`, `reverse`, `slice`, `concat`, `toList`                                              |
 
-Arrays are explicitly **not** part of that work. [Primitive Impls Proposal]
-says so directly:
+What is missing:
 
-> Explicitly out of scope: arrays (`[T]`) and other built-in container
-> types. They aren't backed by a Kirby struct, and how methods on them
-> should work isn't settled.
+- Methods that take a function or need something of the items, such as `map`,
+  `filter`, `sort` or `join`.
+- Traits. The impl parameters can not have bounds, so there is no `Eq`,
+  `Display` or `Ord` that uses the items' impls ([Q-list-bounds]). `==` on two
+  lists compares identity ([Q-list-equality]).
+- Filling a bounded type parameter with a list or array. This waits for
+  monomorphization.
+- Methods for `Set`, `Map` and tuples, none of which exist. `Map` is designed in
+  the [Map Proposal] and tuples in the [Tuples Proposal]. `Set` has no design.
 
-And the implementation on `initial-primitive-traits` shows exactly where it
-stopped. The branch's type-checker gate function treats `Array`, the array
-type name at the time, the same as the four real primitives:
-
-```c
-static bool tokenIsPrimitiveTypeName(Token *token) {
-  return tokenTextEquals(token, "unit") || tokenTextEquals(token, "bool") ||
-         tokenTextEquals(token, "string") || tokenTextEquals(token, "f64") ||
-         tokenTextEquals(token, "Array");
-}
-```
-
-but the function that actually resolves a primitive name to a concrete
-`Type*` for `impl` to bind `Self` to returns `NULL` for `"Array"`, with a
-comment spelling out why:
-
-```c
-// Returns the primitive singleton `token` names (unit/bool/string/f64), or
-// NULL if it names something else. Notably NULL for "Array" --
-// tokenIsPrimitiveTypeName() above treats that as primitive-ish too, but
-// it isn't a scalar type and can't carry impl/trait-impl methods (Phase
-// 4b doesn't extend that far -- see TYPE_SYSTEM_RFC.md).
-static Type *typchkPrimitiveTypeNamed(Token *token) { ... }
-```
-
-That comment references a `TYPE_SYSTEM_RFC.md` that doesn't exist in either
-repository — see [Q-rfc].
-
-On main, the same gate function lives in `src/token.c` and recognizes only
-`unit`, `bool`, `string` and `f64`. `Array` is not a type name, so
-`impl Display for Array` reports `Unknown type 'Array'.`
-
-The gap is bigger than arrays alone. Tuples are designed in the
-[Tuples Proposal] but not built. `Map` is designed in the [Map Proposal]
-(from [Issue #70]) but not built. `Set` is not in the changelog or the
-codebase, and no proposal designs it (the [Map Proposal] lists it as out of
-scope). All of them will eventually want methods (`arr.filter(fn)`,
-`set.has(x)`, `map.get(k)`, whatever their eventual syntax turns out to be),
-and none of them are "primitive" in the sense [Primitive Impls Proposal]
-uses that word — they're heap-backed and dynamically sized, closer in shape
-to a struct than to `f64`, but they aren't structs either, and user code
-can't `impl` them the way it can `impl` a struct.
+User code can not write these impls.
 
 ### Relationship to other proposals
 
-- [Primitive Impls Proposal] is the direct precedent this proposal has to
-  either extend or diverge from. It also already names this exact gap
-  (quoted above) and stops at its edge deliberately — this proposal exists
-  to pick up where it stopped, not to re-decide anything it already settled
-  for `f64`/`string`/`bool`/`unit`.
+- [Primitive Impls Proposal] designs the mechanism that lists and arrays use.
 - [Generic Types Proposal] matters for `Map[K, V]` and `Set[T]`, which need
   generic type arguments. They work for structs a program declares
-  (`Box[f64]`, [PR #169]), and no built-in type takes them yet. Arrays don't
-  need them: `[i64]` is an array of `i64` and the checker checks its items.
-  See [Q-generics-order].
+  (`Box[f64]`, [PR #169]), and no built-in type other than `[T]` and `[T; N]`
+  takes them yet. See [Q-generics-order].
 - [Map Proposal] designs `Map[K, V]`, with its operations written as natives (`@mapGet`, `@mapSet`) and a question about whether they become methods ([Q-api-shape]). It is the sketch of `Map`'s shape that option (b) of [Q-scope-order] asks for.
 - [For-Each Proposal] adds `for (item in collection)`. Methods like `filter` and `map` on arrays would be built on the same iteration rule.
 - [Tuples Proposal] designs the tuple type this proposal mentions. It writes
@@ -174,39 +104,25 @@ Everything below is a candidate direction, not a decision — see
 
 ### Part 1 — Name the category
 
-Introduce **collection type** as a term for this family — arrays today;
-tuples, `Set`, and `Map`/`Dict` prospectively — distinct from
-[Primitive Impls Proposal]'s "primitive type." Naming it is worth doing on
-its own: right now arrays are described only negatively, as something that
-doesn't qualify for the primitive mechanism. Whether "collection type" is
+Introduce **collection type** as a term for this family — lists and arrays
+today; tuples, `Set`, and `Map`/`Dict` prospectively — distinct from
+[Primitive Impls Proposal]'s "primitive type." Whether "collection type" is
 even one coherent category, or actually two with different needs, is
 [Q-category].
 
-### Part 2 — Candidate direction: extend the static mechanism
+### Part 2 — The static mechanism (built for lists and arrays)
 
-On the branch, `tokenIsPrimitiveTypeName` already accepted `"Array"`; only
-`typchkPrimitiveTypeNamed` stopped short. Neither arrays, nor (presumably)
-tuples, `Set`, or `Map` involve subtype polymorphism — `[i64]` is exactly one
-type, not an open hierarchy of them, the same way there's exactly one
-`f64`. That's the property that lets the primitive mechanism resolve
-`x.toString()` at compile time with no runtime lookup. On that reasoning,
-collection types might fit the same static/mangled mechanism
-[Primitive Impls Proposal] already built, rather than needing a different
-one. The checker knows each array's item type, so it has what a call needs
-to be resolved the way one for `f64` is. `Map`/`Set`'s key and value types
-would need generics first. See [Q-static-fit].
+A list or array impl declares type parameters, and the checker matches them
+against the receiver, so `[i64]` and `[string]` share one method body. Tuples,
+`Set` and `Map` have no subtyping either, so the same mechanism may fit them.
+`Map` and `Set` would need generic built-in types first.
 
-### Part 3 — Candidate direction: extend `invoke()`'s dynamic dispatch
+### Part 3 — Generic methods
 
-The alternative: give collection types a real method table and route
-`arr.filter(...)` through `invoke()`, the same path structs already use,
-rather than resolving it away at compile time. This doesn't depend on the
-compiler knowing a value's exact type statically, but it's a different, and
-by the look of `invoke()` today, larger change to the VM than Part 2 — a new
-receiver kind alongside `IS_STRUCT`/`IS_INSTANCE`, and something for that
-kind to look method names up in. Whether this is worth building as a
-separate mechanism from Part 2, or only if Part 2 turns out not to fit, is
-[Q-two-mechanisms].
+A method written in Kirby that needs something of the items, such as `join`
+calling `toString`, is generic code calling a method on a value that may be a
+number or a string. That works after monomorphization ([Generic Types Proposal]
+Part 5). See [Q-generics-order].
 
 ### Part 4 — Explicitly out of scope
 
@@ -245,30 +161,30 @@ like a tuple's, but every item has the same type, like a list's.
 
 <!-- [Q-static-fit]: #q-do-arrays-actually-fit-the-staticmangled-mechanism -->
 
-**Status:** Open
+**Status:** Answered
 
-Part 2 rests on arrays not having subtype polymorphism. The checker does
-know, at a call site, that a value is an array and what its items are, the
-way it knows a value is an `f64`: `arr.push(2)` reports
-`Can't access '.push' on a [i64].` What's left is whether the mangled-name
-scheme on `initial-primitive-traits` can name a method on `[T]` for every
-`T`, which is a generics question, since `[i64]` and `[string]` are different
-types.
+The question was whether one named function can serve a method on `[T]` for
+every `T`.
+
+#### Answer
+
+Yes. [PR #178] built methods on `[T]` and `[T; N]` this way. Each method is
+compiled once, and the checker substitutes the item type, and the array length,
+at each call.
 
 ### **Q:** Are `TYPE_SYSTEM_RFC.md` and "Phase 4b" something to reconcile with first?
 
 <!-- [Q-rfc]: #q-are-type_system_rfcmd-and-phase-4b-something-to-reconcile-with-first -->
 
-**Status:** Open
+**Status:** Answered
 
-A code comment on `initial-primitive-traits` references a `TYPE_SYSTEM_RFC.md`
-and a "Phase 4b" as the reason non-scalar `impl` targets aren't handled yet.
-Neither the file nor any other reference to a phased plan exists in
-kirbylang or the proposals repository. If that RFC exists
-somewhere else (or existed and was removed), this proposal should be
-reconciled with it rather than duplicating or contradicting a plan that's
-already been thought through — worth checking with whoever wrote that
-comment before this proposal goes further.
+A code comment on an unmerged branch, `initial-primitive-traits`, referred to a
+`TYPE_SYSTEM_RFC.md` that is in neither repository.
+
+#### Answer
+
+No. That branch was not the one that was built. [PR #178] built primitive,
+list and array impls without it.
 
 ### **Q:** Does this wait on generics, or ship an untyped version first?
 
@@ -285,7 +201,8 @@ could be typed as `fun ([T], fun (T) => U) => [U]` today. User code can
 declare generic functions and methods ([PR #169]), and a type parameter can
 have trait bounds ([PR #176]), so a generic body can compare, add or call
 the methods of its bound. A number or string cannot yet fill a bounded
-parameter, because a primitive cannot implement a trait.
+parameter, even though the standard library implements traits for them
+([PR #178]).
 
 Options: (a) wait for trait bounds ([Generic Types Proposal], Part 4), so
 collection methods can be written in Kirby and typed from the start; (b) ship them as
@@ -298,7 +215,7 @@ proposal with its own open questions.
 
 (a): wait. Trait bounds are built, but a method such as `join` calls `toString`
 on each item, and for a number or string that is a call on a primitive inside
-generic code. Primitives get their impls in the [Primitive Impls Proposal].
+generic code. Primitives have their impls ([Primitive Impls Proposal]).
 Generic code can call them once each copy of it knows its type, which is
 monomorphization ([Generic Types Proposal] Part 5). The order is in the
 [roadmap](../../ROADMAP.md): monomorphization is built before this proposal.
@@ -335,6 +252,7 @@ proposal.
   shape, no fields, resolved statically) and from a user-defined **struct**.
   Whether tuples belong in this category or with primitives is
   [Q-category].
+- **Bound**: a trait that a type parameter has to implement, `[T: Display]`.
 - **Static/mangled resolution**: resolving a method call to a specific
   function at compile time, by rewriting (mangling) the call into a direct
   reference to a generated function name, rather than looking the method up
@@ -357,6 +275,10 @@ proposal.
 <!-- Proposals -->
 
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
+[Q-list-bounds]: ../primitive-impls/PROPOSAL.md#q-can-a-list-or-array-impl-require-something-of-its-item-type
+[Q-list-equality]: ../primitive-impls/PROPOSAL.md#q-should--and-contains-on-lists-use-the-item-types-eq
+[PR #178]: https://github.com/kirbylang/kirbylang/pull/178
+[PR #184]: https://github.com/kirbylang/kirbylang/pull/184
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [Map Proposal]: ../map/PROPOSAL.md

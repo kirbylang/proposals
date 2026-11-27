@@ -88,7 +88,7 @@ The following is intentionally left out of scope for this proposal:
 
 - Any new keyword or marker on the trait name (`impl Trait`, `dyn Trait`). The trait name is written bare.
 - Generic bounds, `fun show[T: Display](x: T)`. That is static and stays in the [Generic Types Proposal] (Part 4).
-- Trait impls on primitives. See [Q-primitives].
+- Converting a primitive to a trait type. See [Q-primitives].
 - Reading fields, or getting the original struct back. See [Q-downcast].
 - Traits that extend other traits beyond what already works. A trait type also offers the methods of its super traits.
 
@@ -173,7 +173,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - [Generic Types Proposal] — trait bounds (`T: Display`) are the static counterpart. They resolve at compile time and can use `Self`, so `T: Eq` works where `Eq` as a type does not. Section 1.7 there describes the dispatch this proposal relies on.
 - [Enums Proposal] — enums can implement traits (Part 2 there), so an enum value converts to a trait type by the same rule. For a closed set of cases an enum is the better tool.
 - [Tuple Structs Proposal] — a tuple struct is a struct, so it converts the same way.
-- [Primitive Impls Proposal] — a primitive has no object to hold a method table, and trait impls on primitives are rejected today (`Primitive trait implementations aren't supported yet.`). See [Q-primitives].
+- [Primitive Impls Proposal] — the standard library implements traits for primitives, and calls to them are resolved at compile time. A primitive has no object to find a method table through. See [Q-primitives].
 - [Pattern Matching Proposal] — a trait typed value can not be taken apart with a pattern unless type patterns exist ([Q-downcast]).
 - [Result Proposal] — an error type that any struct can implement (`Result[T, Error]`) is a candidate use ([Q-error-trait] there).
 - [Collection Methods Proposal] — methods on collection types dispatch through the receiver; a `[Shape]` array is an ordinary array.
@@ -302,9 +302,9 @@ Options: (a) No. `[Circle]` and `[Shape]` are different types, and the conversio
 
 A struct instance is an object, and the VM finds its methods through the object. A number is a bare value with no object (`src/value.h`), and `string` and `bool` have no method table either. The [Primitive Impls Proposal] resolves primitive method calls at compile time from the static type, which a trait typed value has lost.
 
-Options: (a) Only structs, enums and tuple structs convert. Primitives are left out until they can be answered. This costs nothing now, because trait impls on primitives are rejected today. (b) Wrap a primitive in an object when it converts, so the method table can be found. A real cost, and a new kind of hidden allocation.
+Options: (a) Only structs, enums and tuple structs convert. Primitives are left out until they can be answered. This costs the most for the built-in traits, which the primitives implement: a `[Display]` could not hold a number. (b) Wrap a primitive in an object when it converts, so the method table can be found. A real cost, and a new kind of hidden allocation.
 
-(a) is the recommendation. (b) can be added when primitive impls land.
+(a) is the recommendation. (b) can be added later.
 
 ### **Q:** Can the original type be recovered from a trait typed value?
 
