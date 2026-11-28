@@ -27,7 +27,7 @@ This is a high level view of the proposals and how they relate to each other.
 | 1     | [For-Each]: [Part A: arrays][fe-a], [Part B: ranges][fe-b]                |                                                                                                          | Ready       |                                                                                                                                                      |
 | 1     | [String Encoding]                                                         |                                                                                                          | Ready       |                                                                                                                                                      |
 | 1     | [Primitive Impls]: calls on values whose type is known                    |                                                                                                          | Done        | [PR #178]. Standard library impls only                                                                                                               |
-| 1     | [Primitive Impls]: impls written by programs                              |                                                                                                          | Ready       | [Whether to allow them][Q-user-impls] is open                                                                                                        |
+| 1     | [Primitive Impls]: impls written by programs                              |                                                                                                          | Done        | [PR #192]. A program's own traits, not on lists or arrays                                                                                            |
 | 1     | [Trait Types]                                                             |                                                                                                          | Ready       |                                                                                                                                                      |
 | 1     | [Unimplemented]                                                           |                                                                                                          | Ready       |                                                                                                                                                      |
 | 2     | [Generic Traits]                                                          | generic-types: type parameters, trait bounds                                                             | Ready       | Traits with their own type parameters, and impls on generic types. Draft                                                                             |
@@ -36,7 +36,7 @@ This is a high level view of the proposals and how they relate to each other.
 | 2     | [Strings]                                                                 | string-encoding                                                                                          | Not started |                                                                                                                                                      |
 | 3     | [Destructuring]: [tuple and tuple struct patterns][de-tuple]              | tuples, tuple-structs                                                                                    | Not started |                                                                                                                                                      |
 | 3     | [Enums]: [Part B: variants that carry values][en-b]                       | pattern-matching                                                                                         | Not started | Unusable without `match`                                                                                                                             |
-| 4     | [Enums]: [Part C: type parameters][en-c]                                  | enums: variants that carry values; **generic-types: type parameters**                                    | Not started | `Option[T]`, `Result[T, E]`. Methods on them need [generic-traits][Generic Traits]                                                                   |
+| 4     | [Enums]: [Part C: type parameters][en-c]                                  | enums: variants that carry values; **generic-types: type parameters**                                    | Not started | `Option[T]`, `Result[T, E]`, removing `nil`. Methods on them need [generic-traits][Generic Traits]                                                 |
 | 4     | [Collection Methods]                                                      | primitive-impls; generic-types: monomorphization                                                         | Not started | `Map`/`Set` methods [wait for generics][Q-generics-order]. Generic methods such as `join` call methods on numbers and strings, so they wait for monomorphization |
 | 5     | [Result]                                                                  | enums: type parameters; pattern-matching                                                                 | Not started |                                                                                                                                                      |
 | 5     | [Map]                                                                     | enums: type parameters                                                                                   | Not started | `@mapGet` returns `Option[V]`                                                                                                                        |
@@ -110,7 +110,7 @@ None.
 | [Generic Traits]         | feature  | Not started |
 | [Map]                    | feature  | Not started |
 | [Pattern Matching]       | feature  | Not started |
-| [Primitive Impls]        | feature  | Partial     |
+| [Primitive Impls]        | feature  | Done        |
 | [Result]                 | feature  | Not started |
 | [String Encoding]        | feature  | Not started |
 | [Strings]                | feature  | Not started |
@@ -245,6 +245,7 @@ proposal, and generic types doesn't reopen.
 [PR #173]: https://github.com/kirbylang/kirbylang/pull/173
 [PR #176]: https://github.com/kirbylang/kirbylang/pull/176
 [PR #178]: https://github.com/kirbylang/kirbylang/pull/178
+[PR #192]: https://github.com/kirbylang/kirbylang/pull/192
 [gt-4]: ./proposals/generic-types/PROPOSAL.md#part-4--trait-bounds
 [gt-5]: ./proposals/generic-types/PROPOSAL.md#part-5--monomorphization
 [td-1]: ./proposals/tooling-support-data/PROPOSAL.md#part-1--the-span
@@ -278,7 +279,6 @@ proposal, and generic types doesn't reopen.
 [Q-generics-order]: ./proposals/collection-methods/PROPOSAL.md#q-does-this-wait-on-generics-or-ship-an-untyped-version-first
 [Q-scope-order]: ./proposals/collection-methods/PROPOSAL.md#q-should-this-start-from-arrays-alone-or-wait-until-tuplessetmap-are-at-least-sketched
 [Q-category]: ./proposals/collection-methods/PROPOSAL.md#q-is-collection-type-one-category-or-two
-[Q-user-impls]: ./proposals/primitive-impls/PROPOSAL.md#q-may-a-program-implement-its-own-traits-for-primitive-types
 [Q-bodyform]: ./proposals/modules/PROPOSAL.md#q-in-what-form-does-a-module-ship-its-generic-bodies
 [Q-naming]: ./proposals/modules/PROPOSAL.md#q-is-a-module-named-by-its-file-path-or-by-a-namespace
 [Q-comptime]: ./proposals/top-level-declarations/PROPOSAL.md#q-how-much-is-a-comptime-value

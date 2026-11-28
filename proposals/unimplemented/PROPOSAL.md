@@ -176,9 +176,8 @@ already treats a block with a trailing value as returning on every path, so
 
 ### 5. Compilation: new opcode `OP_NOT_IMPLEMENTED`
 
-- New opcode in `src/opcode.h` at index 42 (after
-  `OP_CLOSE_BLOCK_EXPR`), no operands, no stack effect — execution never
-  continues, so nothing is pushed and no `OP_POP` is needed.
+- New opcode at the end of the list in `src/opcode.h` (before `OP_COUNT`), with
+  no operands and no stack effect — execution never continues, so nothing is pushed and no `OP_POP` is needed.
 - `compileExpr()` in `src/compiler.c`:
 
   ```c
@@ -272,7 +271,7 @@ directory:
 ### Documentation
 
 - `docs/CHANGELOG.md`: entry under the next release.
-- `docs/OPCODES.md`: new row for `OP_NOT_IMPLEMENTED` (index 42).
+- `docs/OPCODES.md`: new row for `OP_NOT_IMPLEMENTED`.
 - VS Code extension syntax file (§7).
 
 ### Other

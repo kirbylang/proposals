@@ -174,7 +174,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 ### Related Proposals
 
 - [Collection Methods Proposal] — treats tuples as a possible collection type. Both proposals spell the type `(f64, string)` ([Q-type-spelling]). The question there about whether collection types are one category or two ([Q-category]) is informed by this proposal: a tuple has a fixed size and its item types are known at compile time.
-- [Primitive Impls Proposal] — `unit` has impls ([Q-unit]), and what their methods return is open ([Q-unit-methods]). Whether `unit` is the empty tuple is [Q-unit-empty] here, and the answers should agree.
+- [Primitive Impls Proposal] — `unit` has impls ([Q-unit]). The [Enums Proposal] Part C removes `nil` and `unit`'s `Display`, and `()` then prints as `()` ([Q-unit-methods]). Whether `unit` is the empty tuple is [Q-unit-empty] here, and the answers should agree.
 - [Generic Types Proposal] — 10.4 is about `==` on objects, which tuple equality depends on. Tuple types also need to be handled by the type substitution helper in 3.6. See 10.9 there.
 - [Tuple Structs Proposal] — depends on this proposal for reading an item by position.
 - [Destructuring Proposal] — tuple patterns like `let (a, b) = t;` depend on this proposal.
@@ -227,7 +227,7 @@ Prints `7` twice. `one` is a tuple with one item and `grouped` is a plain `i64`.
 
 ###### Expected Outcome
 
-Prints `nil`, the same as today. Guards the unit value against the new tuple parsing.
+Prints the same as before this proposal: `nil` today, and `()` once the [Enums Proposal] Part C is built. Guards the unit value against the new tuple parsing.
 
 ##### NEW: tests/run/tuples/tuple_nested_position.krb
 
@@ -341,7 +341,7 @@ The sketch says equality is "based on the items equality". Today `==` on two obj
 
 Options: (a) Items are compared the way `==` compares that item's type today: numbers, bools, and strings by value, nested tuples item by item, and anything else by identity. (b) Items are compared through `Eq` where the item's type has one. The [Generic Types Proposal] 10.4 is answered, so `==` on a struct already works this way.
 
-Either way, tuples and arrays would compare differently. Changing arrays is out of scope here.
+Changing arrays is out of scope here. The [Collection Methods Proposal] will make lists and arrays compare their contents through `Eq` ([Q-list-equality]), which favors (b).
 
 ### **Q:** Is `unit` the empty tuple?
 
@@ -351,7 +351,7 @@ Either way, tuples and arrays would compare differently. Changing arrays is out 
 
 Options: (a) No. `unit` and `()` stay as they are and no tuple type has zero items. (b) Yes. `()` becomes the tuple with no items and `unit` becomes another way to write its type.
 
-At run time `()` is `nil` today. Making it a tuple object would change what `@println(());` shows and how `nil ?? x` behaves. (a) avoids that, and matches the [Primitive Impls Proposal] treating `unit` as a primitive.
+At run time `()` is `nil` today. Making it a tuple object would change how `nil ?? x` behaves. (a) avoids that, and matches the [Primitive Impls Proposal] treating `unit` as a primitive.
 
 ### **Q:** Can an item of a tuple be assigned to?
 
@@ -429,7 +429,9 @@ These are both technical and non-technical terms used throughout the proposal.
 
 [Q-category]: ../collection-methods/PROPOSAL.md#q-is-collection-type-one-category-or-two
 [Q-unit]: ../primitive-impls/PROPOSAL.md#q-does-unit-get-impls-too
-[Q-unit-methods]: ../primitive-impls/PROPOSAL.md#q-what-should-units-trait-methods-return
+[Q-unit-methods]: ../enums/PROPOSAL.md#q-what-should-units-trait-methods-return
+[Q-list-equality]: ../collection-methods/PROPOSAL.md#q-should--and-contains-on-lists-use-the-item-types-eq
+[Enums Proposal]: ../enums/PROPOSAL.md
 [Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
 
 <!-- External -->

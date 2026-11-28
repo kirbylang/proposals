@@ -165,7 +165,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 - A new object kind, `ObjMap`, in `src/object.h`, next to `ObjString` and the array object. It stores its entries in insertion order (see [Q-order]) with an index for finding a key.
 - The index needs a hash table keyed by a `Value`, not an `ObjString *`. The existing `Table` is not changed, because globals and fields rely on it. A second table type in `src/hashtable.c` or a new file is expected.
-- The garbage collector in `src/gc.c` visits keys and values. `@print`, `@println`, `@typeof` and `@instanceOf` each get a case.
+- The garbage collector in `src/gc.c` visits keys and values. `@print`, `@println` and `@typeof` each get a case.
 - A map of `string` keys and `string` or number keys can be done entirely in C.
 
 #### Part 2: Struct keys

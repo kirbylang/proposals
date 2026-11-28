@@ -166,7 +166,8 @@ The parts below are in the order they can be built. Each is its own patch.
 - [Collection Methods Proposal] — methods built from `Iterator[T]`.
 - [Primitive Impls Proposal] — lists have impls in the standard library, so
   `impl[T] Iterator[T] for [T]` needs only generic traits. Whether such an impl
-  can require something of `T` is [Q-list-bounds] there.
+  can require something of `T` is [Q-list-bounds] in the
+  [Collection Methods Proposal]: it will be able to, after monomorphization.
 - [Trait Types Proposal] — a function taking any `Iterable[T]`.
 
 ### Testing Plan
@@ -323,7 +324,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Collection Methods Proposal]: ../collection-methods/PROPOSAL.md
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
-[Q-list-bounds]: ../primitive-impls/PROPOSAL.md#q-can-a-list-or-array-impl-require-something-of-its-item-type
+[Q-list-bounds]: ../collection-methods/PROPOSAL.md#q-can-a-list-or-array-impl-require-something-of-its-item-type
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md
 
 <!-- Questions -->

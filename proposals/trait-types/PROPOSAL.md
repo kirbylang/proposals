@@ -166,7 +166,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 
 - `Unknown type.` for a trait name changes to a resolved type. Programs that compiled before are unaffected.
 - A struct and a trait with the same name stop compiling ([Q-name-clash]). Nothing in this repository does this.
-- `@typeof` and `@instanceOf` on a trait typed value report the struct, because the value is unchanged.
+- `@typeof` on a trait typed value reports the struct, because the value is unchanged.
 
 ### Related Proposals
 
@@ -312,7 +312,7 @@ Options: (a) Only structs, enums and tuple structs convert. Primitives are left 
 
 **Status:** Open
 
-`@instanceOf(value, Struct)` already exists for structs. A trait typed value hides the struct, so a program that has a `Shape` and needs the `Circle` has no checked way to get it.
+A trait typed value hides the struct, so a program that has a `Shape` and needs the `Circle` has no checked way to get it.
 
 Options: (a) None in this proposal. The trait's methods are the interface. (b) A type test and narrowing, such as a type pattern in `match`. It belongs with the [Pattern Matching Proposal]. (c) A cast with a run time check, like `shape as Circle`. Kirby's `as` today only changes between number types.
 

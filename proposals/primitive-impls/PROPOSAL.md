@@ -1,19 +1,20 @@
 ---
-status: Draft
+status: Closed
 category: feature
 created: 2026-09-18
-from_commit: 90ca32cd
+from_commit: 9726657a
 ---
 
 # Proposal: `impl` and Trait Implementations for Primitive Types
 
 Kirby has methods and trait impls on primitive types: the number kinds (`i64`,
 `f64`, `u8` and the rest), `string`, `bool` and `unit`, and also lists (`[T]`)
-and fixed size arrays (`[T; N]`). The standard library writes them in Kirby.
-Programs call them but can not write their own.
+and fixed size arrays (`[T; N]`). The standard library writes them in Kirby. A
+program can implement its own traits for all of these except lists and arrays.
 
-This document records what is built, and what is still undecided: mainly whether
-a program may implement its own traits for these types.
+It was implemented and merged in [PR #178], [PR #192] and the other changes
+named below. The sections below describe that implementation. Work that is left
+belongs to other proposals ([What Is Left](#what-is-left)).
 
 ---
 
@@ -21,7 +22,7 @@ a program may implement its own traits for these types.
 
 ### Living Document
 
-This proposal is a living document while in Draft status. It's an ongoing process to understand the changes being proposed and what impacts they will have. That research is largely tracked in the form of [Questions].
+This proposal is Closed. It records what was built and why.
 
 ### Linking
 
@@ -34,7 +35,7 @@ Technical terms are kept to a minimum. Where a term is unavoidable, it is define
 ### Existing vs Proposed Behaviors
 
 - When the proposal text says Kirby "does" or "has" something, that is true for the current implementation. Examples were run on the `from_commit`.
-- When the proposal text says Kirby "should" or "will" do something, that is true after changes presented in this proposal.
+- When the proposal text says Kirby "will" do something, another proposal plans it.
 
 ### Code & Changes
 
@@ -49,18 +50,12 @@ was no way to call `x.toString()` or `x.equals(y)` on a number or a string, and
 the standard library could not offer `"abc".len()`.
 
 That is solved for calls on a value whose type is known where the call is
-written. What remains:
-
-- A program can not implement its own trait for a primitive ([Q-user-impls]).
-  In Rust it can, because the trait is the program's own.
-- A primitive can not fill a bounded type parameter. This waits for
-  monomorphization ([Generic Types Proposal] Part 5).
-- Some behavior of the built-in impls is unsettled: what `unit`'s methods
-  return, how lists compare, and how floats order ([Questions]).
+written. Generic code calling a primitive's method needs monomorphization
+([Generic Types Proposal] Part 5).
 
 ## What Is Built
 
-Built in [PR #178]. Later changes are named where they apply.
+First built in [PR #178]. Later changes are named where they apply.
 
 ### 1. Methods are written in the standard library
 
@@ -105,9 +100,11 @@ fun main(): unit {
 - A static trait method is called on the type's name, or on an alias of it
   (`type Meters = i64;` then `Meters.default()`, [PR #186]). A variable with the
   same name as the type wins.
-- A method has to be called: `let f = "a".len;` is the error
-  `Method 'len' of 'string' has to be called.` ([Q-method-values]).
+- A method can be used as a value ([PR #193]). `let length = text.len;` keeps
+  the value `text` had at that moment, and `f64.default` is the function itself.
 - A method of one number kind can not be called on another.
+- A number literal that a method is called on takes the number kind of the
+  argument, as in `==`: with `let x: u8 = 5;`, `5.equals(x)` is a `u8` call.
 - A type's own method wins over a trait method of the same name.
 
 ### 3. Calling a trait's method by name
@@ -143,9 +140,14 @@ The same change fixed a type's own method running in place of the trait's
 through a bound, an operator or printing. [PR #183] made the type's own method
 keep the plain name when the trait impl is loaded later.
 
-Two limits come with it. Two traits can not give one type the same method name
-([Q-method-names]). A static trait method that has the same name as one of the
-type's own can not be called ([Q-shadowed-static]).
+Two traits can give one type instance methods of the same name ([PR #191]). A
+plain `value.name()` is then ambiguous and is an error, unless the type has its
+own method of that name. `A.name(value)` picks one. Two static methods of one
+name are still an error.
+
+A type's own static method hides a trait's static method of the same name, and
+the trait's can not be called yet
+([a hidden static method][Q-hidden-static]).
 
 ### 4. Lists and arrays
 
@@ -169,24 +171,37 @@ standard library and applies to every item type. `Eq.equals(a, b)` and
 `a.equals(b)` would call such an `Eq` impl, but `==` on two lists would not.
 The standard library has no such impl today.
 
-### 5. Only the standard library writes these impls
+### 5. What a program can write
+
+A program can implement a trait it declares for `bool`, `string`, `unit` and
+the number kinds ([PR #192]):
 
 ```kirby
-impl f64 {
-    pub fun double(self): f64 = self * 2;
+trait Squarable { fun squared(self): f64; }
+
+impl Squarable for f64 {
+    fun squared(self): f64 = self * self;
+}
+
+fun main(): unit {
+    let three: f64 = 3;
+    @println(three.squared());       // 9
+    @println(Squarable.squared(three)); // 9
 }
 ```
 
-```
-[line 1] Error at 'f64': You can't write an impl for a primitive type in user code.
-```
+It can not do the following:
 
-The parser rejects it by the target's spelling, for both impl forms. It also
-rejects an impl for a program's own struct that is named like a primitive, such
-as `struct string`. An impl can not name a primitive through a type alias either:
-`type S = string; impl S { }` is `Unknown type 'S'.` The type checker has its own
-messages (`Only the standard library can add methods to 'f64'.`), which the
-parser's check comes before.
+| Code | Error |
+| --- | --- |
+| `impl Display for f64 { ... }` | `Only the standard library can implement 'Display' for 'f64'.` |
+| `impl f64 { ... }` | `Only the standard library can add methods to 'f64'.` |
+| `impl[X] T for [X] { ... }` | `You can't write an impl for a list or array in user code.` |
+
+A struct, trait or type alias can not be named like a primitive: `trait i64 {}`
+is `'i64' is a built-in type and can't be the name of a trait.` ([PR #195]). A
+type parameter can take such a name. An impl can not name a primitive through a
+type alias: `type S = string; impl S { }` is `Unknown type 'S'.`
 
 ### 6. How it works
 
@@ -199,116 +214,57 @@ parser's check comes before.
   names, so these can not collide with them. `"ab".len()` is a plain call of
   `string.len` with the value as the first argument.
 - **Virtual machine.** Primitive methods need no method table. A struct stores
-  a trait's method under both `method` and `Trait.method` (`OP_TRAIT_METHOD`).
+  a trait's method under `Trait.method` (`OP_TRAIT_METHOD`), and also under
+  `method` when no other method has that name. A primitive's method used as a
+  value is one object holding the value and the function (`OP_BIND_METHOD`).
 
-### 7. Limits that remain
+### 7. `NaN`
 
-- A primitive, list or array can not fill a bounded type parameter:
+Every direct comparison with `NaN` is `false`. `cmp` sorts `NaN` below every
+number and level with `NaN` ([PR #190]).
 
-  ```
-  string implements Display, but a primitive can't be used with a bound yet, required by T.
-  ```
+## What Is Left
 
-  A list or array gets `[i64; 1] doesn't implement Display, required by T.`
+| Item | Today | Now in |
+| --- | --- | --- |
+| A primitive, list or array filling a bounded type parameter | `string implements Display, but a primitive can't be used with a bound yet, required by T.` | [Generic Types Proposal] Part 5 |
+| Ordering operators with `NaN` in generic code | numbers can not be used there yet. Generic code compares through `cmp`, where `NaN` is below every number | [Generic Types Proposal] Part 5 |
+| Calling a hidden static trait method | no way to call it | [Generic Types Proposal] [10.10][Q-hidden-static] |
+| Bounds on list and array impls | not allowed | [Collection Methods Proposal] ([Q-list-bounds]) |
+| `==` and `contains` using the items' `Eq` | `[1] == [1]` is `false` | [Collection Methods Proposal] ([Q-list-equality]) |
+| `unit`'s `Display` | `().toString()` is `"nil"` | [Enums Proposal] Part C ([Q-unit-methods]) |
+| Reaching a built-in type by a path | no paths | [Modules Proposal] ([Q-builtin-names]) |
+
+Two smaller limits have no proposal:
+
 - An `impl` without a trait has no static methods:
   `Static methods on 'string' aren't supported yet.`
 - `@println` and string interpolation use built-in formatting for numbers,
-  strings and `bool` ([Q-print-display]). Interpolating `unit` is an error,
-  even though `unit` implements `Display`.
-- Numbers keep two built-in pieces for operators inside bounded generics:
-  `typchkNumberImplementsTrait` and `invokeNumber`. Monomorphization removes
-  them.
-
-## Proposed Changes
-
-### Goals and Non Goals
-
-What this proposal covers:
-
-- Methods and trait impls on `bool`, `string`, `unit`, the number kinds, lists
-  and arrays (built)
-- Whether a program may implement its own traits for them ([Q-user-impls])
-- The behavior of the standard library's impls ([Questions])
-
-The following is intentionally left out of scope for this proposal:
-
-- Filling a bounded type parameter with a primitive. See the
-  [Generic Types Proposal] Part 5.
-- A trait type that holds a primitive. See [Q-primitives].
-- What more methods lists and other collections get. See the
-  [Collection Methods Proposal].
-- Which module may write an impl. See [Modules Proposal] and the orphan rule in
-  the [Generic Types Proposal].
-
-### Implementation Plan
-
-#### Part 1: Programs implement their own traits
-
-Only if [Q-user-impls] is answered yes.
-
-```kirby
-trait Squarable { fun squared(self): f64; }
-
-impl Squarable for f64 {
-    fun squared(self): f64 = self * self;
-}
-```
-
-- The parser stops rejecting primitive targets, so one check, in the type
-  checker, decides.
-- The checker rejects a built-in trait (`impl Display for f64`) and a plain
-  `impl f64` in a program, and allows a program's own trait.
-- The existing coherence rule (a trait once per type) applies.
+  strings and `bool` ([Q-print-display]).
 
 ## Impacts
-
-### Existing Syntax Or Behavior
-
-- Part 1 changes the message for a rejected primitive impl in programs, from the
-  parser's to the type checker's.
-- A program's own struct named like a primitive could then have impls.
 
 ### Related Proposals
 
 - [Generic Types Proposal] — monomorphization lets primitives fill bounds and
-  removes the built-in number methods.
+  removes the built-in number methods for the operator traits.
 - [Collection Methods Proposal] — builds on the list and array impls.
 - [Generic Traits Proposal] — `impl Iterator[T] for [T]` puts a generic trait on
   a list.
-- [Trait Types Proposal] — whether a primitive converts to a trait type.
-- [Tuples Proposal] — whether `unit` is the empty tuple should agree with
-  [Q-unit-methods].
+- [Trait Types Proposal] — whether a primitive converts to a trait type
+  ([Q-primitives]).
+- [Tuples Proposal] — whether `unit` is the empty tuple ([Q-unit-empty]).
 - [Strings Proposal] — `Ord` for `string`.
 - [String Interpolation Proposal] — which placeholder types convert.
 - [Enums Proposal] — an enum value that is a plain number would be called the way
   a primitive is.
+- [Modules Proposal] — which module may write an impl.
 
 ### Testing Plan
 
-The built behavior is covered by `tests/run/primitive_methods/`,
-`tests/run/structs/trait_qualified_*` and `tests/parse/impls/`.
-
-#### E2E Tests
-
-##### NEW: tests/run/primitive_methods/user_trait_on_number.krb
-
-```kirby
-trait Squarable { fun squared(self): f64; }
-
-impl Squarable for f64 {
-    fun squared(self): f64 = self * self;
-}
-
-fun main(): unit {
-    let three: f64 = 3;
-    @println(three.squared());
-    @println(Squarable.squared(three));
-}
-```
-
-###### Expected Outcome
-
-Prints `9` twice, if [Q-user-impls] is answered yes.
+The behavior is covered by `tests/run/primitive_methods/`,
+`tests/run/structs/trait_qualified_*`, `tests/run/types/` and
+`tests/parse/impls/`.
 
 ## Questions
 
@@ -322,7 +278,7 @@ Options: (a) only trait impls on primitives, so every method added to a type is 
 
 #### Answer
 
-(b), in the standard library only. `impl string { ... }` is how `len` is written. A program can write neither form. Whether a program may write the trait form is [Q-user-impls].
+(b), in the standard library only. `impl string { ... }` is how `len` is written. A program can write only the trait form, for its own traits ([Q-user-impls]).
 
 ### **Q:** Where should a primitive kind's methods and implemented-trait list actually live?
 
@@ -382,25 +338,22 @@ Independent. Operators on numbers stay built-in instructions ([Generic Types Pro
 
 #### Answer
 
-(b). It implements `Display`, `Eq`, `Ord` and `Default`. What those methods return is [Q-unit-methods].
-
-### **Q:** What should `unit`'s trait methods return?
-
-[Q-unit-methods]: #q-what-should-units-trait-methods-return
-
-**Status:** Open
-
-Today `toString` is `"nil"`, `equals` is `true`, `cmp` is `0` and `default` is `()`. Options: (a) keep all four. (b) keep only `Default`. (c) remove the impls. `$"{()}"` is rejected today, which (a) would suggest allowing. The answer should agree with [Q-unit-empty].
+(b). It implements `Display`, `Eq`, `Ord` and `Default`. `Display` is to be removed along with `nil` ([Q-unit-methods]).
 
 ### **Q:** Should printing use a primitive's `Display` impl?
 
 [Q-print-display]: #q-should-printing-use-a-primitives-display-impl
 
-**Status:** Open
+**Status:** Answered
 
 `@println` and string interpolation call a struct's `Display` impl. For numbers, strings and `bool` they use built-in formatting, so a primitive's `Display` impl runs only when called by name.
 
 Options: (a) use the impl. One consistent rule. (b) keep built-in formatting, which is what is built. Only the standard library writes these impls, so the two print the same text today.
+
+#### Answer
+
+(b). Built-in formatting stays. Programs can not implement `Display` for these
+types ([Q-user-impls]), so the output can not differ.
 
 ### **Q:** Should the design anticipate more numeric primitive kinds now, or wait for that proposal?
 
@@ -418,77 +371,67 @@ Options: (a) design for any primitive kind. (b) only `f64`, `bool` and `string`.
 
 [Q-user-impls]: #q-may-a-program-implement-its-own-traits-for-primitive-types
 
-**Status:** Open
+**Status:** Answered
 
 The first request for this feature was that Kirby code can `impl` and implement traits for primitives. The first version allows only the standard library.
 
 Options: (a) a program may implement a trait it declares, but not a built-in trait, and may not add methods without a trait. This is Rust's [orphan rules] and its rule against [methods on primitives]. (b) keep it to the standard library.
 
-(a) is the recommendation.
+#### Answer
 
-### **Q:** Can a list or array impl require something of its item type?
-
-[Q-list-bounds]: #q-can-a-list-or-array-impl-require-something-of-its-item-type
-
-**Status:** Open
-
-`impl[T: Eq] Eq for [T]` is the error `A list or array impl's parameters can't have bounds.`, and `impl Eq for [i64]` is rejected too. One impl covers every list, so `Eq`, `Ord` and `Display` for lists can not use the items' methods. Rust writes `impl<T: PartialEq> PartialEq for Vec<T>`, and Swift calls this [conditional conformance].
-
-Options: (a) allow bounds on these parameters. (b) leave lists without these traits. (a) is of little use for `[i64]` or `[string]` until primitives can fill bounds.
-
-### **Q:** Should `==` and `contains` on lists use the item type's `Eq`?
-
-[Q-list-equality]: #q-should--and-contains-on-lists-use-the-item-types-eq
-
-**Status:** Open
-
-`==` on two lists or arrays compares identity, so `[1] == [1]` is `false`. `contains` compares items the same way, so a list of structs does not find an equal struct, even with `impl Eq`. Rust compares contents with the item's equality.
-
-Options: (a) write `contains` and `equals` in Kirby under `impl[T: Eq]`, which needs [Q-list-bounds] and monomorphization, and decide whether `==` compares contents. (b) the C code calls the program's `equals`, which means a native calling Kirby code. (c) keep identity.
+(a), built in [PR #192]. It covers `bool`, `string`, `unit` and the number
+kinds. Impls for lists and arrays stay in the standard library, because their
+parameters can not have bounds yet ([Q-list-bounds]).
 
 ### **Q:** How are floats ordered when a value is `NaN`?
 
 [Q-float-order]: #q-how-are-floats-ordered-when-a-value-is-nan
 
-**Status:** Open
+**Status:** Answered
 
-`nan <= 1.0` and `nan >= 1.0` are `true` today, because `<=` is compiled as "not greater". `nan.cmp(1.0)` is `0`, which means equal, so a generic `a <= b` is also `true`. In Rust all four comparisons with `NaN` are `false`, and `f64` implements [PartialOrd] and not `Ord`.
+Every direct comparison with `NaN` is `false`, because `<=` and `>=` have their own instructions (`OP_LESS_EQUAL` and `OP_GREATER_EQUAL`). `Ord` did not match them: `nan.cmp(1.0)` was `0`, which means equal, so `a <= b` through `cmp`, as in a function with `T: Ord`, would be `true`. In Rust all four comparisons with `NaN` are `false`, and `f64` implements [PartialOrd] and not `Ord`.
 
-The direct operators can be fixed alone, with instructions for "less or equal" and "greater or equal". For `Ord`, options: (a) add a `PartialOrd` trait, which needs a way to answer "no order". (b) remove `Ord` from floats. (c) give `cmp` an order that includes `NaN`, which then differs from the operators.
+Options for `Ord`: (a) add a `PartialOrd` trait, which needs a way to answer "no order". (b) remove `Ord` from floats. (c) give `cmp` an order that includes `NaN`, which then differs from the operators.
+
+#### Answer
+
+(c), built in [PR #190]. Floats keep `Ord`, and `cmp` sorts `NaN` below every
+number, as Go's [cmp package] does. The ordering operators in generic code are
+to behave like the direct ones after monomorphization ([Generic Types Proposal]
+Part 5).
 
 ### **Q:** Can a primitive's method be used as a value?
 
 [Q-method-values]: #q-can-a-primitives-method-be-used-as-a-value
 
-**Status:** Open
+**Status:** Answered
 
-A struct's method can be: `let f = p.get;`. A primitive's can not. Rust allows neither form but allows `str::len`.
+A struct's method could be: `let f = p.get;`. A primitive's could not. Rust allows neither form but allows `str::len`.
 
 Options: (a) allow it for primitives. (b) remove it for structs, which breaks programs. (c) keep the difference and document it.
+
+#### Answer
+
+(a), built in [PR #193]. This differs from Rust, and matches what structs do.
 
 ### **Q:** Can two traits give one type the same method name?
 
 [Q-method-names]: #q-can-two-traits-give-one-type-the-same-method-name
 
-**Status:** Open
+**Status:** Answered
 
-It is the error `'name' is already provided to 'P' by another trait.` Rust allows it: a plain `p.name()` is then ambiguous, and `A::name(&p)` picks one.
+It was the error `'name' is already provided to 'P' by another trait.` Rust allows it: a plain `p.name()` is then ambiguous, and `A::name(&p)` picks one.
 
 Options: (a) allow it, make the plain call an error, and use `A.name(p)`. (b) keep the error.
 
-### **Q:** How is a static trait method called when the type has its own of that name?
+#### Answer
 
-[Q-shadowed-static]: #q-how-is-a-static-trait-method-called-when-the-type-has-its-own-of-that-name
-
-**Status:** Open
-
-`P.make()` calls the type's own `make`, and `A.make()` is the error `'make' is a static method of 'A'. Call it on a type instead.` So the trait's `make` can not be called. Rust writes `<P as A>::make()`.
-
-This needs a syntax. No option is proposed yet.
+(a), built in [PR #191], as in Rust. It is for methods that take `self`. Two
+static methods of one name are still an error ([Q-hidden-static]).
 
 ## Glossary
 
-- **Changes**: Changes refer to the proposed changes in this document
+- **Changes**: Changes refer to the changes in this document
 - **Primitive type**: a built-in value type that is not a struct: `unit`,
   `bool`, `string` and the ten number kinds. Lists and arrays are not primitive
   types, but get methods the same way.
@@ -521,9 +464,17 @@ This needs a syntax. No option is proposed yet.
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [sized-number-types]: ../sized-number-types/PROPOSAL.md
+
+<!-- Other proposals' questions -->
+
 [Q-compare]: ../strings/PROPOSAL.md#q-is-string-ordering-an-operator-rule-or-an-ord-impl
 [Q-primitives]: ../trait-types/PROPOSAL.md#q-can-a-number-string-or-bool-convert-to-a-trait-type
 [Q-unit-empty]: ../tuples/PROPOSAL.md#q-is-unit-the-empty-tuple
+[Q-unit-methods]: ../enums/PROPOSAL.md#q-what-should-units-trait-methods-return
+[Q-list-bounds]: ../collection-methods/PROPOSAL.md#q-can-a-list-or-array-impl-require-something-of-its-item-type
+[Q-list-equality]: ../collection-methods/PROPOSAL.md#q-should--and-contains-on-lists-use-the-item-types-eq
+[Q-hidden-static]: ../generic-types/PROPOSAL.md#1010-calling-a-static-trait-method-hidden-by-the-types-own
+[Q-builtin-names]: ../modules/PROPOSAL.md#q-can-a-declaration-take-a-built-in-types-name
 
 <!-- External -->
 
@@ -531,7 +482,12 @@ This needs a syntax. No option is proposed yet.
 [PR #183]: https://github.com/kirbylang/kirbylang/pull/183
 [PR #184]: https://github.com/kirbylang/kirbylang/pull/184
 [PR #186]: https://github.com/kirbylang/kirbylang/pull/186
+[PR #190]: https://github.com/kirbylang/kirbylang/pull/190
+[PR #191]: https://github.com/kirbylang/kirbylang/pull/191
+[PR #192]: https://github.com/kirbylang/kirbylang/pull/192
+[PR #193]: https://github.com/kirbylang/kirbylang/pull/193
+[PR #195]: https://github.com/kirbylang/kirbylang/pull/195
 [orphan rules]: https://doc.rust-lang.org/reference/items/implementations.html#orphan-rules
 [methods on primitives]: https://doc.rust-lang.org/error_codes/E0390.html
-[conditional conformance]: https://swift.org/blog/conditional-conformance/
 [PartialOrd]: https://doc.rust-lang.org/core/cmp/trait.PartialOrd.html
+[cmp package]: https://pkg.go.dev/cmp#Compare

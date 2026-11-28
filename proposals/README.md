@@ -8,6 +8,7 @@
 - ✅ [sized-number-types](/proposals/sized-number-types/PROPOSAL.md)
 - ✅ [lists](/proposals/lists/PROPOSAL.md)
 - ✅ [top-level-declarations](/proposals/top-level-declarations/PROPOSAL.md)
+- ✅ [primitive-impls](/proposals/primitive-impls/PROPOSAL.md)
 
 ## Draft
 
@@ -30,7 +31,6 @@ Grouped by category. See the [roadmap](/ROADMAP.md) for what each category means
 - [for-each](/proposals/for-each/PROPOSAL.md)
 - [map](/proposals/map/PROPOSAL.md)
 - [pattern-matching](/proposals/pattern-matching/PROPOSAL.md)
-- [primitive-impls](/proposals/primitive-impls/PROPOSAL.md)
 - [result](/proposals/result/PROPOSAL.md)
 - [string-encoding](/proposals/string-encoding/PROPOSAL.md)
 - [strings](/proposals/strings/PROPOSAL.md)

@@ -294,6 +294,29 @@ another machine; the [Tooling Data Proposal] raises this as [Q-paths] and
 [Q-strip]. This is a large area on its own and may warrant its own proposal once
 the interface format is settled.
 
+### **Q:** Can a declaration take a built-in type's name?
+
+<!-- [Q-builtin-names]: #q-can-a-declaration-take-a-built-in-types-name -->
+
+**Status:** Answered
+
+A struct, trait or type alias can not be named like a built-in type today:
+`struct i64 {}`, `trait i64 {}` and `type i64 = string;` are errors. Rust allows
+all three, the new meaning takes over the name, and the original is still
+reachable by a path such as `std::primitive::i64` ([Rust preludes]).
+
+Names from the standard library clash in a related way. A program can declare
+`trait Date`, and `Date.from_parts(...)` is then the error `Trait 'Date' has no
+method 'from_parts'.` Rust does not allow a struct and a trait to share a name
+([E0428]).
+
+#### Answer
+
+Follow Rust once modules exist, so that a built-in type has a path to reach it
+by. Until then a built-in name is rejected for structs, traits and type aliases
+([Primitive Impls Proposal]). A type parameter can take such a name. The
+`trait Date` clash also waits for modules.
+
 ### **Q:** How do modules interact with compile-time reflection?
 
 <!-- [Q-reflect-shared]: #q-how-do-modules-interact-with-compile-time-reflection -->
@@ -347,6 +370,9 @@ These are both technical and non technical terms used throughout the proposal.
 [Embedded Library Proposal]: ../embedded-library/PROPOSAL.md
 [Type Info Proposal]: ../type-info/PROPOSAL.md
 [Language Server Proposal]: ../language-server/PROPOSAL.md
+[Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
+[Rust preludes]: https://doc.rust-lang.org/reference/names/preludes.html
+[E0428]: https://doc.rust-lang.org/error_codes/E0428.html
 
 <!-- Other proposals' questions -->
 

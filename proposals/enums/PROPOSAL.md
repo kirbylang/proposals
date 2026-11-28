@@ -176,6 +176,7 @@ enum Option[T] {
 - `??` accepts an `Option[T]` on the left and a `T` on the right, and gives a `T`: `None` takes the right side. This is the answer to [Q-option-nil].
 - Part C depends entirely on the [Generic Types Proposal]. It is listed here so Parts A and B are designed so it can follow.
 - Once `Option[T]` exists, the natives that the changelog lists as pending it (`@argv`, `@prompt`, `@stdin`, `@strIndexOf`) could be given types.
+- Part C also removes `nil` ([Q-option-nil]). `@argv`, `@prompt` and `@stdin` return an `Option[T]` where they return `nil` today, and `@isNil` is removed. `unit` loses its `Display` impl at the same time ([Q-unit-methods]). C code has to be able to build an `Option` for this, which bears on [Q-option-home].
 - The sketch lists `Err` before `Ok` in `Result`, where Rust lists `Ok` first. That only matters if the order of variants can be seen ([Q-discriminants]).
 
 ### Goals and Non Goals
@@ -187,6 +188,7 @@ What this proposal covers:
 - Variants with values, in both shapes, and enums that refer to themselves
 - Enums with type parameters, once generics exist
 - `??` on an `Option[T]`
+- Removing `nil`, once `Option[T]` exists
 - Building the parts in an order where each can ship without the next
 
 The following is intentionally left out of scope for this proposal:
@@ -196,7 +198,6 @@ The following is intentionally left out of scope for this proposal:
 - Turning an enum into a number and back
 - Using a variant without writing the enum's name in front of it. See [Q-bare-variants] and the [Modules Proposal].
 - Declaring an enum inside a function or block. The top level rule for declarations stays.
-- Removing `nil`. The intent is that `nil` goes away once `Option[T]` exists, but the removal is a separate change ([Q-option-nil]).
 - The `Result` type's uses: natives that return it and the `?` operator. See the [Result Proposal].
 
 ### Implementation Plan
@@ -219,7 +220,7 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 #### Part 3: Compiler and virtual machine (A)
 
 - Declaring an enum, and creating its variants, according to [Q-representation].
-- If variants are heap objects, the garbage collector in `src/gc.c` visits them, and `@print`, `@println`, `@typeof`, and `@instanceOf` each get a case.
+- If variants are heap objects, the garbage collector in `src/gc.c` visits them, and `@print`, `@println` and `@typeof` each get a case.
 
 #### Part 4: Variants with values (B)
 
@@ -233,6 +234,8 @@ This plan is preliminary. It names the parts of the code that are expected to ch
 - Type parameters on an enum declaration, and type arguments where an enum type is written.
 - The type substitution helper in the [Generic Types Proposal] (3.6) handles enum types, the same as struct types.
 - The checker's rule for `??` accepts an `Option[T]` on the left when the right side is a `T`, and the compiler tests for `None` where it tests for `nil` today.
+- `@argv`, `@prompt` and `@stdin` get signatures that return an `Option[T]`.
+- `nil`, `@isNil` and `impl Display for unit` are removed. `@println(());` writes `()`.
 
 #### Part 6: Docs and tooling
 
@@ -629,7 +632,22 @@ Options: (a) Keep `nil` and `??` as they are. `Option[T]` is an ordinary enum ne
 
 #### Answer
 
-(b), and (c) is the intent. `??` works on an `Option[T]` as long as the right side is a `T`, and the result is a `T`. `nil` is expected to go away once `Option[T]` exists. Removing it is a separate change and not part of this proposal, so this proposal does not need to change what `nil` means.
+(b), and (c) is the intent. `??` works on an `Option[T]` as long as the right side is a `T`, and the result is a `T`. `nil` goes away once `Option[T]` exists, and removing it is part of Part C.
+
+### **Q:** What should `unit`'s trait methods return?
+
+[Q-unit-methods]: #q-what-should-units-trait-methods-return
+
+**Status:** Answered
+
+The [Primitive Impls Proposal] gave `unit` its impls. Today `toString` is `"nil"`, `equals` is `true`, `cmp` is `0` and `default` is `()`. Options: (a) keep all four. (b) keep only `Default`. (c) remove the impls. `$"{()}"` is rejected today, which (a) would suggest allowing. The answer should agree with [Q-unit-empty].
+
+#### Answer
+
+`unit` will have no `Display`. It keeps `Eq`, `Ord` and `Default`, as in Rust.
+`@println(());` will write `()`. This happens in Part C, when `nil` is removed.
+Until then nothing changes. `$"{()}"` stays an error, because Kirby has no
+separate debug formatting.
 
 ### **Q:** How does an enum value print?
 
@@ -706,6 +724,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-syntax]: ../macros/PROPOSAL.md#q-what-form-of-syntax-value-do-macros-receive-and-return
 [Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
 [Q-keyword-in]: ../for-each/PROPOSAL.md#q-is-in-a-reserved-word
+[Q-unit-empty]: ../tuples/PROPOSAL.md#q-is-unit-the-empty-tuple
 
 <!-- External -->
 
@@ -720,6 +739,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-variant-fields]: #q-how-are-the-values-inside-a-variant-declared-built-and-read
 [Q-option-home]: #q-where-do-option-and-result-live
 [Q-option-nil]: #q-how-does-optiont-relate-to-nil
+[Q-unit-methods]: #q-what-should-units-trait-methods-return
 [Q-print]: #q-how-does-an-enum-value-print
 [Q-keyword]: #q-is-enum-a-reserved-word
 [PR #169]: https://github.com/kirbylang/kirbylang/pull/169

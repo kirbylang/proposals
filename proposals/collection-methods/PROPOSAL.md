@@ -76,7 +76,7 @@ What is missing:
   `filter`, `sort` or `join`.
 - Traits. The impl parameters can not have bounds, so there is no `Eq`,
   `Display` or `Ord` that uses the items' impls ([Q-list-bounds]). `==` on two
-  lists compares identity ([Q-list-equality]).
+  lists compares identity ([Q-list-equality]). Both are answered below.
 - Filling a bounded type parameter with a list or array. This waits for
   monomorphization.
 - Methods for `Set`, `Map` and tuples, none of which exist. `Map` is designed in
@@ -239,6 +239,35 @@ progress now on the type that already exists; (b) costs more up front but
 lowers the odds of a mechanism that has to be reworked for the second
 collection type that uses it.
 
+### **Q:** Can a list or array impl require something of its item type?
+
+[Q-list-bounds]: #q-can-a-list-or-array-impl-require-something-of-its-item-type
+
+**Status:** Answered
+
+`impl[T: Eq] Eq for [T]` is the error `A list or array impl's parameters can't have bounds.`, and `impl Eq for [i64]` is rejected too. One impl covers every list, so `Eq`, `Ord` and `Display` for lists can not use the items' methods. Rust writes `impl<T: PartialEq> PartialEq for Vec<T>`, and Swift calls this [conditional conformance].
+
+Options: (a) allow bounds on these parameters. (b) leave lists without these traits. (a) is of little use for `[i64]` or `[string]` until primitives can fill bounds.
+
+#### Answer
+
+(a). Bounds will be allowed, built after monomorphization ([Generic Types Proposal] Part 5).
+
+### **Q:** Should `==` and `contains` on lists use the item type's `Eq`?
+
+[Q-list-equality]: #q-should--and-contains-on-lists-use-the-item-types-eq
+
+**Status:** Answered
+
+`==` on two lists or arrays compares identity, so `[1] == [1]` is `false`. `contains` compares items the same way, so a list of structs does not find an equal struct, even with `impl Eq`. Rust compares contents with the item's equality.
+
+Options: (a) write `contains` and `equals` in Kirby under `impl[T: Eq]`, which needs [Q-list-bounds] and monomorphization, and decide whether `==` compares contents. (b) the C code calls the program's `equals`, which means a native calling Kirby code. (c) keep identity.
+
+#### Answer
+
+`==` and `contains` will compare contents, as in Rust, and item types without
+`Eq` will be rejected. This is option (a), built after [Q-list-bounds].
+
 ## Glossary
 
 These are both technical and non technical terms used throughout the
@@ -275,10 +304,11 @@ proposal.
 <!-- Proposals -->
 
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
-[Q-list-bounds]: ../primitive-impls/PROPOSAL.md#q-can-a-list-or-array-impl-require-something-of-its-item-type
-[Q-list-equality]: ../primitive-impls/PROPOSAL.md#q-should--and-contains-on-lists-use-the-item-types-eq
+[Q-list-bounds]: #q-can-a-list-or-array-impl-require-something-of-its-item-type
+[Q-list-equality]: #q-should--and-contains-on-lists-use-the-item-types-eq
 [PR #178]: https://github.com/kirbylang/kirbylang/pull/178
 [PR #184]: https://github.com/kirbylang/kirbylang/pull/184
+[conditional conformance]: https://swift.org/blog/conditional-conformance/
 [Generic Types Proposal]: ../generic-types/PROPOSAL.md
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [Map Proposal]: ../map/PROPOSAL.md

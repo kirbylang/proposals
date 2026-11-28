@@ -185,7 +185,7 @@ What this proposal covers:
 The following is intentionally left out of scope for this proposal:
 
 - Taking a tuple struct apart, such as `let Value(v) = x;`. See the [Destructuring Proposal] and the [Pattern Matching Proposal].
-- Unit structs with no fields at all, such as `struct Marker;`
+- Unit structs with no fields at all, such as `struct Marker;`. They are wanted later, following Rust ([Q-struct-value])
 - Generic tuple structs, such as `struct Wrapper[T](T);`. See the [Generic Types Proposal].
 - Structs with both named and positional fields
 
@@ -460,6 +460,29 @@ Options: (a) Same as regular structs: the author writes `impl Eq`. It is consist
 
 A regular struct value prints as its name followed by `instance`, so `@println(S { x: 1 });` prints `S instance` (verified). Options: (a) Do the same, `Value instance`. (b) Print the name and the fields, `Value(123)`, which matches how the value is built. (a) needs no work, and (b) is friendlier.
 
+### **Q:** Is a struct's name a value?
+
+<!-- [Q-struct-value]: #q-is-a-structs-name-a-value -->
+
+**Status:** Answered
+
+Today a struct's name can be passed and printed: with `struct P {}`, `f(P)` is
+not checked against the parameter's type, and `@println(P);` writes `P`. In Rust
+`struct P {}` declares only a type, and a unit struct `struct P;` also declares
+a value.
+
+The direction is to follow Rust, so that a unit struct can be added later:
+`struct P {}` should not be a value. `@instanceOf(value, P)` was a native that
+took a struct's name as a value.
+
+Options for it: (a) remove `@instanceOf`. (b) allow a struct's name only as that
+argument. (c) replace it with a form that takes a type.
+
+#### Answer
+
+(a). `@instanceOf` is removed. Stopping `struct P {}` from being a value belongs
+with unit structs, which this proposal leaves out of scope.
+
 ## Glossary
 
 These are both technical and non-technical terms used throughout the proposal.
@@ -500,6 +523,7 @@ These are both technical and non-technical terms used throughout the proposal.
 [Q-nested-access-tuples]: ../tuples/PROPOSAL.md#q-how-should-pair01-be-scanned
 [Q-mutability-tuples]: ../tuples/PROPOSAL.md#q-can-an-item-of-a-tuple-be-assigned-to
 [Q-equality-tuples]: ../tuples/PROPOSAL.md#q-how-does-tuple-equality-compare-items
+[Q-struct-value]: #q-is-a-structs-name-a-value
 [Q-samples]: ../top-level-declarations/PROPOSAL.md#q-when-do-code-samples-in-other-proposals-change
 
 <!-- External -->

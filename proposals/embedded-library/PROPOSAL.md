@@ -705,13 +705,13 @@ defined in one instance is unknown in another. A new E2E test,
 
 #### Part 7: What a script may use, and how much
 
-**Libraries.** The 73 natives fall into six groups. The host chooses which
+**Libraries.** The 72 natives fall into six groups. The host chooses which
 groups an instance gets. Only those are defined in the VM and known to the
 checker. `krb` gets all of them.
 
 | Group    | Natives                                                                                                                                                                                |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BASE`   | `@print @println @eprint @eprintln @strConcat @numberToString @boolToString @typeof @is @isNumber @isFunction @isBool @isString @isNil @instanceOf @assert @panic @version` (18)       |
+| `BASE`   | `@print @println @eprint @eprintln @strConcat @numberToString @boolToString @typeof @is @isNumber @isFunction @isBool @isString @isNil @assert @panic @version` (17)                   |
 | `MATH`   | `@ceil @floor @round @trunc @abs @sqrt @pow @min @max @rand @rand01 @randBetween @parseInt @parseFloat` (14)                                                                           |
 | `STRING` | `@strLen @strIsEmpty @strContains @strStartsWith @strEndsWith @strTrim @strToUpper @strToLower @strRepeat @strSplit @strIndexOf @strSlice @strReplace @strReplaceAll @strToBytes` (15) |
 | `ARRAY`  | `@arrLen @arrPush @arrPop @arrInsert @arrRemove @arrClear @arrContains @arrCopy @arrIsEmpty @arrEqual @arrSlice @arrConcat @arrReverse @arrJoin` (14)                                  |

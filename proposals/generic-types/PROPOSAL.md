@@ -210,9 +210,11 @@ Type` block, the parser sets every method's visibility to public regardless
   'P' also needs 'impl Eq for P' -- 'Ord' requires it.
   ```
 
-- **A program cannot implement a trait for a primitive.** `impl Eq for f64`
-  reports "You can't write an impl for a primitive type in user code." The
-  standard library has such impls ([Primitive Impls Proposal], [PR #178]).
+- **A program cannot implement a built-in trait for a primitive.**
+  `impl Eq for f64` reports `Only the standard library can implement 'Eq' for
+  'f64'.` The standard library has such impls ([Primitive Impls Proposal],
+  [PR #178]). A program can implement its own traits for `bool`, `string`,
+  `unit` and the number types.
 - There is **no bound syntax.** You cannot write `fun f[T: Display](x: T)`. The
   grammar has no place for it and the checker has no notion of it.
 
@@ -904,7 +906,7 @@ it.
 
 ## Part 5 — Monomorphization
 
-Building this part also removes three limits that earlier parts leave in place:
+Building this part also removes these limits that earlier parts leave in place:
 
 - A primitive, list or array that implements a trait can fill a bounded type
   parameter. The impls are built ([Primitive Impls Proposal]), but today the
@@ -914,7 +916,12 @@ Building this part also removes three limits that earlier parts leave in place:
   (`typchkNumberImplementsTrait` in the checker, `invokeNumber` in the VM) are
   deleted, and numbers get those traits from impls.
 - `T.default()`, a static method through a bound, can be called. Today it is the
-  error `Can't call a static method on type parameter 'T'.`
+  error `Can't call a static method on type parameter 'T'.` This is also how a
+  static trait method hidden by the type's own is called (10.10).
+- `<`, `<=`, `>` and `>=` on numbers in generic code should behave like the
+  direct operators, so they are `false` with `NaN`. Generic code compares
+  through `cmp`, which sorts `NaN` below every number, so using it for numbers
+  would make `NaN < 1.0` `true`.
 
 The [roadmap](../../ROADMAP.md) builds this before the standard library
 methods that rely on it.
@@ -1385,7 +1392,9 @@ hottest path.
 methods built in for bounded generics. [PR #178] added standard library impls of
 the same traits, used by calls on values of a known type. Monomorphization
 (Part 5) removes the built-in methods, and whether concrete number operands keep
-the built-in instructions afterwards is part of that work.
+the built-in instructions afterwards is part of that work. The ordering
+operators on numbers in generic code should behave like those instructions, so
+that they are `false` with `NaN` ([Q-float-order]).
 
 ### 10.4 Changing `==` runtime semantics
 
@@ -1469,6 +1478,17 @@ unavailable, and that is what the natives pending it need. The [Map Proposal]
 need the same treatment, and the second also needs native signatures to be able
 to write a generic enum type.
 
+### 10.10 Calling a static trait method hidden by the type's own
+
+**Question:** when a type has its own static method and a trait gives it one of
+the same name, how is the trait's called? `P.make()` calls the type's own, and
+`A.make()` is the error `'make' is a static method of 'A'. Call it on a type
+instead.` Rust writes `<P as A>::make()`.
+**Options:** (a) call it through a bound, as `T.make()` with `T: A`, once
+monomorphization is built; (b) a new syntax like Rust's.
+**Answer:** (a). No new syntax. Two traits giving one type static methods of the
+same name stays an error until then.
+
 ---
 
 ## Appendix A — Summary of C-level changes
@@ -1529,7 +1549,7 @@ Every "today" claim in Part 1 can be checked on a clean `main` build at
 
 ```shell
 # build
-just build                 # produces build/krb
+just build                 # produces build/debug/krb
 
 # generic structs and functions work
 ./build/krb exec 'struct Box[T] { pub var value: T; } let a: Box[f64] = Box { value: 1 }; let c: Box[string] = a;'
@@ -1569,9 +1589,9 @@ just build                 # produces build/krb
 ./build/krb exec 'struct P { pub var x: f64; } impl Ord for P { fun cmp(self, other: Self): i64 = 0; }'
 # "'P' also needs 'impl Eq for P' -- 'Ord' requires it."
 
-# primitive impls rejected in programs (checked on 90ca32cd)
-./build/krb exec 'impl Eq for f64 { fun equals(self, other: Self): bool = true; }'
-# "You can't write an impl for a primitive type in user code."
+# a built-in trait on a primitive is rejected in programs (checked on 9726657a)
+./build/debug/krb exec 'impl Eq for f64 { fun equals(self, other: Self): bool = true; }'
+# "Only the standard library can implement 'Eq' for 'f64'."
 ```
 
 ## Link References
@@ -1587,6 +1607,7 @@ just build                 # produces build/krb
 [Tuples Proposal]: ../tuples/PROPOSAL.md
 [PR #178]: https://github.com/kirbylang/kirbylang/pull/178
 [Primitive Impls Proposal]: ../primitive-impls/PROPOSAL.md
+[Q-float-order]: ../primitive-impls/PROPOSAL.md#q-how-are-floats-ordered-when-a-value-is-nan
 [Generic Traits Proposal]: ../generic-traits/PROPOSAL.md
 [Enums Proposal]: ../enums/PROPOSAL.md
 [Trait Types Proposal]: ../trait-types/PROPOSAL.md

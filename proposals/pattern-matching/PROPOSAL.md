@@ -132,7 +132,7 @@ The following is intentionally left out of scope for this proposal:
 - `if let`, `while let`, and `let ... else`
 - Arm conditions, several patterns per arm, ranges, and capturing patterns, until [Q-first-version] is answered
 - Making matching fast, for example by building a decision tree instead of trying arms in order
-- Matching on the type of a value at run time, like `@instanceOf`
+- Matching on the type of a value at run time
 
 ### Implementation Plan
 
